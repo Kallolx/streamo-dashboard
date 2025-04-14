@@ -98,8 +98,8 @@ export default function NewReleasePage() {
     <DashboardLayout
       title="Add New Release"
       subtitle="Create a new music release"
-      parentTitle="Releases"
-      parentPath="/dashboard/catalogue/releases"
+      parentTitle="Catalogue"
+      parentPath="/dashboard/catalogue"
     >
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Upload Cover Art Section */}

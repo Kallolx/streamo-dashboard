@@ -153,7 +153,11 @@ const TableHeader = ({ label, sortKey, currentSort, onSort }: TableHeaderProps) 
   );
 };
 
-export default function ReleasesTable() {
+interface ReleasesTableProps {
+  onTrackSelect?: (trackId: number) => void;
+}
+
+export default function ReleasesTable({ onTrackSelect }: ReleasesTableProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -216,6 +220,19 @@ export default function ReleasesTable() {
     });
   };
   
+  // Handle row click to view track details
+  const handleRowClick = (id: number, e: React.MouseEvent) => {
+    // Prevent triggering if clicking on a link or checkbox
+    if ((e.target as HTMLElement).tagName === 'A' || 
+        (e.target as HTMLElement).tagName === 'INPUT') {
+      return;
+    }
+    
+    if (onTrackSelect) {
+      onTrackSelect(id);
+    }
+  };
+  
   return (
     <div className="bg-[#161A1F] rounded-lg overflow-hidden">
       {/* Search and add bar */}
@@ -273,6 +290,7 @@ export default function ReleasesTable() {
               <tr 
                 key={release.id} 
                 className="hover:bg-[#1A1E24] transition-colors cursor-pointer"
+                onClick={(e) => handleRowClick(release.id, e)}
               >
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center">

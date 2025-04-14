@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { House, Books, CurrencyDollar, ChartBar, CaretDown, File, SignOut } from '@phosphor-icons/react';           
+import { House, Books, ChartBar, SignOut, User, ArrowsDownUp, CurrencyDollar, ShoppingCart } from '@phosphor-icons/react';           
 
 
 interface SidebarProps {
@@ -14,24 +14,6 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  
-  // Always keep catalogue open
-  const [catalogueOpen, setCatalogueOpen] = useState(true);
-  
-  // Ensure catalogue stays open
-  useEffect(() => {
-    if (!catalogueOpen) {
-      setCatalogueOpen(true);
-    }
-  }, [catalogueOpen]);
-
-  const catalogueItems = [
-    { name: 'Releases', path: '/dashboard/catalogue/releases' },
-    { name: 'Tracks', path: '/dashboard/catalogue/tracks' },
-    { name: 'Videos', path: '/dashboard/catalogue/videos' },
-    { name: 'Artists', path: '/dashboard/catalogue/artists' },
-    { name: 'Labels', path: '/dashboard/catalogue/labels' },
-  ];
 
   const isActive = (path: string) => {
     // Handle the root path case
@@ -44,16 +26,12 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       return true;
     }
     
-    // For sub-page matches (like /dashboard/catalogue/releases/new should match releases)
-    if (path !== '/dashboard' && pathname?.startsWith(path + '/')) {
+    // For sub-page matches (like /dashboard/catalogue/releases/new should match catalogue)
+    if (path !== '/dashboard' && pathname?.startsWith(path)) {
       return true;
     }
     
     return false;
-  };
-
-  const isActiveCatalogue = () => {
-    return catalogueItems.some(item => pathname?.includes(item.path));
   };
 
   const handleLogout = () => {
@@ -79,10 +57,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 pt-6 px-4 space-y-2">
+        <nav className="flex-1 pt-6 px-4 mt-4">
+          {/* Dashboard Section */}
+          {isOpen && <span className="text-xs font-medium text-blue-400 px-3 mb-1 block">DASHBOARD</span>}
+          
           <Link
             href="/dashboard"
-            className={`flex items-center p-3 rounded-lg transition-colors ${
+            className={`flex items-center p-3 rounded-lg transition-colors mb-2 ${
               isActive('/dashboard')
                 ? 'bg-purple-600 text-white'
                 : 'text-gray-300 hover:bg-gray-700'
@@ -95,74 +76,130 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             {isOpen && <span className="ml-3">Home</span>}
           </Link>
 
-          <div>
-            <button
-              onClick={() => setCatalogueOpen(!catalogueOpen)}
-              className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
-                isActiveCatalogue()
+          {/* Others Section */}
+          {isOpen && <span className="text-xs font-medium text-gray-400 px-3 mt-4 mb-1 block">OTHERS</span>}
+          
+          <div className="space-y-2">
+            <Link
+              href="/dashboard/catalogue"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/catalogue')
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-300 hover:bg-gray-700'
               }`}
             >
-              <div className="flex items-center">
-                {isActiveCatalogue() ? 
-                  <Books size={20} weight="fill" /> : 
-                  <Books size={20} />
-                }
-                {isOpen && <span className="ml-3">Catalogue</span>}
-              </div>
-              {isOpen && <CaretDown size={16} />}
-            </button>
+              {isActive('/dashboard/catalogue') ? 
+                <Books size={20} weight="fill" /> : 
+                <Books size={20} />
+              }
+              {isOpen && <span className="ml-3">Catalogue</span>}
+            </Link>
 
-            {isOpen && (
-              <div className="pl-10 mt-1 space-y-1">
-                {catalogueItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.path}
-                    className={`flex items-center py-2 px-3 rounded-md transition-colors ${
-                      isActive(item.path)
-                        ? 'bg-gray-700 text-white'
-                        : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-                    }`}
-                  >
-                    <File size={16} />
-                    <span className="ml-2">{item.name}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
+            <Link
+              href="/dashboard/transactions"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/transactions')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              {isActive('/dashboard/transactions') ? 
+                <ArrowsDownUp size={20} weight="fill" /> : 
+                <ArrowsDownUp size={20} />
+              }
+              {isOpen && <span className="ml-3">Transactions</span>}
+            </Link>
+
+            <Link
+              href="/dashboard/royalties"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/royalties')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              {isActive('/dashboard/royalties') ? 
+                <CurrencyDollar size={20} weight="fill" /> : 
+                <CurrencyDollar size={20} />
+              }
+              {isOpen && <span className="ml-3">Royalties</span>}
+            </Link>
+
+            <Link
+              href="/dashboard/analytics"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/analytics')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              {isActive('/dashboard/analytics') ? 
+                <ChartBar size={20} weight="fill" /> : 
+                <ChartBar size={20} />
+              }
+              {isOpen && <span className="ml-3">Analytics</span>}
+            </Link>
+
+            <Link
+              href="/dashboard/user-management"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/user-management')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              {isActive('/dashboard/user-management') ? 
+                <User size={20} weight="fill" /> : 
+                <User size={20} />
+              }
+              {isOpen && <span className="ml-3">User Management</span>}
+            </Link>
+
+            <Link
+              href="/dashboard/withdraw-request"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/withdraw-request')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              {isActive('/dashboard/withdraw-request') ? 
+                <CurrencyDollar size={20} weight="fill" /> : 
+                <CurrencyDollar size={20} />
+              }
+              {isOpen && <span className="ml-3">Withdraw Request</span>}
+            </Link>
+
+            <Link
+              href="/dashboard/distribution"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/distribution')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              {isActive('/dashboard/distribution') ? 
+                <ArrowsDownUp size={20} weight="fill" /> : 
+                <ArrowsDownUp size={20} />
+              }
+              {isOpen && <span className="ml-3">Distribution</span>}
+            </Link>
+
+            <Link
+              href="/dashboard/stores"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/stores')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              {isActive('/dashboard/stores') ? 
+                <ShoppingCart size={20} weight="fill" /> : 
+                <ShoppingCart size={20} />
+              }
+              {isOpen && <span className="ml-3">Stores</span>}
+            </Link>
           </div>
-
-          <Link
-            href="/dashboard/finance"
-            className={`flex items-center p-3 rounded-lg transition-colors ${
-              isActive('/dashboard/finance')
-                ? 'bg-purple-600 text-white'
-                : 'text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            {isActive('/dashboard/finance') ? 
-              <CurrencyDollar size={20} weight="fill" /> : 
-              <CurrencyDollar size={20} />
-            }
-            {isOpen && <span className="ml-3">Finance</span>}
-          </Link>
-
-          <Link
-            href="/dashboard/analytics"
-            className={`flex items-center p-3 rounded-lg transition-colors ${
-              isActive('/dashboard/analytics')
-                ? 'bg-purple-600 text-white'
-                : 'text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            {isActive('/dashboard/analytics') ? 
-              <ChartBar size={20} weight="fill" /> : 
-              <ChartBar size={20} />
-            }
-            {isOpen && <span className="ml-3">Analytics</span>}
-          </Link>
         </nav>
 
         {/* Logout Button */}

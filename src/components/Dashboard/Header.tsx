@@ -51,13 +51,17 @@ export default function Header({
     
     // Handle Catalogue sub-sections
     if (pathname?.includes('/dashboard/catalogue')) {
+      if (pathname === '/dashboard/catalogue') return 'Catalogue';
       if (pathname === '/dashboard/catalogue/releases') return 'Releases';
       if (pathname?.includes('/dashboard/catalogue/releases/new')) return 'Add New Release';
       if (pathname === '/dashboard/catalogue/tracks') return 'Tracks';
+      if (pathname?.includes('/dashboard/catalogue/tracks/new')) return 'Add New Track';
       if (pathname === '/dashboard/catalogue/videos') return 'Videos';
-      if (pathname === '/dashboard/catalogue/contributions') return 'Contributions';
+      if (pathname?.includes('/dashboard/catalogue/videos/new')) return 'Add New Video';
       if (pathname === '/dashboard/catalogue/artists') return 'Artists';
+      if (pathname?.includes('/dashboard/catalogue/artists/new')) return 'Add New Artist';
       if (pathname === '/dashboard/catalogue/labels') return 'Labels';
+      if (pathname?.includes('/dashboard/catalogue/labels/new')) return 'Add New Label';
       return 'Catalogue'; // Default for catalogue section
     }
     
@@ -82,12 +86,12 @@ export default function Header({
   const getParentPath = () => {
     if (parentPath) return parentPath;
     
-    if (pathname?.includes('/dashboard/catalogue/releases')) return '/dashboard/catalogue/releases';
-    if (pathname?.includes('/dashboard/catalogue/tracks')) return '/dashboard/catalogue/tracks';
-    if (pathname?.includes('/dashboard/catalogue/videos')) return '/dashboard/catalogue/videos';
-    if (pathname?.includes('/dashboard/catalogue/contributions')) return '/dashboard/catalogue/contributions';
-    if (pathname?.includes('/dashboard/catalogue/artists')) return '/dashboard/catalogue/artists';
-    if (pathname?.includes('/dashboard/catalogue/labels')) return '/dashboard/catalogue/labels';
+    if (pathname?.includes('/dashboard/catalogue/releases')) return '/dashboard/catalogue';
+    if (pathname?.includes('/dashboard/catalogue/tracks')) return '/dashboard/catalogue';
+    if (pathname?.includes('/dashboard/catalogue/videos')) return '/dashboard/catalogue';
+    if (pathname?.includes('/dashboard/catalogue/contributions')) return '/dashboard/catalogue';
+    if (pathname?.includes('/dashboard/catalogue/artists')) return '/dashboard/catalogue';
+    if (pathname?.includes('/dashboard/catalogue/labels')) return '/dashboard/catalogue';
     
     return null;
   };

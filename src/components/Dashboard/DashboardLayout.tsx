@@ -6,7 +6,7 @@ import Header from './Header';
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  title: string;
+  title?: string;
   subtitle?: string;
   parentTitle?: string;
   parentPath?: string;
@@ -14,9 +14,8 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ 
   children, 
-  title, 
+  title,
   subtitle,
-
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -38,10 +37,12 @@ export default function DashboardLayout({
         />
         
         <main className="flex-1 p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold">{title}</h1>
-            {subtitle && <p className="text-gray-400">{subtitle}</p>}
-          </div>
+          {title && (
+            <div className="mb-6">
+              <h1 className="text-2xl font-semibold">{title}</h1>
+              {subtitle && <p className="text-gray-400">{subtitle}</p>}
+            </div>
+          )}
           
           {children}
         </main>

@@ -5,10 +5,7 @@ import DashboardHome from "@/components/Dashboard/DashboardHome";
 
 export default function Dashboard() {
   return (
-    <DashboardLayout 
-      title="Dashboard" 
-      subtitle="Welcome back, James"
-    >
+    <DashboardLayout>
       <DashboardHome />
     </DashboardLayout>
   );

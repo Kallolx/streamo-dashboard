@@ -4,6 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+interface TracksTableProps {
+  onTrackSelect?: (trackId: number) => void;
+}
+
 // Mock data for tracks
 const tracksData = [
   { 
@@ -153,28 +157,7 @@ const TableHeader = ({ label, sortKey, currentSort, onSort }: TableHeaderProps) 
   );
 };
 
-const StatusBadge = ({ status }: { status: string }) => {
-  let colorClass = '';
-  
-  switch (status) {
-    case 'Released':
-      colorClass = 'bg-green-800 text-green-100';
-      break;
-    case 'Unreleased':
-      colorClass = 'bg-yellow-700 text-yellow-100';
-      break;
-    default:
-      colorClass = 'bg-gray-700 text-gray-100';
-  }
-  
-  return (
-    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${colorClass}`}>
-      {status}
-    </span>
-  );
-};
-
-export default function TracksTable() {
+export default function TracksTable({ onTrackSelect }: TracksTableProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -238,6 +221,19 @@ export default function TracksTable() {
     });
   };
 
+  // Handle row click
+  const handleRowClick = (id: number, e: React.MouseEvent) => {
+    // Prevent triggering if clicking on checkbox or link
+    if ((e.target as HTMLElement).tagName === 'INPUT' || 
+        (e.target as HTMLElement).tagName === 'A') {
+      return;
+    }
+    
+    if (onTrackSelect) {
+      onTrackSelect(id);
+    }
+  };
+
   return (
     <div className="bg-[#161A1F] rounded-lg overflow-hidden">
       {/* Search and add bar */}
@@ -295,6 +291,7 @@ export default function TracksTable() {
               <tr 
                 key={track.id} 
                 className="hover:bg-[#1A1E24] transition-colors cursor-pointer"
+                onClick={(e) => handleRowClick(track.id, e)}
               >
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center">
@@ -319,8 +316,8 @@ export default function TracksTable() {
                 <td className="px-4 py-3 whitespace-nowrap">{track.contentRating}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{track.type}</td>
                 <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{track.isrc}</td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <StatusBadge status={track.status} />
+                <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                  {track.status}
                 </td>
               </tr>
             ))}
