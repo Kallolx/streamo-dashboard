@@ -193,7 +193,7 @@ export default function VideosTable() {
   
   // Handle Create New button click
   const handleCreateNew = () => {
-    router.push('/dashboard/catalogue/videos/new');
+    router.push('/dashboard/catalogue');
   };
 
   // Handle checkbox changes

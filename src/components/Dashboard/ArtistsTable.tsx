@@ -140,7 +140,7 @@ export default function ArtistsTable() {
   
   // Handle Create New button click
   const handleCreateNew = () => {
-    router.push('/dashboard/catalogue/artists/new');
+    router.push('/dashboard/catalogue');
   };
 
   // Handle checkbox changes

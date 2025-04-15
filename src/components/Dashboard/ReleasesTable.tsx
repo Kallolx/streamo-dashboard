@@ -196,7 +196,7 @@ export default function ReleasesTable({ onTrackSelect }: ReleasesTableProps) {
   
   // Handle Create New button click
   const handleCreateNew = () => {
-    router.push('/dashboard/catalogue/releases/new');
+    router.push('/dashboard/create-new?tab=releases');
   };
 
   // Handle checkbox changes
@@ -262,11 +262,11 @@ export default function ReleasesTable({ onTrackSelect }: ReleasesTableProps) {
       </div>
       
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-hidden">
         <table className="min-w-full divide-y divide-gray-700">
           <thead className="bg-[#1A1E24]">
             <tr>
-              <th className="w-4 px-4 py-3">
+              <th className="sticky left-0 z-10 bg-[#1A1E24] w-4 px-4 py-3">
                 <div className="flex items-center">
                   <input 
                     type="checkbox"
@@ -292,7 +292,7 @@ export default function ReleasesTable({ onTrackSelect }: ReleasesTableProps) {
                 className="hover:bg-[#1A1E24] transition-colors cursor-pointer"
                 onClick={(e) => handleRowClick(release.id, e)}
               >
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="sticky left-0 z-10 bg-[#161A1F] hover:bg-[#1A1E24] px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center">
                     <input 
                       type="checkbox"

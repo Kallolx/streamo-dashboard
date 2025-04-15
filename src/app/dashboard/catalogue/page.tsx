@@ -123,13 +123,13 @@ export default function CataloguePage() {
   return (
     <DashboardLayout>
       {/* Tabs Navigation - styled like TrackDetailsModal */}
-      <div className="flex px-5 py-2 space-x-2 mb-4">
+      <div className="flex flex-wrap gap-2 px-5 py-2 mb-4 overflow-x-auto">
         {catalogueTabs.map((tab) => (
           <button
             key={tab.name}
             onClick={() => handleTabChange(tab.name)}
-            className={`px-5 py-2 rounded-full ${
-              activeTab === tab.name ? 'bg-[#A365FF] text-white' : 'bg-[#1A1E24] text-gray-300'
+            className={`px-5 py-2 rounded-full whitespace-nowrap ${
+              activeTab === tab.name ? 'bg-[#A365FF] text-white' : 'bg-[#1A1E24] text-gray-300 hover:bg-[#252A33]'
             }`}
           >
             {tab.name}
@@ -138,13 +138,13 @@ export default function CataloguePage() {
       </div>
 
       {/* Tab Title and Description */}
-      <div className="mb-6">
+      <div className="px-5 mb-6">
         <h1 className="text-2xl font-bold text-white">{currentTab.title}</h1>
         <p className="text-gray-400">{currentTab.description}</p>
       </div>
 
       {/* Tab Content */}
-      <div className="bg-[#161A1F] rounded-lg p-4">
+      <div className="bg-[#161A1F] rounded-lg p-0 sm:p-4">
         {activeTab === 'Releases' && (
           <ReleasesTable onTrackSelect={handleTrackSelect} />
         )}

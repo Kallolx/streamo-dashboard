@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 // Mock data for labels
 const mockLabels = [
@@ -66,12 +67,13 @@ const TableHeader = ({ label, sortKey, currentSort, onSort }: TableHeaderProps) 
 };
 
 export default function LabelsTable() {
+  const router = useRouter();
   const [labels, setLabels] = useState(mockLabels);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [currentSort, setCurrentSort] = useState({ key: 'title', direction: 'asc' });
+  const [currentSort, setCurrentSort] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'title', direction: 'asc' });
 
   // Items per page
   const itemsPerPage = 8;
@@ -124,6 +126,11 @@ export default function LabelsTable() {
     });
   };
 
+  // Handle creating a new label
+  const handleCreateNew = () => {
+    router.push('/dashboard/create-new?tab=labels');
+  };
+
   return (
     <div className="bg-[#161A1F] rounded-lg overflow-hidden">
       {/* Search and add bar */}
@@ -144,12 +151,12 @@ export default function LabelsTable() {
             />
           </div>
         </div>
-        <Link 
-          href="/dashboard/catalogue/labels/new" 
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+        <button 
+          onClick={handleCreateNew}
+          className="inline-flex cursor-pointer items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
         >
           Create New
-        </Link>
+        </button>
       </div>
 
       {/* Table */}
@@ -167,6 +174,24 @@ export default function LabelsTable() {
                   />
                 </div>
               </th>
+              <TableHeader
+                label="Label Title"
+                sortKey="title"
+                currentSort={currentSort}
+                onSort={handleSort}
+              />
+              <TableHeader
+                label="Label ID"
+                sortKey="labelId"
+                currentSort={currentSort}
+                onSort={handleSort}
+              />
+              <TableHeader
+                label="Creation Date"
+                sortKey="creationDate"
+                currentSort={currentSort}
+                onSort={handleSort}
+              />
             </tr>
           </thead>
           <tbody className="bg-[#161A1F] divide-y divide-gray-700">
