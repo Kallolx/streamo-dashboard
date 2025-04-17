@@ -4,57 +4,111 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-// Mock data for artists
-const artistsData = [
+interface VideosTableProps {
+  onVideoSelect?: (videoId: number) => void;
+}
+
+// Mock data for videos
+const videosData = [
   { 
     id: 1, 
-    name: 'Neon Pulse',
-    artistId: 'AR00123'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
   { 
     id: 2, 
-    name: 'Luna Waves',
-    artistId: 'AR00456'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
   { 
     id: 3, 
-    name: 'Atlas Rogue',
-    artistId: 'AR00789'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
   { 
     id: 4, 
-    name: 'Neon Pulse',
-    artistId: 'AR00123'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
   { 
     id: 5, 
-    name: 'Luna Waves',
-    artistId: 'AR00456'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
   { 
     id: 6, 
-    name: 'Midnight Drive',
-    artistId: 'AR00123'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
   { 
     id: 7, 
-    name: 'Atlas Rogue',
-    artistId: 'AR00789'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
   { 
     id: 8, 
-    name: 'Luna Waves',
-    artistId: 'AR00456'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
   { 
     id: 9, 
-    name: 'Midnight Drive',
-    artistId: 'AR00123'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
   { 
     id: 10, 
-    name: 'Atlas Rogue',
-    artistId: 'AR00789'
+    title: 'Midnight Drive', 
+    releaseId: 'TRK00123',
+    artist: 'Neon Pulse', 
+    label: 'Fiction Records',
+    upc: '093624241126',
+    videoIsrc: 'US-XYZ-23-00001',
+    status: 'Released' 
   },
 ];
 
@@ -103,20 +157,23 @@ const TableHeader = ({ label, sortKey, currentSort, onSort }: TableHeaderProps) 
   );
 };
 
-export default function ArtistsTable() {
+export default function VideosTable({ onVideoSelect }: VideosTableProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedArtists, setSelectedArtists] = useState<number[]>([]);
+  const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [currentSort, setCurrentSort] = useState({ key: 'name', direction: 'asc' });
+  const [currentSort, setCurrentSort] = useState({ key: 'title', direction: 'asc' });
   const itemsPerPage = 8;
   
-  // Filter and sort artists
-  const filteredData = artistsData
+  // Filter and sort videos
+  const filteredData = videosData
     .filter(item => 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.artistId.toLowerCase().includes(searchTerm.toLowerCase())
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.upc.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.videoIsrc.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
       const key = currentSort.key as keyof typeof a;
@@ -128,7 +185,7 @@ export default function ArtistsTable() {
   // Pagination logic
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentArtists = filteredData.slice(startIndex, startIndex + itemsPerPage);
+  const currentVideos = filteredData.slice(startIndex, startIndex + itemsPerPage);
   
   // Handle sort
   const handleSort = (key: string) => {
@@ -140,28 +197,41 @@ export default function ArtistsTable() {
   
   // Handle Create New button click
   const handleCreateNew = () => {
-    router.push('/dashboard/catalogue');
+    router.push('/dashboard/catalogue/new?tab=videos');
   };
 
   // Handle checkbox changes
   const handleSelectAll = () => {
     if (selectAll) {
-      setSelectedArtists([]);
+      setSelectedVideos([]);
     } else {
-      const allArtistIds = currentArtists.map(artist => artist.id);
-      setSelectedArtists(allArtistIds);
+      const allVideoIds = currentVideos.map(video => video.id);
+      setSelectedVideos(allVideoIds);
     }
     setSelectAll(!selectAll);
   };
 
-  const handleSelectArtist = (id: number) => {
-    setSelectedArtists(prev => {
+  const handleSelectVideo = (id: number) => {
+    setSelectedVideos(prev => {
       if (prev.includes(id)) {
-        return prev.filter(artistId => artistId !== id);
+        return prev.filter(videoId => videoId !== id);
       } else {
         return [...prev, id];
       }
     });
+  };
+  
+  // Handle row click
+  const handleRowClick = (id: number, e: React.MouseEvent) => {
+    // Prevent triggering if clicking on checkbox or link
+    if ((e.target as HTMLElement).tagName === 'INPUT' || 
+        (e.target as HTMLElement).tagName === 'A') {
+      return;
+    }
+    
+    if (onVideoSelect) {
+      onVideoSelect(id);
+    }
   };
   
   return (
@@ -207,37 +277,46 @@ export default function ArtistsTable() {
                   />
                 </div>
               </th>
-              <TableHeader label="Artist Name" sortKey="name" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Artist ID" sortKey="artistId" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Title" sortKey="title" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Release ID" sortKey="releaseId" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Artist Name" sortKey="artist" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Label" sortKey="label" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="UPC" sortKey="upc" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Video ISRC" sortKey="videoIsrc" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Creation date" sortKey="status" currentSort={currentSort} onSort={handleSort} />
             </tr>
           </thead>
           <tbody className="bg-[#161A1F] divide-y divide-gray-700">
-            {currentArtists.map((artist) => (
+            {currentVideos.map((video) => (
               <tr 
-                key={artist.id} 
+                key={video.id} 
                 className="hover:bg-[#1A1E24] transition-colors cursor-pointer"
+                onClick={(e) => handleRowClick(video.id, e)}
               >
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center">
                     <input 
                       type="checkbox"
                       className="w-4 h-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                      checked={selectedArtists.includes(artist.id)}
-                      onChange={() => handleSelectArtist(artist.id)}
+                      checked={selectedVideos.includes(video.id)}
+                      onChange={() => handleSelectVideo(video.id)}
                     />
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <Link 
-                    href={`/dashboard/catalogue/artists/${artist.id}`} 
+                    href={`/dashboard/catalogue/videos/${video.id}`} 
                     className="text-white hover:text-purple-400"
                   >
-                    {artist.name}
+                    {video.title}
                   </Link>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">
-                  {artist.artistId}
-                </td>
+                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{video.releaseId}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{video.artist}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{video.label}</td>
+                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{video.upc}</td>
+                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{video.videoIsrc}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{video.status}</td>
               </tr>
             ))}
           </tbody>
@@ -247,7 +326,7 @@ export default function ArtistsTable() {
       {/* Empty state */}
       {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-400">
-          No artists found. Try adjusting your search or create a new artist.
+          No videos found. Try adjusting your search or create a new video.
         </div>
       )}
       
@@ -281,7 +360,7 @@ export default function ArtistsTable() {
                 <span className="font-medium">
                   {Math.min(startIndex + itemsPerPage, filteredData.length)}
                 </span>{' '}
-                of <span className="font-medium">{filteredData.length}</span> artists
+                of <span className="font-medium">{filteredData.length}</span> videos
               </p>
             </div>
             <div>

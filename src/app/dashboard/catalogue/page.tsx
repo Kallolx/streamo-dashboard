@@ -3,12 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
-import ReleasesTable from "@/components/Dashboard/ReleasesTable";
-import TrackDetailsModal from "@/components/Dashboard/TrackDetailsModal";
-import TracksTable from "@/components/Dashboard/TracksTable";
-import VideosTable from "@/components/Dashboard/VideosTable";
-import ArtistsTable from "@/components/Dashboard/ArtistsTable";
-import LabelsTable from "@/components/Dashboard/LabelsTable";
+import ReleasesTable from "@/components/Dashboard/Tables/ReleasesTable";
+import ReleaseDetailsModal from "@/components/Dashboard/models/ReleaseDetailsModal";
+import TrackDetailsModal from "@/components/Dashboard/models/TrackDetailsModal";
+import VideoDetailsModal from "@/components/Dashboard/models/VideoDetailsModel";
+import ArtistDetailsModel from "@/components/Dashboard/models/ArtistDetailsModel";
+import TracksTable from "@/components/Dashboard/Tables/TracksTable";
+import VideosTable from "@/components/Dashboard/Tables/VideosTable";
+import ArtistsTable from "@/components/Dashboard/Tables/ArtistsTable";
+import LabelsTable from "@/components/Dashboard/Tables/LabelsTable";
 
 // Example track data for the modal
 const sampleTracks = [
@@ -69,6 +72,46 @@ const sampleTracks = [
   }
 ];
 
+// Sample artist data
+const sampleArtists = [
+  {
+    id: 1,
+    name: "Future Sound",
+    imageSrc: "/images/music/3.png",
+    bio: "Future Sound is an electronic music producer known for innovative soundscapes and cutting-edge production techniques. With a unique blend of synthwave and modern electronic elements, Future Sound has established a distinctive presence in the electronic music scene.",
+    label: "Electronic Dreams",
+    totalTracks: 28,
+    totalAlbums: 3,
+    type: "Solo Artist",
+    tags: ["USA", "Electronic", "Synthwave"],
+    platforms: ["spotify", "apple", "youtube", "soundcloud"]
+  },
+  {
+    id: 2,
+    name: "Neon Pulse",
+    imageSrc: "/images/music/1.png",
+    bio: "Neon Pulse is an alternative rock band from Los Angeles, known for their energetic performances and nostalgic sound that blends 80s synth elements with modern rock.",
+    label: "Retrowave Records",
+    totalTracks: 42,
+    totalAlbums: 4,
+    type: "Band",
+    tags: ["USA", "Alternative Rock", "Synth-Rock"],
+    platforms: ["spotify", "apple", "soundcloud"]
+  },
+  {
+    id: 3,
+    name: "Beat Masters",
+    imageSrc: "/images/music/5.png",
+    bio: "Beat Masters is a hip-hop production team that has worked with some of the biggest names in the industry. Their distinctive style combines classic boom bap with contemporary trap elements.",
+    label: "Urban Legends",
+    totalTracks: 56,
+    totalAlbums: 2,
+    type: "Duo",
+    tags: ["UK", "Hip-Hop", "Trap"],
+    platforms: ["spotify", "youtube", "soundcloud"]
+  }
+];
+
 // Define the catalogue tabs
 const catalogueTabs = [
   { 
@@ -99,8 +142,13 @@ const catalogueTabs = [
 ];
 
 export default function CataloguePage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState(sampleTracks[0]);
+  // Modal states for each type
+  const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
+  const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(sampleTracks[0]);
+  const [selectedArtist, setSelectedArtist] = useState(sampleArtists[0]);
   const [activeTab, setActiveTab] = useState('Releases');
   const router = useRouter();
   const pathname = usePathname();
@@ -111,13 +159,39 @@ export default function CataloguePage() {
   // Handle tab selection
   const handleTabChange = (tabName: string) => {
     setActiveTab(tabName);
+    // Close any open modals when changing tabs
+    setIsReleaseModalOpen(false);
+    setIsTrackModalOpen(false);
+    setIsVideoModalOpen(false);
+    setIsArtistModalOpen(false);
+  };
+
+  // Handle release selection
+  const handleReleaseSelect = (releaseId: number) => {
+    const trackIndex = releaseId % sampleTracks.length;
+    setSelectedItem(sampleTracks[trackIndex]);
+    setIsReleaseModalOpen(true);
   };
 
   // Handle track selection
   const handleTrackSelect = (trackId: number) => {
     const trackIndex = trackId % sampleTracks.length;
-    setSelectedTrack(sampleTracks[trackIndex]);
-    setIsModalOpen(true);
+    setSelectedItem(sampleTracks[trackIndex]);
+    setIsTrackModalOpen(true);
+  };
+
+  // Handle video selection
+  const handleVideoSelect = (videoId: number) => {
+    const videoIndex = videoId % sampleTracks.length;
+    setSelectedItem(sampleTracks[videoIndex]);
+    setIsVideoModalOpen(true);
+  };
+
+  // Handle artist selection
+  const handleArtistSelect = (artistId: number) => {
+    const artistIndex = artistId % sampleArtists.length;
+    setSelectedArtist(sampleArtists[artistIndex]);
+    setIsArtistModalOpen(true);
   };
 
   return (
@@ -146,7 +220,7 @@ export default function CataloguePage() {
       {/* Tab Content */}
       <div className="bg-[#161A1F] rounded-lg p-0 sm:p-4">
         {activeTab === 'Releases' && (
-          <ReleasesTable onTrackSelect={handleTrackSelect} />
+          <ReleasesTable onTrackSelect={handleReleaseSelect} />
         )}
         
         {activeTab === 'Tracks' && (
@@ -154,11 +228,11 @@ export default function CataloguePage() {
         )}
         
         {activeTab === 'Videos' && (
-          <VideosTable />
+          <VideosTable onVideoSelect={handleVideoSelect} />
         )}
         
         {activeTab === 'Artists' && (
-          <ArtistsTable />
+          <ArtistsTable onArtistSelect={handleArtistSelect} />
         )}
         
         {activeTab === 'Labels' && (
@@ -166,10 +240,25 @@ export default function CataloguePage() {
         )}
       </div>
       
+      {/* Release Details Modal */}
+      <ReleaseDetailsModal
+        isOpen={isReleaseModalOpen}
+        onClose={() => setIsReleaseModalOpen(false)}
+        track={selectedItem}
+        initialStatus="processing"
+        onApprove={(trackId) => {
+          console.log(`Release ${trackId} approved`);
+        }}
+        onReject={(trackId) => {
+          console.log(`Release ${trackId} rejected`);
+        }}
+      />
+
+      {/* Track Details Modal */}
       <TrackDetailsModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        track={selectedTrack}
+        isOpen={isTrackModalOpen}
+        onClose={() => setIsTrackModalOpen(false)}
+        track={selectedItem}
         initialStatus="processing"
         onApprove={(trackId) => {
           console.log(`Track ${trackId} approved`);
@@ -177,6 +266,37 @@ export default function CataloguePage() {
         onReject={(trackId) => {
           console.log(`Track ${trackId} rejected`);
         }}
+      />
+      
+      {/* Video Details Modal */}
+      <VideoDetailsModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        video={{
+          id: selectedItem.id,
+          title: selectedItem.title,
+          imageSrc: selectedItem.imageSrc,
+          primaryArtist: selectedItem.primaryArtist,
+          genre: selectedItem.genre,
+          contentRating: selectedItem.contentRating,
+          isrc: selectedItem.isrc,
+          duration: selectedItem.duration,
+          creationDate: selectedItem.releaseDate
+        }}
+        initialStatus="processing"
+        onApprove={(videoId) => {
+          console.log(`Video ${videoId} approved`);
+        }}
+        onReject={(videoId) => {
+          console.log(`Video ${videoId} rejected`);
+        }}
+      />
+
+      {/* Artist Details Modal */}
+      <ArtistDetailsModel
+        isOpen={isArtistModalOpen}
+        onClose={() => setIsArtistModalOpen(false)}
+        artist={selectedArtist}
       />
     </DashboardLayout>
   );

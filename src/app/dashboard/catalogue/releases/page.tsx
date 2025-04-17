@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
-import ReleasesTable from "@/components/Dashboard/ReleasesTable";
-import TrackDetailsModal from "@/components/Dashboard/TrackDetailsModal";
+import ReleasesTable from "@/components/Dashboard/Tables/ReleasesTable";
+import TrackDetailsModal from "@/components/Dashboard/models/ReleaseDetailsModal";
 
 // Example track data for the modal
 const sampleTracks = [

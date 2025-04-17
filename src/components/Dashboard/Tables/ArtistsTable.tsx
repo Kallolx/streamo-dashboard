@@ -4,107 +4,57 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-// Mock data for videos
-const videosData = [
+// Mock data for artists
+const artistsData = [
   { 
     id: 1, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Neon Pulse',
+    artistId: 'AR00123'
   },
   { 
     id: 2, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Luna Waves',
+    artistId: 'AR00456'
   },
   { 
     id: 3, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Atlas Rogue',
+    artistId: 'AR00789'
   },
   { 
     id: 4, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Neon Pulse',
+    artistId: 'AR00123'
   },
   { 
     id: 5, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Luna Waves',
+    artistId: 'AR00456'
   },
   { 
     id: 6, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Midnight Drive',
+    artistId: 'AR00123'
   },
   { 
     id: 7, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Atlas Rogue',
+    artistId: 'AR00789'
   },
   { 
     id: 8, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Luna Waves',
+    artistId: 'AR00456'
   },
   { 
     id: 9, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Midnight Drive',
+    artistId: 'AR00123'
   },
   { 
     id: 10, 
-    title: 'Midnight Drive', 
-    releaseId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    label: 'Fiction Records',
-    upc: '093624241126',
-    videoIsrc: 'US-XYZ-23-00001',
-    status: 'Released' 
+    name: 'Atlas Rogue',
+    artistId: 'AR00789'
   },
 ];
 
@@ -153,23 +103,24 @@ const TableHeader = ({ label, sortKey, currentSort, onSort }: TableHeaderProps) 
   );
 };
 
-export default function VideosTable() {
+interface ArtistsTableProps {
+  onArtistSelect?: (artistId: number) => void;
+}
+
+export default function ArtistsTable({ onArtistSelect }: ArtistsTableProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
+  const [selectedArtists, setSelectedArtists] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [currentSort, setCurrentSort] = useState({ key: 'title', direction: 'asc' });
+  const [currentSort, setCurrentSort] = useState({ key: 'name', direction: 'asc' });
   const itemsPerPage = 8;
   
-  // Filter and sort videos
-  const filteredData = videosData
+  // Filter and sort artists
+  const filteredData = artistsData
     .filter(item => 
-      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.upc.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.videoIsrc.toLowerCase().includes(searchTerm.toLowerCase())
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.artistId.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
       const key = currentSort.key as keyof typeof a;
@@ -181,7 +132,7 @@ export default function VideosTable() {
   // Pagination logic
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentVideos = filteredData.slice(startIndex, startIndex + itemsPerPage);
+  const currentArtists = filteredData.slice(startIndex, startIndex + itemsPerPage);
   
   // Handle sort
   const handleSort = (key: string) => {
@@ -199,24 +150,33 @@ export default function VideosTable() {
   // Handle checkbox changes
   const handleSelectAll = () => {
     if (selectAll) {
-      setSelectedVideos([]);
+      setSelectedArtists([]);
     } else {
-      const allVideoIds = currentVideos.map(video => video.id);
-      setSelectedVideos(allVideoIds);
+      const allArtistIds = currentArtists.map(artist => artist.id);
+      setSelectedArtists(allArtistIds);
     }
     setSelectAll(!selectAll);
   };
 
-  const handleSelectVideo = (id: number) => {
-    setSelectedVideos(prev => {
+  const handleSelectArtist = (id: number) => {
+    setSelectedArtists(prev => {
       if (prev.includes(id)) {
-        return prev.filter(videoId => videoId !== id);
+        return prev.filter(artistId => artistId !== id);
       } else {
         return [...prev, id];
       }
     });
   };
   
+  // Handle artist selection
+  const handleArtistClick = (id: number) => {
+    if (onArtistSelect) {
+      onArtistSelect(id);
+    } else {
+      router.push(`/dashboard/catalogue/artists/${id}`);
+    }
+  };
+
   return (
     <div className="bg-[#161A1F] rounded-lg overflow-hidden">
       {/* Search and add bar */}
@@ -260,45 +220,35 @@ export default function VideosTable() {
                   />
                 </div>
               </th>
-              <TableHeader label="Title" sortKey="title" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Release ID" sortKey="releaseId" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Artist Name" sortKey="artist" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Label" sortKey="label" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="UPC" sortKey="upc" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Video ISRC" sortKey="videoIsrc" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Creation date" sortKey="status" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Artist Name" sortKey="name" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Artist ID" sortKey="artistId" currentSort={currentSort} onSort={handleSort} />
             </tr>
           </thead>
           <tbody className="bg-[#161A1F] divide-y divide-gray-700">
-            {currentVideos.map((video) => (
+            {currentArtists.map((artist) => (
               <tr 
-                key={video.id} 
+                key={artist.id} 
                 className="hover:bg-[#1A1E24] transition-colors cursor-pointer"
+                onClick={() => handleArtistClick(artist.id)}
               >
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center">
                     <input 
                       type="checkbox"
                       className="w-4 h-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                      checked={selectedVideos.includes(video.id)}
-                      onChange={() => handleSelectVideo(video.id)}
+                      checked={selectedArtists.includes(artist.id)}
+                      onChange={() => handleSelectArtist(artist.id)}
                     />
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <Link 
-                    href={`/dashboard/catalogue/videos/${video.id}`} 
-                    className="text-white hover:text-purple-400"
-                  >
-                    {video.title}
-                  </Link>
+                  <span className="text-white hover:text-purple-400">
+                    {artist.name}
+                  </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{video.releaseId}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{video.artist}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{video.label}</td>
-                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{video.upc}</td>
-                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{video.videoIsrc}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{video.status}</td>
+                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">
+                  {artist.artistId}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -308,7 +258,7 @@ export default function VideosTable() {
       {/* Empty state */}
       {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-400">
-          No videos found. Try adjusting your search or create a new video.
+          No artists found. Try adjusting your search or create a new artist.
         </div>
       )}
       
@@ -342,7 +292,7 @@ export default function VideosTable() {
                 <span className="font-medium">
                   {Math.min(startIndex + itemsPerPage, filteredData.length)}
                 </span>{' '}
-                of <span className="font-medium">{filteredData.length}</span> videos
+                of <span className="font-medium">{filteredData.length}</span> artists
               </p>
             </div>
             <div>

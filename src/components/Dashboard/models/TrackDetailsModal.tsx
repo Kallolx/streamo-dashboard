@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 
 // Tab interfaces for the modal
-type TabType = "details" | "performance" | "track-list";
+type TabType = "details" | "performance" | "lyrics";
 type ActionType = "play" | "edit" | "copyright";
 
 // Track status types
@@ -64,6 +64,8 @@ export default function TrackDetailsModal({
   const [trackStatus, setTrackStatus] = useState<TrackStatus>(initialStatus);
   const [copyrightStatus, setCopyrightStatus] =
     useState<CopyrightStatus>("checking");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedTrack, setEditedTrack] = useState({ ...track });
 
   // Default image fallback if track has no image
   const defaultImage = "/images/music/3.png";
@@ -88,6 +90,9 @@ export default function TrackDetailsModal({
       }
       // Reset track status to initial status when modal opens
       setTrackStatus(initialStatus);
+      // Reset edit mode and edited track
+      setIsEditMode(false);
+      setEditedTrack({ ...track });
     } else {
       // Reset track status when modal closes
       setTrackStatus(initialStatus);
@@ -96,7 +101,7 @@ export default function TrackDetailsModal({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, handleKeyDown, currentAction, initialStatus]);
+  }, [isOpen, handleKeyDown, currentAction, initialStatus, track]);
 
   // Simulate copyright check
   const simulateCopyrightCheck = () => {
@@ -130,6 +135,29 @@ export default function TrackDetailsModal({
   // Handle edit button
   const handleEdit = () => {
     if (onEdit) onEdit(track.id);
+    setIsEditMode(true);
+  };
+
+  // Add a save changes function
+  const handleSaveChanges = () => {
+    // In a real app, you would save the changes to the backend here
+    // For now, we'll just log the changes and exit edit mode
+    console.log("Changes saved:", editedTrack);
+    setIsEditMode(false);
+  };
+
+  // Add a cancel changes function
+  const handleCancelChanges = () => {
+    setEditedTrack({ ...track });
+    setIsEditMode(false);
+  };
+
+  // Add a field change handler
+  const handleFieldChange = (field: string, value: string) => {
+    setEditedTrack({
+      ...editedTrack,
+      [field]: value
+    });
   };
 
   // Switch action type
@@ -394,25 +422,28 @@ export default function TrackDetailsModal({
           >
             Details
           </button>
+          {/* Only show Performance tab when copyright is clear (not when checking or found) */}
+          {copyrightStatus === "clear" && (
+            <button
+              className={`px-5 py-2 rounded-full ${
+                currentTab === "performance"
+                  ? "bg-[#A365FF] text-white"
+                  : "bg-[#1A1E24] text-gray-300"
+              }`}
+              onClick={() => setCurrentTab("performance")}
+            >
+              Performance
+            </button>
+          )}
           <button
             className={`px-5 py-2 rounded-full ${
-              currentTab === "performance"
+              currentTab === "lyrics"
                 ? "bg-[#A365FF] text-white"
                 : "bg-[#1A1E24] text-gray-300"
             }`}
-            onClick={() => setCurrentTab("performance")}
+            onClick={() => setCurrentTab("lyrics")}
           >
-            Performance
-          </button>
-          <button
-            className={`px-5 py-2 rounded-full ${
-              currentTab === "track-list"
-                ? "bg-[#A365FF] text-white"
-                : "bg-[#1A1E24] text-gray-300"
-            }`}
-            onClick={() => setCurrentTab("track-list")}
-          >
-            Track list
+            Lyrics
           </button>
         </div>
 
@@ -423,30 +454,11 @@ export default function TrackDetailsModal({
             <div className="px-5 pb-5 flex-1 overflow-y-auto ">
               {currentTab === "details" ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Primary Artist */}
+                  {/* Artist */}
                   <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Primary Artist</h3>
+                    <h3 className="text-gray-400 text-sm">Artist</h3>
                     <p className="text-white text-base font-medium">
                       {displayData.primaryArtist}
-                    </p>
-                  </div>
-
-                  {/* Featured Artists */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Featured Artists</h3>
-                    <p className="text-white text-base font-medium">
-                      {displayData.featuredArtists &&
-                      displayData.featuredArtists.length > 0
-                        ? displayData.featuredArtists.join(", ")
-                        : "None"}
-                    </p>
-                  </div>
-
-                  {/* Genre & Subgenre */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Genre & Subgenre</h3>
-                    <p className="text-white text-base font-medium">
-                      {displayData.genre}
                     </p>
                   </div>
 
@@ -458,31 +470,48 @@ export default function TrackDetailsModal({
                     </p>
                   </div>
 
-                  {/* Label */}
+                  {/* ISRC */}
                   <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Label</h3>
+                    <h3 className="text-gray-400 text-sm">ISRC</h3>
                     <p className="text-white text-base font-medium">
-                      {displayData.label}
-                    </p>
-                  </div>
-
-                  {/* UPC */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">UPC</h3>
-                    <p className="text-white text-base font-medium">
-                      {displayData.upc}
+                      {track.isrc || "Not Available"}
                     </p>
                   </div>
 
                   {/* Release date */}
                   <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Release date</h3>
+                    <h3 className="text-gray-400 text-sm">Release Date</h3>
                     <p className="text-white text-base font-medium">
                       {displayData.releaseDate}
                     </p>
                   </div>
+
+                  {/* Genre & Subgenre */}
+                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                    <h3 className="text-gray-400 text-sm">Genre & Subgenre</h3>
+                    <p className="text-white text-base font-medium">
+                      {displayData.genre}
+                      {track.subgenre ? ` / ${track.subgenre}` : ""}
+                    </p>
+                  </div>
+
+                  {/* Type */}
+                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                    <h3 className="text-gray-400 text-sm">Type</h3>
+                    <p className="text-white text-base font-medium">
+                      Single
+                    </p>
+                  </div>
+
+                  {/* Duration */}
+                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                    <h3 className="text-gray-400 text-sm">Duration</h3>
+                    <p className="text-white text-base font-medium">
+                      {track.duration}
+                    </p>
+                  </div>
                 </div>
-              ) : currentTab === "performance" ? (
+              ) : currentTab === "performance" && copyrightStatus === "clear" ? (
                 <div className="space-y-4">
                   {/* Stream Analytics */}
                   <div className=" p-4 rounded-md">
@@ -886,52 +915,20 @@ export default function TrackDetailsModal({
                 </div>
               ) : (
                 <div className="bg-[#1A1E24] p-4 rounded-sm">
-                  {/* Track list table with headers */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="border-b border-gray-700">
-                          <th className="pb-2 pr-6">
-                            <div className="flex items-center text-sm text-indigo-400">
-                              Title 
-                              <svg className="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"></path>
-                              </svg>
-                            </div>
-                          </th>
-                          <th className="pb-2">
-                            <div className="flex items-center text-sm text-indigo-400">
-                              Artist Name 
-                              <svg className="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"></path>
-                              </svg>
-                            </div>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-3 text-white">The Overview</td>
-                          <td className="py-3 text-white">Steven Wilson</td>
-                        </tr>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-3 text-white">The Overview</td>
-                          <td className="py-3 text-white">Linkin Park</td>
-                        </tr>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-3 text-white">The Overview</td>
-                          <td className="py-3 text-white">Steven Wilson</td>
-                        </tr>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-3 text-white">The Overview</td>
-                          <td className="py-3 text-white">Linkin Park</td>
-                        </tr>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-3 text-white">The Overview</td>
-                          <td className="py-3 text-white">Steven Wilson</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                  <h3 className="text-white font-medium mb-3">Song Lyrics</h3>
+                  <div className="text-gray-300 whitespace-pre-line">
+                    {track.lyrics || `Wake up not chasing dreams.
+Road is rough, but so am I.
+Every fall just makes me stronger,
+I'm not giving up.
+
+Oh, I keep moving on.
+Through the rain, the sun, I stay strong.
+No matter what comes, I won't back down.
+I'll rise again in this town.
+
+No looking back, no turning 'round.
+The road is mine, I never stop.`}
                   </div>
                 </div>
               )}
@@ -1008,41 +1005,251 @@ export default function TrackDetailsModal({
         )}
 
         {currentAction === "play" && (
-          <div className="flex items-center justify-center p-8 flex-1">
-            <div className="text-center">
-              <svg
-                className="w-16 h-16 mx-auto text-[#A365FF]"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <p className="mt-3 text-gray-400 text-sm">
-                Player content would go here
-              </p>
+          <div className="flex flex-col p-6 flex-1 overflow-auto">
+            <div className="bg-[#1A1E24] rounded-lg p-5">
+              <div className="flex items-center mb-6">
+                <button className="w-14 h-14 flex items-center justify-center rounded-full bg-[#A365FF] text-white mr-4">
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <div className="flex-1">
+                  <h3 className="text-white font-medium">{track.title}</h3>
+                  <p className="text-gray-400 text-sm">{track.primaryArtist}</p>
+                </div>
+                <div className="text-gray-400 text-sm">
+                  {track.duration}
+                </div>
+              </div>
+
+              {/* Audio progress bar */}
+              <div className="mb-4">
+                <div className="h-16 relative mb-2">
+                  {/* Waveform visualization */}
+                  <div className="absolute inset-0 flex items-center justify-between">
+                    {Array.from({ length: 100 }).map((_, i) => {
+                      // Generate random height for each bar to simulate a waveform
+                      const height = 20 + Math.random() * 60;
+                      // Make the "played" part of the waveform a different color
+                      const isPlayed = i < 30;
+                      return (
+                        <div 
+                          key={i} 
+                          className={`w-0.5 rounded-full ${isPlayed ? 'bg-[#A365FF]' : 'bg-gray-600'}`}
+                          style={{ height: `${height}%` }}
+                        ></div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Current playhead */}
+                  <div className="absolute top-0 bottom-0 left-[30%] w-0.5 bg-white"></div>
+                  
+                  {/* Current time marker */}
+                  <div className="absolute top-0 left-[30%] -ml-4 -mt-6 bg-[#252A33] px-2 py-1 rounded text-xs text-white">
+                    1:14
+                  </div>
+                </div>
+                
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>0:00</span>
+                  <span>{track.duration}</span>
+                </div>
+              </div>
+
+              {/* Audio controls */}
+              <div className="flex items-center justify-center space-x-6">
+                <button className="text-gray-400 hover:text-white">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8z" />
+                    <path d="M12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z" />
+                  </svg>
+                </button>
+                <button className="text-gray-400 hover:text-white">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <button className="w-12 h-12 flex items-center justify-center rounded-full bg-[#A365FF] text-white">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <button className="text-gray-400 hover:text-white">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <button className="text-gray-400 hover:text-white">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16a1 1 0 11-2 0V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Volume control */}
+              <div className="flex items-center mt-6">
+                <svg className="w-5 h-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071a1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243a1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
+                </svg>
+                <div className="w-full bg-gray-700 h-1 rounded-full overflow-hidden">
+                  <div className="bg-[#A365FF] h-full rounded-full" style={{ width: '70%' }}></div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Track details */}
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-[#1A1E24] p-4 rounded-lg">
+                <h4 className="text-gray-400 text-sm mb-2">Track Information</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Genre</span>
+                    <span className="text-white">{track.genre}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">ISRC</span>
+                    <span className="text-white">{track.isrc || "Not Available"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Release Date</span>
+                    <span className="text-white">{track.releaseDate}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-[#1A1E24] p-4 rounded-lg">
+                <h4 className="text-gray-400 text-sm mb-2">Audio Quality</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Format</span>
+                    <span className="text-white">FLAC</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Bit Rate</span>
+                    <span className="text-white">1,411 kbps</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Sample Rate</span>
+                    <span className="text-white">44.1 kHz</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {currentAction === "edit" && (
-          <div className="flex items-center justify-center p-8 flex-1">
-            <div className="text-center">
-              <svg
-                className="w-16 h-16 mx-auto text-[#A365FF]"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-              </svg>
-              <p className="mt-3 text-gray-400 text-sm">
-                Editing interface would go here
-              </p>
+          <div className="flex flex-col p-8 flex-1 overflow-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-medium text-white">Edit Track Details</h3>
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleCancelChanges}
+                  className="px-4 py-2 border border-gray-600 text-gray-300 rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveChanges}
+                  className="px-4 py-2 bg-[#A365FF] text-white rounded-md hover:bg-opacity-90 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Artist */}
+              <div className="space-y-2">
+                <label className="text-gray-400 text-sm">Artist</label>
+                <input
+                  type="text"
+                  value={editedTrack.primaryArtist || ""}
+                  onChange={(e) => handleFieldChange("primaryArtist", e.target.value)}
+                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
+                />
+              </div>
+
+              {/* Title */}
+              <div className="space-y-2">
+                <label className="text-gray-400 text-sm">Title</label>
+                <input
+                  type="text"
+                  value={editedTrack.title || ""}
+                  onChange={(e) => handleFieldChange("title", e.target.value)}
+                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
+                />
+              </div>
+
+              {/* Content Rating */}
+              <div className="space-y-2">
+                <label className="text-gray-400 text-sm">Content Rating</label>
+                <select
+                  value={editedTrack.contentRating || ""}
+                  onChange={(e) => handleFieldChange("contentRating", e.target.value)}
+                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
+                >
+                  <option value="G">G</option>
+                  <option value="PG">PG</option>
+                  <option value="PG-13">PG-13</option>
+                  <option value="R">R</option>
+                </select>
+              </div>
+
+              {/* ISRC */}
+              <div className="space-y-2">
+                <label className="text-gray-400 text-sm">ISRC</label>
+                <input
+                  type="text"
+                  value={editedTrack.isrc || ""}
+                  onChange={(e) => handleFieldChange("isrc", e.target.value)}
+                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
+                />
+              </div>
+
+              {/* Release Date */}
+              <div className="space-y-2">
+                <label className="text-gray-400 text-sm">Release Date</label>
+                <input
+                  type="text"
+                  value={editedTrack.releaseDate || ""}
+                  onChange={(e) => handleFieldChange("releaseDate", e.target.value)}
+                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
+                />
+              </div>
+
+              {/* Genre */}
+              <div className="space-y-2">
+                <label className="text-gray-400 text-sm">Genre</label>
+                <input
+                  type="text"
+                  value={editedTrack.genre || ""}
+                  onChange={(e) => handleFieldChange("genre", e.target.value)}
+                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
+                />
+              </div>
+
+              {/* Duration */}
+              <div className="space-y-2">
+                <label className="text-gray-400 text-sm">Duration</label>
+                <input
+                  type="text"
+                  value={editedTrack.duration || ""}
+                  onChange={(e) => handleFieldChange("duration", e.target.value)}
+                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
+                />
+              </div>
+
+              {/* Lyrics */}
+              <div className="space-y-2 col-span-2">
+                <label className="text-gray-400 text-sm">Lyrics</label>
+                <textarea
+                  value={editedTrack.lyrics || ""}
+                  onChange={(e) => handleFieldChange("lyrics", e.target.value)}
+                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white h-40"
+                ></textarea>
+              </div>
             </div>
           </div>
         )}

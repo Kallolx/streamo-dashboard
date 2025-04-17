@@ -1,7 +1,7 @@
 "use client";
 
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
-import LabelsTable from "@/components/Dashboard/LabelsTable";
+import LabelsTable from "@/components/Dashboard/Tables/LabelsTable";
 
 export default function LabelsPage() {
   return (

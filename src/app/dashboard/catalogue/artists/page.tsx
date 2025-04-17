@@ -1,7 +1,7 @@
 'use client';
 
 import DashboardLayout from '@/components/Dashboard/DashboardLayout';
-import ArtistsTable from '@/components/Dashboard/ArtistsTable';
+import ArtistsTable from '@/components/Dashboard/Tables/ArtistsTable';
 
 export default function ArtistsPage() {
   return (
