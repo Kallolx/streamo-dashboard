@@ -144,7 +144,7 @@ export default function ArtistsTable({ onArtistSelect }: ArtistsTableProps) {
   
   // Handle Create New button click
   const handleCreateNew = () => {
-    router.push('/dashboard/catalogue');
+    router.push('/dashboard/create-new?tab=artists');
   };
 
   // Handle checkbox changes

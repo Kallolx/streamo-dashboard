@@ -197,7 +197,7 @@ export default function VideosTable({ onVideoSelect }: VideosTableProps) {
   
   // Handle Create New button click
   const handleCreateNew = () => {
-    router.push('/dashboard/catalogue/new?tab=videos');
+    router.push('/dashboard/create-new?tab=videos');
   };
 
   // Handle checkbox changes

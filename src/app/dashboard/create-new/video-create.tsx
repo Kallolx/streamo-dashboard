@@ -221,7 +221,7 @@ export default function VideoCreate() {
           <div className="flex flex-col items-start">
             <div 
               onClick={() => videoInputRef.current?.click()} 
-              className="w-full max-w-sm h-28 bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
+              className="w-full max-w-sm h-64 bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
             >
               {videoFileName ? (
                 <div className="flex items-center px-4">
