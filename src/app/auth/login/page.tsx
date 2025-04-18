@@ -1,8 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+// User credentials for different roles
+const userCredentials = {
+  superAdmin: {
+    email: "superadmin@streamo.com",
+    password: "streamo1",
+    role: "superadmin"
+  },
+  admin: {
+    email: "admin@streamo.com",
+    password: "streamo2",
+    role: "admin"
+  },
+  labelOwner: {
+    email: "labelowner@streamo.com",
+    password: "streamo3",
+    role: "labelowner"
+  },
+  artist: {
+    email: "artist@streamo.com",
+    password: "streamo4",
+    role: "artist"
+  }
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,17 +35,52 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const userRole = localStorage.getItem("userRole");
+    if (userRole) {
+      router.push("/dashboard");
+    }
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
 
-    // In a real app, you would validate and send the credentials to an API
-    // For now, we'll just simulate a successful login
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push("/dashboard");
-    }, 1000);
+    // Validate credentials
+    if (email === userCredentials.superAdmin.email && password === userCredentials.superAdmin.password) {
+      localStorage.setItem("userRole", userCredentials.superAdmin.role);
+      setTimeout(() => {
+        setIsLoading(false);
+        router.push("/dashboard");
+      }, 1000);
+    } else if (email === userCredentials.admin.email && password === userCredentials.admin.password) {
+      localStorage.setItem("userRole", userCredentials.admin.role);
+      setTimeout(() => {
+        setIsLoading(false);
+        router.push("/dashboard");
+      }, 1000);
+    } else if (email === userCredentials.labelOwner.email && password === userCredentials.labelOwner.password) {
+      localStorage.setItem("userRole", userCredentials.labelOwner.role);
+      setTimeout(() => {
+        setIsLoading(false);
+        router.push("/dashboard");
+      }, 1000);
+    } else if (email === userCredentials.artist.email && password === userCredentials.artist.password) {
+      localStorage.setItem("userRole", userCredentials.artist.role);
+      setTimeout(() => {
+        setIsLoading(false);
+        router.push("/dashboard");
+      }, 1000);
+    } else {
+      setTimeout(() => {
+        setIsLoading(false);
+        setError("Login credentials not correct. Please try again.");
+      }, 1000);
+    }
   };
 
   return (
@@ -93,6 +152,12 @@ export default function LoginPage() {
             <p className="text-gray-400 text-sm mb-12">
               Log in to access your dashboard and continue managing your music catalog
             </p>
+
+            {error && (
+              <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded mb-6">
+                {error}
+              </div>
+            )}
 
             <form onSubmit={handleLogin} className="space-y-8">
               <div>

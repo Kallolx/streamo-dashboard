@@ -153,7 +153,7 @@ export default function Header({
             <BellIcon />
           </button>
           
-          <div className="flex items-center">
+          <Link href="/dashboard/profile" className="flex items-center">
             <div className="relative">
               <img
                 className="h-9 w-9 rounded-full border-2 border-gray-700"
@@ -167,7 +167,7 @@ export default function Header({
               <p className="text-sm font-medium text-white">James Hetfield</p>
               <p className="text-xs text-gray-400">Artist</p>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </header>

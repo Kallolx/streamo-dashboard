@@ -14,6 +14,15 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Get user role from localStorage on component mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const role = localStorage.getItem('userRole');
+      setUserRole(role);
+    }
+  }, []);
 
   const isActive = (path: string) => {
     // Handle the root path case
@@ -35,7 +44,23 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   };
 
   const handleLogout = () => {
+    // Clear user role from localStorage
+    localStorage.removeItem('userRole');
     router.push('/auth/login');
+  };
+
+  // Check if a menu item should be visible based on user role
+  const isMenuItemVisible = (item: string) => {
+    if (!userRole) return false; // If no role is set, hide restricted items
+    
+    if (userRole === 'superadmin') return true; // Superadmin can see everything
+    
+    // For other roles, hide specific items
+    if (item === 'user-management' || item === 'stores') {
+      return false;
+    }
+    
+    return true;
   };
 
   return (
@@ -46,8 +71,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     >
       <div className="flex flex-col h-full">
         {/* Logo */}
-        <div className="flex items-center justify-center h-16 border-b border-gray-700">
-          <div className={`transition-all duration-300 ${isOpen ? 'w-40' : 'w-10'}`}>
+        <div className="flex items-center justify-center h-16">
+          <div className={`transition-all duration-300 mt-6 ${isOpen ? 'w-30' : 'w-10'}`}>
             <img 
               src="/images/logo.svg" 
               alt="Music Dashboard Logo" 
@@ -140,20 +165,22 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               {isOpen && <span className="ml-3">Analytics</span>}
             </Link>
 
-            <Link
-              href="/dashboard/user-management"
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive('/dashboard/user-management')
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              {isActive('/dashboard/user-management') ? 
-                <User size={20} weight="fill" /> : 
-                <User size={20} />
-              }
-              {isOpen && <span className="ml-3">User Management</span>}
-            </Link>
+            {isMenuItemVisible('user-management') && (
+              <Link
+                href="/dashboard/user-management"
+                className={`flex items-center p-3 rounded-lg transition-colors ${
+                  isActive('/dashboard/user-management')
+                    ? 'bg-purple-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                {isActive('/dashboard/user-management') ? 
+                  <User size={20} weight="fill" /> : 
+                  <User size={20} />
+                }
+                {isOpen && <span className="ml-3">User Management</span>}
+              </Link>
+            )}
 
             <Link
               href="/dashboard/withdraw-request"
@@ -185,20 +212,22 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               {isOpen && <span className="ml-3">Distribution</span>}
             </Link>
 
-            <Link
-              href="/dashboard/stores"
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive('/dashboard/stores')
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              {isActive('/dashboard/stores') ? 
-                <ShoppingCart size={20} weight="fill" /> : 
-                <ShoppingCart size={20} />
-              }
-              {isOpen && <span className="ml-3">Stores</span>}
-            </Link>
+            {isMenuItemVisible('stores') && (
+              <Link
+                href="/dashboard/stores"
+                className={`flex items-center p-3 rounded-lg transition-colors ${
+                  isActive('/dashboard/stores')
+                    ? 'bg-purple-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                {isActive('/dashboard/stores') ? 
+                  <ShoppingCart size={20} weight="fill" /> : 
+                  <ShoppingCart size={20} />
+                }
+                {isOpen && <span className="ml-3">Stores</span>}
+              </Link>
+            )}
           </div>
         </nav>
 
