@@ -83,14 +83,14 @@ export default function VideoCreate() {
 
   // Success messages
   const successMessages = [
-    "Artist added successfully!",
-    "Artist added and ready for distribution."
+    "Label added successfully!",
+    "Label added and ready for distribution."
   ];
 
   // Error messages
   const errorMessages = [
-    "Failed to add artist. Please try again.",
-    "Server error. Your artist couldn't be added.",
+    "Failed to add label. Please try again.",
+    "Server error. Your label couldn't be added.",
   ];
 
   // Handle social link updates

@@ -223,7 +223,7 @@ export default function LabelsTable() {
 
   // Handle creating a new label
   const handleCreateNew = () => {
-    router.push('/dashboard/catalogue/new?tab=labels');
+    router.push('/dashboard/create-new?tab=labels');
   };
 
   // Open label details modal

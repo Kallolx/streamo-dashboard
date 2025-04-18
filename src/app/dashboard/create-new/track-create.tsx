@@ -110,14 +110,14 @@ export default function ReleaseCreate() {
 
   // Success messages
   const successMessages = [
-    "Release created successfully!",
-    "Release created and ready for distribution."
+    "Track created successfully!",
+    "Track created and ready for distribution."
   ];
 
   // Error messages
   const errorMessages = [
-    "Failed to create release. Please try again.",
-    "Server error. Your release couldn't be processed.",
+    "Failed to add track. Please try again.",
+    "Server error. Your track couldn't be added.",
   ];
 
   // Handle form submission
@@ -695,7 +695,7 @@ export default function ReleaseCreate() {
           onClick={handleSubmit}
           className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
         >
-          Create Release
+          Create Track
         </button>
       </div>
       

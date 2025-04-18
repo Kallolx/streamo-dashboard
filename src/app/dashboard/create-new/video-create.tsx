@@ -110,14 +110,14 @@ export default function VideoCreate() {
 
   // Success messages
   const successMessages = [
-    "Release created successfully!",
-    "Release created and ready for distribution."
+    "Video added successfully!",
+    "Video added and ready for distribution."
   ];
 
   // Error messages
   const errorMessages = [
-    "Failed to create release. Please try again.",
-    "Server error. Your release couldn't be processed.",
+    "Failed to add video. Please try again.",
+    "Server error. Your video couldn't be added.",
   ];
 
   // Handle form submission
@@ -695,7 +695,7 @@ export default function VideoCreate() {
           onClick={handleSubmit}
           className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
         >
-          Create Release
+          Create Video
         </button>
       </div>
       
