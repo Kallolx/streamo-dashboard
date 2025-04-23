@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { House, Books, ChartBar, SignOut, User, ArrowsDownUp, CurrencyDollar, ShoppingCart } from '@phosphor-icons/react';           
+import { House, Books, ChartBar, SignOut, User, ArrowsDownUp, CurrencyDollar, ShoppingCart, Files } from '@phosphor-icons/react';           
 
 
 interface SidebarProps {
@@ -148,6 +148,21 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                 <CurrencyDollar size={20} />
               }
               {isOpen && <span className="ml-3">Royalties</span>}
+            </Link>
+
+            <Link
+              href="/dashboard/statements"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/statements')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              {isActive('/dashboard/statements') ? 
+                <Files size={20} weight="fill" /> : 
+                <Files size={20} />
+              }
+              {isOpen && <span className="ml-3">Statements</span>}
             </Link>
 
             <Link

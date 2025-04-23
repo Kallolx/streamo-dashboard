@@ -3,30 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { login } from "@/services/authService"; 
 
-// User credentials for different roles
-const userCredentials = {
-  superAdmin: {
-    email: "superadmin@streamo.com",
-    password: "streamo1",
-    role: "superadmin"
-  },
-  admin: {
-    email: "admin@streamo.com",
-    password: "streamo2",
-    role: "admin"
-  },
-  labelOwner: {
-    email: "labelowner@streamo.com",
-    password: "streamo3",
-    role: "labelowner"
-  },
-  artist: {
-    email: "artist@streamo.com",
-    password: "streamo4",
-    role: "artist"
-  }
-};
+// Use these test accounts (displayed for development only)
+const testCredentials = [
+  { email: "superadmin@streamo.com", password: "streamo1", role: "superadmin" },
+  { email: "admin@streamo.com", password: "streamo2", role: "admin" },
+  { email: "labelowner@streamo.com", password: "streamo3", role: "labelowner" },
+  { email: "artist@streamo.com", password: "streamo4", role: "artist" }
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,50 +21,69 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [showTestAccounts, setShowTestAccounts] = useState(false);
 
   // Check if user is already logged in
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole");
-    if (userRole) {
-      router.push("/dashboard");
+    // Clear any existing tokens to start fresh
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userData");
+    
+    // Check if there's a current session from a query parameter (for development)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('clear') === 'true') {
+      localStorage.clear();
     }
-  }, [router]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
-    // Validate credentials
-    if (email === userCredentials.superAdmin.email && password === userCredentials.superAdmin.password) {
-      localStorage.setItem("userRole", userCredentials.superAdmin.role);
-      setTimeout(() => {
-        setIsLoading(false);
-        router.push("/dashboard");
-      }, 1000);
-    } else if (email === userCredentials.admin.email && password === userCredentials.admin.password) {
-      localStorage.setItem("userRole", userCredentials.admin.role);
-      setTimeout(() => {
-        setIsLoading(false);
-        router.push("/dashboard");
-      }, 1000);
-    } else if (email === userCredentials.labelOwner.email && password === userCredentials.labelOwner.password) {
-      localStorage.setItem("userRole", userCredentials.labelOwner.role);
-      setTimeout(() => {
-        setIsLoading(false);
-        router.push("/dashboard");
-      }, 1000);
-    } else if (email === userCredentials.artist.email && password === userCredentials.artist.password) {
-      localStorage.setItem("userRole", userCredentials.artist.role);
-      setTimeout(() => {
-        setIsLoading(false);
-        router.push("/dashboard");
-      }, 1000);
-    } else {
-      setTimeout(() => {
-        setIsLoading(false);
-        setError("Login credentials not correct. Please try again.");
-      }, 1000);
+    try {
+      console.log("Login - Attempting login for:", email);
+      
+      // For simplicity, let's check against our test credentials first (for development only)
+      // In production, this should be removed and only use the API
+      const testUser = testCredentials.find(user => user.email === email && user.password === password);
+      
+      if (testUser) {
+        console.log("Login - Using test account:", testUser.role);
+        // Simulate successful login for test accounts
+        localStorage.setItem('token', 'test-token-for-development');
+        localStorage.setItem('userRole', testUser.role);
+        localStorage.setItem('userData', JSON.stringify({
+          id: '123',
+          name: testUser.email.split('@')[0],
+          email: testUser.email,
+          role: testUser.role
+        }));
+        
+        // Redirect to dashboard
+        router.push('/dashboard');
+        return;
+      }
+
+      // If not a test user, try the real API
+      console.log("Login - Not a test account, trying real API login");
+      const response = await login({ email, password });
+      
+      console.log("Login - API response:", response.success ? "Success" : "Failed");
+      
+      if (response.success) {
+        // Auth service already saved token and user data
+        // Just redirect to dashboard
+        router.push('/dashboard');
+      } else {
+        throw new Error(response.success ? "" : 'Login failed');
+      }
+    } catch (error: any) {
+      console.error("Login - Error:", error);
+      setError(error.response?.data?.message || error.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -98,6 +102,37 @@ export default function LoginPage() {
           </div>
 
           <div className="max-w-md">
+            {/* Test accounts section (for development only) */}
+            <div className="mb-6">
+              <button 
+                onClick={() => setShowTestAccounts(!showTestAccounts)}
+                className="text-sm bg-purple-800 hover:bg-purple-700 px-3 py-1 rounded mb-2"
+              >
+                {showTestAccounts ? "Hide Test Accounts" : "Show Test Accounts"}
+              </button>
+              
+              {showTestAccounts && (
+                <div className="bg-purple-800/50 p-3 rounded text-xs">
+                  <p className="font-semibold mb-1">Test Accounts (Development Only):</p>
+                  <ul className="space-y-1">
+                    {testCredentials.map((cred, idx) => (
+                      <li key={idx}>
+                        <button 
+                          className="text-left hover:text-yellow-300"
+                          onClick={() => {
+                            setEmail(cred.email);
+                            setPassword(cred.password);
+                          }}
+                        >
+                          <span className="font-semibold">{cred.role}:</span> {cred.email} / {cred.password}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
             {/* Rating stars */}
             <div className="flex mb-6">
               {[1, 2, 3, 4, 5].map((star) => (

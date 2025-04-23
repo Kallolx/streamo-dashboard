@@ -1,7 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { getUserData } from '@/services/authService';
+import { getEarningsData, EarningsData } from '@/services/royaltyService';
+import { getLatestReleases } from '@/services/dashboardService';
+import axios from 'axios';
+import api from '@/services/api';
 
 // Icons
 const PlayIcon = () => (
@@ -42,35 +47,119 @@ const MusicIcon = () => (
 );
 
 export default function DashboardHome() {
-  const latestReleases = [
-    { id: 1, title: 'Pain By Ryan Jones', imagePath: '/images/music/1.png', type: 'Single' },
-    { id: 2, title: 'Pain By Ryan Jones', imagePath: '/images/music/2.png', type: 'Single' },
-    { id: 3, title: 'Pain By Ryan Jones', imagePath: '/images/music/3.png', type: 'Single' },
-    { id: 4, title: 'Pain By Ryan Jones', imagePath: '/images/music/4.png', type: 'Single' },
-    { id: 5, title: 'Pain By Ryan Jones', imagePath: '/images/music/5.png', type: 'Single' },
-  ];
+  const [userData, setUserData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [earningsData, setEarningsData] = useState<EarningsData>({
+    totalEarnings: '$0',
+    lastStatement: '$0',
+    pendingPayments: '$0',
+    statementHistory: []
+  });
+  const [releases, setReleases] = useState<any[]>([]);
+
+  // Fetch user data and earnings on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Get user data from local storage (previously saved during login)
+        const user = getUserData();
+        
+        if (!user) {
+          console.error('No user data found in localStorage');
+          return;
+        }
+        
+        setUserData(user);
+        
+        // Fetch earnings data
+        const earnings = await getEarningsData();
+        // Ensure no null values in earnings data
+        setEarningsData({
+          totalEarnings: earnings.totalEarnings || '$0',
+          lastStatement: earnings.lastStatement || '$0',
+          pendingPayments: earnings.pendingPayments || '$0',
+          statementHistory: Array.isArray(earnings.statementHistory) ? earnings.statementHistory : []
+        });
+        
+        // Fetch latest releases
+        const latestReleases = await getLatestReleases(5);
+        // Ensure latestReleases is an array
+        if (Array.isArray(latestReleases)) {
+          setReleases(latestReleases);
+        } else {
+          console.error('Latest releases is not an array:', latestReleases);
+          setReleases([]);
+        }
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        setReleases([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Function to get the correct role badge text
+  const getRoleBadgeText = (role: string) => {
+    switch(role) {
+      case 'superadmin':
+        return 'Super Admin';
+      case 'admin':
+        return 'Admin';
+      case 'labelowner':
+        return 'Label Owner';
+      case 'artist':
+        return 'Artist';
+      default:
+        return role || 'User';
+    }
+  };
+
+  // Helper function to ensure values are never null/undefined when displayed
+  const displayValue = (value: any, defaultValue: string = '$0') => {
+    return value || defaultValue;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* User header section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Hi, James</h1>
-        <div className="flex gap-3">
+        <h1 className="text-3xl font-bold text-white mb-2">
+          Hi, {userData?.name || 'User'}
+        </h1>
+        <div className="flex gap-3 flex-wrap">
           <span className="bg-purple-900 text-white px-3 py-1 rounded-md text-sm flex items-center">
-            <span className="mr-1">★</span> Owner
+            <span className="mr-1">★</span> {getRoleBadgeText(userData?.role || '')}
           </span>
           <span className="bg-gray-800 text-white px-3 py-1 rounded-md text-sm">StreamAudio</span>
-          <span className="bg-gray-800 text-white px-3 py-1 rounded-md text-sm">Admin</span>
+          {userData?.role === 'superadmin' && (
+            <span className="bg-red-800 text-white px-3 py-1 rounded-md text-sm">Super User</span>
+          )}
+          {userData?.lastLogin && (
+            <span className="bg-gray-800 text-white px-3 py-1 rounded-md text-sm">
+              Last Login: {new Date(userData.lastLogin).toLocaleDateString()}
+            </span>
+          )}
         </div>
       </div>
 
       {/* Earnings and Statements section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-[#161A1F] p-6 rounded-lg">
           <div className="flex flex-col">
             <span className="text-gray-400 text-sm">Total Earnings</span>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-white text-2xl font-bold">$206k</span>
+              <span className="text-white text-2xl font-bold">{displayValue(earningsData.totalEarnings)}</span>
               <div className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center">
                 <DollarIcon />
               </div>
@@ -82,9 +171,21 @@ export default function DashboardHome() {
           <div className="flex flex-col">
             <span className="text-gray-400 text-sm">Last Statement</span>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-white text-2xl font-bold">$12.5k</span>
+              <span className="text-white text-2xl font-bold">{displayValue(earningsData.lastStatement)}</span>
               <div className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center">
                 <DocumentIcon />
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-[#161A1F] p-6 rounded-lg">
+          <div className="flex flex-col">
+            <span className="text-gray-400 text-sm">Pending Payments</span>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-white text-2xl font-bold">{displayValue(earningsData.pendingPayments)}</span>
+              <div className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center">
+                <DollarIcon />
               </div>
             </div>
           </div>
@@ -93,25 +194,106 @@ export default function DashboardHome() {
       
       {/* Latest releases section */}
       <div className="mb-8">
-        <h2 className="text-xl font-bold text-white mb-4">Latest release</h2>
+        <h2 className="text-xl font-bold text-white mb-4">Latest Release</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {latestReleases.map((release) => (
-            <div key={release.id} className="bg-[#161A1F] rounded-lg overflow-hidden">
-              <div className="relative aspect-square">
-                <img
-                  src={release.imagePath}
-                  alt={release.title}
-                  className="object-cover w-full h-full"
-                />
+          {Array.isArray(releases) && releases.length > 0 ? (
+            releases.map((release) => (
+              <div key={release.id} className="bg-[#161A1F] rounded-lg overflow-hidden">
+                <div className="relative aspect-square">
+                  <img
+                    src={release.imagePath || '/images/music/placeholder.png'}
+                    alt={release.title || 'Release'}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+                <div className="p-3">
+                  <h3 className="text-white text-sm font-medium">{release.title || 'Untitled'}</h3>
+                  <p className="text-gray-400 text-xs">{release.type || 'Single'}</p>
+                </div>
               </div>
-              <div className="p-3">
-                <h3 className="text-white text-sm font-medium">{release.title}</h3>
-                <p className="text-gray-400 text-xs">{release.type}</p>
-              </div>
+            ))
+          ) : (
+            <div className="col-span-5 p-4 text-center text-gray-400">
+              No releases found
             </div>
-          ))}
+          )}
         </div>
       </div>
+
+      {/* Recent Statements section */}
+      {earningsData.statementHistory && earningsData.statementHistory.length > 0 ? (
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-white mb-4">Recent Statements</h2>
+          <div className="bg-[#161A1F] rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-700">
+                <thead className="bg-[#1A1E24]">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Period</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-[#161A1F] divide-y divide-gray-700">
+                  {earningsData.statementHistory.slice(0, 3).map((statement) => (
+                    <tr key={statement.id} className="hover:bg-[#1A1E24]">
+                      <td className="px-4 py-3 whitespace-nowrap text-white">{statement.period || 'N/A'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-white">{statement.amount || '$0'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          statement.status === 'paid' ? 'bg-green-900 text-green-200' : 'bg-yellow-900 text-yellow-200'
+                        }`}>
+                          {statement.status ? (statement.status.charAt(0).toUpperCase() + statement.status.slice(1)) : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-white">
+                        {statement.date ? new Date(statement.date).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        {statement.downloadUrl && statement.status === 'paid' && (
+                          <button className="px-3 py-1 rounded text-sm bg-[#232830] text-blue-400 hover:bg-[#292F38]">
+                            Download
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-white mb-4">Recent Statements</h2>
+          <div className="bg-[#161A1F] p-8 rounded-lg text-center text-gray-400">
+            No statements found
+          </div>
+        </div>
+      )}
+
+      {/* Show admin-specific content */}
+      {(userData?.role === 'admin' || userData?.role === 'superadmin') && (
+        <div className="bg-[#161A1F] p-6 rounded-lg">
+          <h2 className="text-xl font-bold text-white mb-4">Administrative Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button className="bg-[#1A1E24] hover:bg-[#252A33] p-4 rounded-lg text-left">
+              <h3 className="text-white font-medium mb-1">User Management</h3>
+              <p className="text-gray-400 text-sm">Manage all platform users</p>
+            </button>
+            <button className="bg-[#1A1E24] hover:bg-[#252A33] p-4 rounded-lg text-left">
+              <h3 className="text-white font-medium mb-1">Release Management</h3>
+              <p className="text-gray-400 text-sm">Review and approve releases</p>
+            </button>
+            <button className="bg-[#1A1E24] hover:bg-[#252A33] p-4 rounded-lg text-left">
+              <h3 className="text-white font-medium mb-1">System Settings</h3>
+              <p className="text-gray-400 text-sm">Configure platform settings</p>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
