@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
 import Image from "next/image";
+import { getUserData } from "@/services/authService";
+import { getCurrentUser } from "@/services/userService";
 
 type TabType = "basic" | "edit" | "password";
 
@@ -15,11 +17,71 @@ const profileTabs = [
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>("basic");
+  const [userData, setUserData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch user data on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // First set data from localStorage for quick rendering
+        const localUserData = getUserData();
+        console.log('User data from localStorage:', localUserData);
+        if (localUserData) {
+          setUserData(localUserData);
+        }
+        
+        // Then fetch complete user data from API
+        console.log('Fetching user data from API...');
+        const apiUserData = await getCurrentUser();
+        console.log('User data from API:', apiUserData);
+        if (apiUserData) {
+          setUserData(apiUserData);
+          
+          // Also update localStorage with latest data
+          localStorage.setItem('userData', JSON.stringify(apiUserData));
+          console.log('Updated localStorage with API data');
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUserData();
+  }, []);
 
   // Handle tab change
   const handleTabChange = (tabId: TabType) => {
     setActiveTab(tabId);
   };
+
+  // Function to get the correct role text to display
+  const getRoleDisplay = (role: string) => {
+    switch(role) {
+      case 'superadmin':
+        return 'Super Admin';
+      case 'admin':
+        return 'Admin';
+      case 'labelowner':
+        return 'Label Owner';
+      case 'artist':
+        return 'Artist';
+      default:
+        return role ? role.charAt(0).toUpperCase() + role.slice(1) : 'User';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Profile" subtitle="Loading profile information...">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Profile" subtitle="View and edit your profile information">
@@ -30,24 +92,26 @@ export default function ProfilePage() {
           <div className="relative mb-4 md:mb-0 md:mr-6">
             <div className="h-24 w-24 rounded-full overflow-hidden">
               <img 
-                src="https://randomuser.me/api/portraits/men/1.jpg" 
-                alt="User Avatar" 
+                src={userData?.profileImage || "/placeholder.png"} 
+                alt={userData?.name ? `${userData.name}'s Avatar` : 'User Avatar'}
                 className="h-full w-full object-cover"
+                onError={(e) => {
+                  // Fallback image in case profile image fails to load
+                  (e.target as HTMLImageElement).src = "/placeholder.png";
+                }}
               />
             </div>
           </div>
 
           {/* User Info */}
           <div className="flex flex-col items-center md:items-start">
-            <h1 className="text-2xl font-bold text-white mb-2">James Hook</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">{userData?.name || 'User'}</h1>
             
             {/* Tags */}
             <div className="flex gap-3 mb-6">
               <span className="bg-purple-900 text-white px-3 py-1 rounded-md text-sm flex items-center">
-                <span className="mr-1">★</span> Owner
+                <span className="mr-1">★</span> {getRoleDisplay(userData?.role || '')}
               </span>
-              <span className="bg-gray-800 text-white px-3 py-1 rounded-md text-sm">StreamAudio</span>
-              <span className="bg-gray-800 text-white px-3 py-1 rounded-md text-sm">Admin</span>
             </div>
           </div>
         </div>
@@ -69,54 +133,70 @@ export default function ProfilePage() {
 
         {/* Tab Content */}
         {activeTab === "basic" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Left Column - Personal Info */}
-            <div className="bg-[#1A1E24] rounded-lg p-5 space-y-6">
+          <div className="bg-[#161A1F] rounded-lg p-6">
+            <h3 className="text-xl font-semibold mb-6">Basic Information</h3>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-gray-400 text-sm">Email</h3>
-                <p className="text-white text-lg">example@gmail.com</p>
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">Full Name</h4>
+                  <p className="text-white">{userData?.name || 'Not provided'}</p>
+                </div>
+                
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">Email Address</h4>
+                  <p className="text-white">{userData?.email || 'Not provided'}</p>
+                </div>
+                
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">Birth Date</h4>
+                  <p className="text-white">{userData?.birthDate || 'Not provided'}</p>
+                </div>
+                
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">Gender</h4>
+                  <p className="text-white">{userData?.gender || 'Not provided'}</p>
+                </div>
+                
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">Phone Number</h4>
+                  <p className="text-white">{userData?.phone || 'Not provided'}</p>
+                </div>
               </div>
               
               <div>
-                <h3 className="text-gray-400 text-sm">Phone Number</h3>
-                <p className="text-white text-lg">01855664499</p>
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">Country</h4>
+                  <p className="text-white">{userData?.country || 'Not provided'}</p>
+                </div>
+                
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">City</h4>
+                  <p className="text-white">{userData?.city || 'Not provided'}</p>
+                </div>
+                
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">Address</h4>
+                  <p className="text-white">{userData?.address || 'Not provided'}</p>
+                </div>
+                
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">Current Distributor</h4>
+                  <p className="text-white">{userData?.currentDistributor || 'Not provided'}</p>
+                </div>
+                
+                <div className="mb-4">
+                  <h4 className="text-sm text-gray-400 mb-1">Number of Distributors</h4>
+                  <p className="text-white">{userData?.distributorNumber || 'Not provided'}</p>
+                </div>
               </div>
-
-              <div>
-                <h3 className="text-gray-400 text-sm">Country</h3>
-                <p className="text-white text-lg">Bangladesh</p>
-              </div>
-
-              <div>
-                <h3 className="text-gray-400 text-sm">Member Since January, 2024</h3>
-              </div>
-
-              <button className="bg-[#A365FF] hover:bg-purple-700 text-white px-6 py-2 rounded-md transition-colors">
-                See Verification Document
-              </button>
             </div>
-              
-            {/* Right Column - Financial Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#1A1E24] rounded-lg p-5">
-                <h3 className="text-gray-400 text-sm">Balance</h3>
-                <p className="text-white text-xl font-bold">$20,022</p>
-              </div>
-              
-              <div className="bg-[#1A1E24] rounded-lg p-5">
-                <h3 className="text-gray-400 text-sm">Withdraw Request</h3>
-                <p className="text-white text-xl font-bold">None</p>
-              </div>
-              
-              <div className="bg-[#1A1E24] rounded-lg p-5">
-                <h3 className="text-gray-400 text-sm">Total Earning</h3>
-                <p className="text-white text-xl font-bold">$206,458</p>
-              </div>
-              
-              <div className="bg-[#1A1E24] rounded-lg p-5">
-                <h3 className="text-gray-400 text-sm">Commission</h3>
-                <p className="text-white text-xl font-bold">None</p>
-              </div>
+            
+            <div className="mt-6">
+              <h3 className="text-xl font-semibold mb-4">Introduction</h3>
+              <p className="text-white bg-[#1D2229] p-4 rounded-md">
+                {userData?.introduction || 'No introduction provided.'}
+              </p>
             </div>
           </div>
         )}
@@ -143,14 +223,17 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                   <input
                     type="text"
-                    placeholder="James Hook"
+                    placeholder="Full Name"
+                    defaultValue={userData?.name || ''}
                     className="w-full p-3 bg-[#161A1F] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                   
                   <div className="relative">
                     <select
                       className="w-full p-3 bg-[#161A1F] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none"
+                      defaultValue={userData?.country || ''}
                     >
+                      <option value="">Select Country</option>
                       <option value="Bangladesh">Bangladesh</option>
                       <option value="USA">USA</option>
                       <option value="UK">UK</option>
@@ -165,13 +248,15 @@ export default function ProfilePage() {
                   
                   <input
                     type="text"
-                    placeholder="01855664499"
+                    placeholder="Phone Number"
+                    defaultValue={userData?.phone || ''}
                     className="w-full p-3 bg-[#161A1F] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                   
                   <input
                     type="email"
-                    placeholder="example@email.com"
+                    placeholder="Email Address"
+                    defaultValue={userData?.email || ''}
                     className="w-full p-3 bg-[#161A1F] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>

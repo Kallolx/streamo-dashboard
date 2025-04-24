@@ -1,12 +1,10 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
+
 import { getUserData } from '@/services/authService';
 import { getEarningsData, EarningsData } from '@/services/royaltyService';
 import { getLatestReleases } from '@/services/dashboardService';
-import axios from 'axios';
-import api from '@/services/api';
+
 
 // Icons
 const PlayIcon = () => (
@@ -141,15 +139,6 @@ export default function DashboardHome() {
           <span className="bg-purple-900 text-white px-3 py-1 rounded-md text-sm flex items-center">
             <span className="mr-1">★</span> {getRoleBadgeText(userData?.role || '')}
           </span>
-          <span className="bg-gray-800 text-white px-3 py-1 rounded-md text-sm">StreamAudio</span>
-          {userData?.role === 'superadmin' && (
-            <span className="bg-red-800 text-white px-3 py-1 rounded-md text-sm">Super User</span>
-          )}
-          {userData?.lastLogin && (
-            <span className="bg-gray-800 text-white px-3 py-1 rounded-md text-sm">
-              Last Login: {new Date(userData.lastLogin).toLocaleDateString()}
-            </span>
-          )}
         </div>
       </div>
 
@@ -195,105 +184,32 @@ export default function DashboardHome() {
       {/* Latest releases section */}
       <div className="mb-8">
         <h2 className="text-xl font-bold text-white mb-4">Latest Release</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {Array.isArray(releases) && releases.length > 0 ? (
             releases.map((release) => (
               <div key={release.id} className="bg-[#161A1F] rounded-lg overflow-hidden">
                 <div className="relative aspect-square">
                   <img
-                    src={release.imagePath || '/images/music/placeholder.png'}
+                    src={release.imagePath}
                     alt={release.title || 'Release'}
                     className="object-cover w-full h-full"
                   />
                 </div>
-                <div className="p-3">
-                  <h3 className="text-white text-sm font-medium">{release.title || 'Untitled'}</h3>
+                <div className="p-2">
+                  <h3 className="text-white text-xs font-medium truncate">{release.title || 'Untitled'}</h3>
                   <p className="text-gray-400 text-xs">{release.type || 'Single'}</p>
                 </div>
               </div>
             ))
           ) : (
-            <div className="col-span-5 p-4 text-center text-gray-400">
+            <div className="col-span-6 p-4 text-center text-gray-400">
               No releases found
             </div>
           )}
         </div>
       </div>
 
-      {/* Recent Statements section */}
-      {earningsData.statementHistory && earningsData.statementHistory.length > 0 ? (
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-white mb-4">Recent Statements</h2>
-          <div className="bg-[#161A1F] rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-700">
-                <thead className="bg-[#1A1E24]">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Period</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-[#161A1F] divide-y divide-gray-700">
-                  {earningsData.statementHistory.slice(0, 3).map((statement) => (
-                    <tr key={statement.id} className="hover:bg-[#1A1E24]">
-                      <td className="px-4 py-3 whitespace-nowrap text-white">{statement.period || 'N/A'}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-white">{statement.amount || '$0'}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          statement.status === 'paid' ? 'bg-green-900 text-green-200' : 'bg-yellow-900 text-yellow-200'
-                        }`}>
-                          {statement.status ? (statement.status.charAt(0).toUpperCase() + statement.status.slice(1)) : 'Pending'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-white">
-                        {statement.date ? new Date(statement.date).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
-                        {statement.downloadUrl && statement.status === 'paid' && (
-                          <button className="px-3 py-1 rounded text-sm bg-[#232830] text-blue-400 hover:bg-[#292F38]">
-                            Download
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-white mb-4">Recent Statements</h2>
-          <div className="bg-[#161A1F] p-8 rounded-lg text-center text-gray-400">
-            No statements found
-          </div>
-        </div>
-      )}
 
-      {/* Show admin-specific content */}
-      {(userData?.role === 'admin' || userData?.role === 'superadmin') && (
-        <div className="bg-[#161A1F] p-6 rounded-lg">
-          <h2 className="text-xl font-bold text-white mb-4">Administrative Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="bg-[#1A1E24] hover:bg-[#252A33] p-4 rounded-lg text-left">
-              <h3 className="text-white font-medium mb-1">User Management</h3>
-              <p className="text-gray-400 text-sm">Manage all platform users</p>
-            </button>
-            <button className="bg-[#1A1E24] hover:bg-[#252A33] p-4 rounded-lg text-left">
-              <h3 className="text-white font-medium mb-1">Release Management</h3>
-              <p className="text-gray-400 text-sm">Review and approve releases</p>
-            </button>
-            <button className="bg-[#1A1E24] hover:bg-[#252A33] p-4 rounded-lg text-left">
-              <h3 className="text-white font-medium mb-1">System Settings</h3>
-              <p className="text-gray-400 text-sm">Configure platform settings</p>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

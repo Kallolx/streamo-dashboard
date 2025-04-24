@@ -43,7 +43,16 @@ export const login = async (credentials: LoginCredentials): Promise<LoginRespons
  */
 export const register = async (userData: any): Promise<any> => {
   try {
+    // Send user data directly as JSON without file handling
     const response = await api.post('/auth/register', userData);
+    
+    // If registration is successful, store auth data
+    if (response.data.success) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('userRole', response.data.user.role);
+      localStorage.setItem('userData', JSON.stringify(response.data.user));
+    }
+    
     return response.data;
   } catch (error) {
     console.error('Registration error:', error);

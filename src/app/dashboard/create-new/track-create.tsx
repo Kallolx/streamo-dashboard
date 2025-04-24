@@ -152,7 +152,7 @@ export default function ReleaseCreate() {
           <div className="flex flex-col items-start">
             <div 
               onClick={() => fileInputRef.current?.click()} 
-              className="w-full max-w-sm h-64 bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center overflow-hidden cursor-pointer hover:border-purple-500 transition-colors"
+              className="w-full max-w-sm h-100 bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center overflow-hidden cursor-pointer hover:border-purple-500 transition-colors"
             >
               {coverArtPreview ? (
                 <img 
@@ -179,7 +179,7 @@ export default function ReleaseCreate() {
           </div>
           
           {/* Right side - Tips */}
-          <div className="">
+          <div className="rounded-md">
             <h3 className="text-lg font-medium mb-3">Tips</h3>
             <p className="text-sm text-gray-300 mb-3">Please ensure your cover art is square, less than 10 MB and a minimum of 1400px wide (3000px width is recommended for best results).</p>
             <p className="text-sm text-gray-300 mb-1">Your cover art cannot contain:</p>

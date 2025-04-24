@@ -1,8 +1,10 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Search from './Search';
 import Link from 'next/link';
+import { getUserData, logout } from '@/services/authService';
 
 // Icons
 const MenuIcon = () => (
@@ -40,6 +42,15 @@ export default function Header({
 }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const [userData, setUserData] = useState<any>(null);
+
+  // Fetch user data on component mount
+  useEffect(() => {
+    const user = getUserData();
+    if (user) {
+      setUserData(user);
+    }
+  }, []);
 
   // Get page title based on current path when no title is provided
   const getPageTitle = () => {
@@ -106,8 +117,25 @@ export default function Header({
   };
 
   const handleLogout = () => {
-    // Perform logout
+    // Perform logout using the authService
+    logout();
     router.push('/auth/login');
+  };
+
+  // Function to get the correct role text to display
+  const getRoleDisplay = (role: string) => {
+    switch(role) {
+      case 'superadmin':
+        return 'Super Admin';
+      case 'admin':
+        return 'Admin';
+      case 'labelowner':
+        return 'Label Owner';
+      case 'artist':
+        return 'Artist';
+      default:
+        return role ? role.charAt(0).toUpperCase() + role.slice(1) : 'User';
+    }
   };
 
   return (
@@ -153,21 +181,27 @@ export default function Header({
             <BellIcon />
           </button>
           
-          <Link href="/dashboard/profile" className="flex items-center">
-            <div className="relative">
-              <img
-                className="h-9 w-9 rounded-full border-2 border-gray-700"
-                src="https://randomuser.me/api/portraits/men/1.jpg"
-                alt="User avatar"
-              />
-              <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-400 border-2 border-gray-800"></span>
-            </div>
-            
-            <div className="ml-3 hidden md:block">
-              <p className="text-sm font-medium text-white">James Hetfield</p>
-              <p className="text-xs text-gray-400">Artist</p>
-            </div>
-          </Link>
+          <div className="flex items-center">
+            <Link href="/dashboard/profile" className="flex items-center">
+              <div className="relative">
+                <img
+                  className="h-9 w-9 rounded-full border-2 border-gray-700"
+                  src={userData?.profileImage || "/placeholder.png"} 
+                  alt="User avatar"
+                  onError={(e) => {
+                    // Fallback image in case profile image fails to load
+                    (e.target as HTMLImageElement).src = "/placeholder.png";
+                  }}
+                />
+                <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-400 border-2 border-gray-800"></span>
+              </div>
+              
+              <div className="ml-3 hidden md:block">
+                <p className="text-sm font-medium text-white">{userData?.name || 'User'}</p>
+                <p className="text-xs text-gray-400">{userData ? getRoleDisplay(userData.role) : 'Guest'}</p>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     </header>

@@ -7,6 +7,33 @@ export interface User {
   role: string;
   isActive: boolean;
   profileImage?: string;
+  
+  // Basic info
+  birthDate?: string;
+  gender?: string;
+  introduction?: string;
+  
+  // Address
+  country?: string;
+  city?: string;
+  phone?: string;
+  address?: string;
+  
+  // Distributor
+  currentDistributor?: string;
+  distributorNumber?: string;
+  
+  // Social profiles
+  youtubeLink?: string;
+  facebookLink?: string;
+  tiktokLink?: string;
+  instagramLink?: string;
+  
+  // Document info
+  documentType?: string;
+  documentId?: string;
+  documentPicture?: string;
+  
   lastLogin?: Date;
   createdAt?: Date;
 }
@@ -88,7 +115,14 @@ export const deleteUser = async (id: string): Promise<void> => {
  */
 export const getCurrentUser = async (): Promise<User> => {
   try {
+    console.log('Calling /users/whoami API endpoint');
     const response = await api.get('/users/whoami');
+    console.log('API response from whoami:', response.data);
+    
+    if (!response.data.success) {
+      throw new Error('Failed to fetch user data: ' + response.data.message);
+    }
+    
     return response.data.data;
   } catch (error) {
     console.error('Error fetching current user:', error);

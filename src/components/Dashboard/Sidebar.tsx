@@ -84,8 +84,6 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 pt-6 px-4 mt-4">
           {/* Dashboard Section */}
-          {isOpen && <span className="text-xs font-medium text-blue-400 px-3 mb-1 block">DASHBOARD</span>}
-          
           <Link
             href="/dashboard"
             className={`flex items-center p-3 rounded-lg transition-colors mb-2 ${
@@ -101,9 +99,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             {isOpen && <span className="ml-3">Home</span>}
           </Link>
 
-          {/* Others Section */}
-          {isOpen && <span className="text-xs font-medium text-gray-400 px-3 mt-4 mb-1 block">OTHERS</span>}
-          
+          {/* Others Section */}         
           <div className="space-y-2">
             <Link
               href="/dashboard/catalogue"
