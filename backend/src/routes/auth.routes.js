@@ -5,6 +5,7 @@ const { protect } = require('../middleware/auth.middleware');
 const router = express.Router();
 
 // Public routes
+// Register route without file upload middleware
 router.post('/register', register);
 router.post('/login', login);
 router.post('/forgot-password', forgotPassword);

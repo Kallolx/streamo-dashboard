@@ -19,6 +19,64 @@ const UserSchema = new mongoose.Schema({
     required: true,
     minlength: 6
   },
+  // Basic Info
+  birthDate: {
+    type: String
+  },
+  gender: {
+    type: String
+  },
+  introduction: {
+    type: String
+  },
+  
+  // Address
+  country: {
+    type: String
+  },
+  city: {
+    type: String
+  },
+  phone: {
+    type: String
+  },
+  address: {
+    type: String
+  },
+  
+  // Distributor
+  currentDistributor: {
+    type: String
+  },
+  distributorNumber: {
+    type: String
+  },
+  
+  // Social Profiles
+  youtubeLink: {
+    type: String
+  },
+  facebookLink: {
+    type: String
+  },
+  tiktokLink: {
+    type: String
+  },
+  instagramLink: {
+    type: String
+  },
+  
+  // Document Info
+  documentType: {
+    type: String
+  },
+  documentId: {
+    type: String
+  },
+  documentPicture: {
+    type: String
+  },
+  
   role: {
     type: String,
     enum: ['artist', 'admin', 'superadmin', 'labelowner'],

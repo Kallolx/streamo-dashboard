@@ -12,6 +12,8 @@ const releaseRoutes = require('./routes/release.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const royaltyRoutes = require('./routes/royalty.routes');
 const withdrawRoutes = require('./routes/withdraw.routes');
+const csvRoutes = require('./routes/csv.routes');
+const transactionRoutes = require('./routes/transaction.routes');
 
 // Create Express app
 const app = express();
@@ -43,10 +45,20 @@ const PORT = process.env.PORT || 5000;
 // MongoDB connection string
 const mongoURI = process.env.MONGODB_URI || "mongodb+srv://webbyte:streamo@streamo-dashboard.6jdxmuo.mongodb.net/?retryWrites=true&w=majority&appName=streamo-dashboard";
 
-// Connect to MongoDB
+// Connect to MongoDB with better error handling
 mongoose.connect(mongoURI)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .then(() => {
+    console.log('✅ MongoDB connected successfully');
+    
+    // Log connection details for troubleshooting
+    console.log(`Connected to MongoDB database: ${mongoose.connection.db.databaseName}`);
+    console.log(`MongoDB connection host: ${mongoose.connection.host}`);
+  })
+  .catch(err => {
+    console.error('❌ MongoDB connection error:', err);
+    console.error('Please check your MongoDB connection string and make sure MongoDB is running.');
+    // Don't exit the process as it will restart with nodemon
+  });
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -55,6 +67,11 @@ app.use('/api/releases', releaseRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/royalties', royaltyRoutes);
 app.use('/api/withdrawals', withdrawRoutes);
+app.use('/api/csv', csvRoutes);
+app.use('/api/transactions', transactionRoutes);
+
+// Serve uploads directory as static
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Root route for API health check
 app.get('/', (req, res) => {

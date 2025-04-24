@@ -11,7 +11,32 @@ const generateToken = (id) => {
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      role,
+      // Basic info
+      birthDate,
+      gender,
+      introduction,
+      // Address
+      country,
+      city,
+      phone,
+      address,
+      // Distributor
+      currentDistributor,
+      distributorNumber,
+      // Social profiles
+      youtubeLink,
+      facebookLink,
+      tiktokLink,
+      instagramLink,
+      // Document info
+      documentType,
+      documentId
+    } = req.body;
 
     // Check if email already exists
     const userExists = await User.findOne({ email });
@@ -22,12 +47,33 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create user
+    // Create user with all fields
     const user = await User.create({
       name,
       email,
       password,
-      role: role || 'artist' // Default to artist if no role specified
+      role: role || 'artist',
+      // Basic info
+      birthDate,
+      gender,
+      introduction,
+      // Address
+      country,
+      city,
+      phone,
+      address,
+      // Distributor
+      currentDistributor,
+      distributorNumber,
+      // Social profiles
+      youtubeLink,
+      facebookLink,
+      tiktokLink,
+      instagramLink,
+      // Document info
+      documentType,
+      documentId
+      // Note: profileImage and documentPicture would be handled through file uploads
     });
 
     if (user) {
@@ -42,7 +88,27 @@ exports.register = async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
-          profileImage: user.profileImage
+          profileImage: user.profileImage,
+          // Include all additional user fields
+          birthDate: user.birthDate,
+          gender: user.gender,
+          introduction: user.introduction,
+          country: user.country,
+          city: user.city,
+          phone: user.phone,
+          address: user.address,
+          currentDistributor: user.currentDistributor,
+          distributorNumber: user.distributorNumber,
+          youtubeLink: user.youtubeLink,
+          facebookLink: user.facebookLink,
+          tiktokLink: user.tiktokLink,
+          instagramLink: user.instagramLink,
+          documentType: user.documentType,
+          documentId: user.documentId,
+          documentPicture: user.documentPicture,
+          isActive: user.isActive,
+          lastLogin: user.lastLogin,
+          createdAt: user.createdAt
         },
         token: generateToken(user._id)
       });
@@ -54,9 +120,30 @@ exports.register = async (req, res) => {
     }
   } catch (error) {
     console.error('Registration error:', error);
+    
+    // If it's a validation error, return more detailed information
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validationErrors
+      });
+    }
+    
+    // If it's a duplicate key error (e.g., email already exists)
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Duplicate field value entered',
+        field: Object.keys(error.keyValue)[0]
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Server error during registration'
+      message: 'Server error during registration',
+      error: error.message
     });
   }
 };
@@ -90,6 +177,7 @@ exports.login = async (req, res) => {
     user.lastLogin = Date.now();
     await user.save();
 
+    // Return a more complete user object with all fields
     res.status(200).json({
       success: true,
       user: {
@@ -97,7 +185,27 @@ exports.login = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        profileImage: user.profileImage
+        profileImage: user.profileImage,
+        // Include all additional user fields
+        birthDate: user.birthDate,
+        gender: user.gender,
+        introduction: user.introduction,
+        country: user.country,
+        city: user.city,
+        phone: user.phone,
+        address: user.address,
+        currentDistributor: user.currentDistributor,
+        distributorNumber: user.distributorNumber,
+        youtubeLink: user.youtubeLink,
+        facebookLink: user.facebookLink,
+        tiktokLink: user.tiktokLink,
+        instagramLink: user.instagramLink,
+        documentType: user.documentType,
+        documentId: user.documentId,
+        documentPicture: user.documentPicture,
+        isActive: user.isActive,
+        lastLogin: user.lastLogin,
+        createdAt: user.createdAt
       },
       token: generateToken(user._id)
     });
