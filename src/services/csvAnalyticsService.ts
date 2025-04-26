@@ -334,12 +334,17 @@ export const extractCsvSummary = (csvContent: string): CsvSummary => {
         return parseInt(aYear) - parseInt(bYear);
       }
       
-      const monthOrder = {
+      // Define the month order with explicit type for keys
+      const monthOrder: Record<string, number> = {
         'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
         'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
       };
       
-      return monthOrder[aMonth] - monthOrder[bMonth];
+      // Safely access month indices with fallbacks
+      const aMonthIndex = monthOrder[aMonth] ?? 0;
+      const bMonthIndex = monthOrder[bMonth] ?? 0;
+      
+      return aMonthIndex - bMonthIndex;
     });
   
   // Convert country data to sorted array with percentages
