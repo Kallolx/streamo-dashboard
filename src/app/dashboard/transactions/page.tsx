@@ -16,9 +16,8 @@ import TransactionDetailsModal from "@/components/Dashboard/models/TransactionDe
 import { getUserRole, isAuthenticated } from "@/services/authService";
 import { uploadCsv, getCsvUploads, deleteCsvUpload, getCsvStatus, CsvUpload } from "@/services/csvService";
 import { getTransactions, deleteTransaction, Transaction } from "@/services/transactionService";
-import { analyzeLocalCsvFile, analyzeLatestCsvFile, extractCsvSummary, CsvSummary } from "@/services/csvAnalyticsService";
+import {  extractCsvSummary } from "@/services/csvAnalyticsService";
 import { useRouter } from "next/navigation";
-import CsvAnalyticsComponent from "@/components/Dashboard/CsvAnalyticsComponent";
 import api from "@/services/api";
 
 // Define the transactions tabs
@@ -761,15 +760,91 @@ export default function TransactionsPage() {
 
   // Helper to get display text for timeframe
   const getTimeframeText = (value: string) => {
-    switch (value) {
-      case 'thisMonth': return 'This Month';
-      case 'lastMonth': return 'Last Month';
-      case 'last3Months': return 'Last 3 Months';
-      case 'last6Months': return 'Last 6 Months';
-      case 'thisYear': return 'This Year';
-      case 'allTime': return 'All Time';
-      default: return 'This Month';
+    const timeframeLabels: Record<string, string> = {
+      'thisMonth': 'This Month',
+      'lastMonth': 'Last Month',
+      'last3Months': 'Last 3 Months',
+      'last6Months': 'Last 6 Months',
+      'thisYear': 'This Year',
+      'allTime': 'All Time'
+    };
+    
+    return timeframeLabels[value] || value;
+  };
+
+  // Generate SVG path for performance chart
+  const getPerformanceChartPath = (data: {month: string; revenue: number; streams: number}[], metric: 'revenue' | 'streams'): string => {
+    if (!data || data.length === 0) {
+      return '';
     }
+
+    // Find the maximum value to scale the chart
+    const maxValue = Math.max(...data.map(item => item[metric]));
+    
+    // Create scaled points for the chart (x, y coordinates)
+    const points = data.map((item, index) => {
+      const x = (index / (data.length - 1 || 1)) * 1000; // Scale x from 0 to 1000
+      
+      // Scale y from 0 to 300 (inverted, as SVG y increases downward)
+      // Add 20px padding at the top and bottom
+      const normalizedValue = item[metric] / (maxValue || 1);
+      const y = 280 - (normalizedValue * 260) + 20;
+      
+      return { x, y };
+    });
+    
+    // Generate the SVG path
+    if (points.length === 1) {
+      // If only one point, create a horizontal line
+      const p = points[0];
+      return `M0,${p.y} L1000,${p.y}`;
+    }
+    
+    // Create a smooth curve through the points
+    let path = `M${points[0].x},${points[0].y}`;
+    
+    for (let i = 0; i < points.length - 1; i++) {
+      const current = points[i];
+      const next = points[i + 1];
+      
+      // Control points for the curve
+      const cp1x = current.x + (next.x - current.x) / 3;
+      const cp1y = current.y;
+      const cp2x = next.x - (next.x - current.x) / 3;
+      const cp2y = next.y;
+      
+      path += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${next.x},${next.y}`;
+    }
+    
+    return path;
+  };
+
+  // Generate conic gradient for pie chart from platform data
+  const generateConicGradient = (platforms: {platform: string; percentage: number}[]): string => {
+    if (!platforms || platforms.length === 0) {
+      return "conic-gradient(#8A85FF 0% 100%)";
+    }
+
+    // Colors for the gradient
+    const colors = ['#8A85FF', '#6AE398', '#FFB963', '#00C2FF'];
+    
+    // Build the gradient string
+    let gradientString = "conic-gradient(";
+    let startPercentage = 0;
+    
+    platforms.forEach((platform, index) => {
+      const endPercentage = startPercentage + platform.percentage;
+      gradientString += `${colors[index % colors.length]} ${startPercentage}% ${endPercentage}%`;
+      
+      if (index < platforms.length - 1) {
+        gradientString += ", ";
+      }
+      
+      startPercentage = endPercentage;
+    });
+    
+    gradientString += ")";
+    return gradientString;
   };
 
   // Handle viewing CSV errors
@@ -1466,9 +1541,9 @@ export default function TransactionsPage() {
       )}
 
       {activeTab === "analytics" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Summary Cards */}
-          <div className="col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="col-span-1 grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {/* Balance */}
             <div className="bg-[#161A1F] p-6 rounded-lg">
               <div className="flex flex-col">
@@ -1535,55 +1610,297 @@ export default function TransactionsPage() {
             </div>
           </div>
 
-          {/* CSV Analysis Component */}
-          <div className="col-span-3 md:col-span-1">
-            <CsvAnalyticsComponent onAnalysisComplete={handleAnalysisComplete} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Performance Analytics */}
+            <div className="p-5 bg-[#161A1F] rounded-lg">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-white font-medium">Performance Analytics</h3>
+                <div className="relative">
+                  <button 
+                    id="performance-dropdown-button"
+                    className="bg-[#232830] text-gray-300 px-3 py-1.5 rounded text-sm flex items-center"
+                    onClick={togglePerformanceDropdown}
+                  >
+                    <span>{getTimeframeText(performanceTimeframe)}</span>
+                    <svg className="ml-2 w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  
+                  {showPerformanceDropdown && (
+                    <div 
+                      id="performance-dropdown"
+                      className="absolute right-0 mt-1 w-40 bg-[#232830] rounded-md shadow-lg z-50"
+                    >
+                      <div className="py-1">
+                        {['thisMonth', 'lastMonth', 'last3Months', 'last6Months', 'thisYear', 'allTime'].map((value) => (
+                          <button 
+                            key={value}
+                            className={`block px-4 py-2 text-sm w-full text-left ${
+                              performanceTimeframe === value ? 'text-[#A365FF]' : 'text-gray-300 hover:bg-[#1A1E24]'
+                            }`}
+                            onClick={(e) => selectTimeframe('performance', value, e)}
+                          >
+                            {getTimeframeText(value)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Chart */}
+              <div className="h-90 rounded-lg p-4">
+                <div className="relative h-full">
+                  {/* Y-axis labels */}
+                  <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-400 py-2">
+                    <span>50K</span>
+                    <span>10K</span>
+                    <span>1K</span>
+                    <span>500</span>
+                    <span>100</span>
+                    <span>00</span>
+                  </div>
+                  
+                  {/* Chart area with horizontal grid lines */}
+                  <div className="absolute left-10 right-0 top-0 bottom-0">
+                    {/* Horizontal grid lines */}
+                    <div className="absolute inset-0 flex flex-col justify-between">
+                      <div className="border-t border-[#2A303A]"></div>
+                      <div className="border-t border-[#2A303A]"></div>
+                      <div className="border-t border-[#2A303A]"></div>
+                      <div className="border-t border-[#2A303A]"></div>
+                      <div className="border-t border-[#2A303A]"></div>
+                      <div className="border-t border-[#2A303A]"></div>
+                    </div>
+                    
+                    {/* SVG for the chart */}
+                    <svg 
+                      viewBox="0 0 1000 300"
+                      className="w-full h-full"
+                      preserveAspectRatio="none"
+                    >
+                      {/* Horizontal grid lines */}
+                      <line x1="0" y1="0" x2="1000" y2="0" stroke="#2A303A" strokeWidth="1" />
+                      <line x1="0" y1="60" x2="1000" y2="60" stroke="#2A303A" strokeWidth="1" />
+                      <line x1="0" y1="120" x2="1000" y2="120" stroke="#2A303A" strokeWidth="1" />
+                      <line x1="0" y1="180" x2="1000" y2="180" stroke="#2A303A" strokeWidth="1" />
+                      <line x1="0" y1="240" x2="1000" y2="240" stroke="#2A303A" strokeWidth="1" />
+                      <line x1="0" y1="300" x2="1000" y2="300" stroke="#2A303A" strokeWidth="1" />
+                      
+                      {/* Chart line - Replace with actual data */}
+                      {!isLoadingCsvSummary && csvSummary?.performanceData && csvSummary.performanceData.length > 0 ? (
+                        <>
+                          <path 
+                            d={getPerformanceChartPath(csvSummary.performanceData, 'revenue')}
+                            fill="none"
+                            stroke="#A365FF"
+                            strokeWidth="2"
+                          />
+                          
+                          {/* Fill gradient */}
+                          <defs>
+                            <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#A365FF" stopOpacity="0.5" />
+                              <stop offset="100%" stopColor="#A365FF" stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+                          
+                          {/* Fill area */}
+                          <path 
+                            d={`${getPerformanceChartPath(csvSummary.performanceData, 'revenue')} L${1000 * (csvSummary.performanceData.length > 0 ? 1 : 0)},300 L0,300 Z`}
+                            fill="url(#gradient)"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <path 
+                            d="M0,260 C30,220 60,250 90,170 C120,120 150,250 180,250 C210,230 240,100 270,50 C300,20 330,60 360,120 C390,180 420,150 450,220 C480,260 510,220 540,120 C570,50 600,100 630,50 C660,80 690,150 720,130 C750,110 780,180 810,140 C840,100 870,250 900,200 C930,150 970,100 1000,70"
+                            fill="none"
+                            stroke="#A365FF"
+                            strokeWidth="2"
+                          />
+                          
+                          {/* Fill gradient */}
+                          <defs>
+                            <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#A365FF" stopOpacity="0.5" />
+                              <stop offset="100%" stopColor="#A365FF" stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+                          
+                          {/* Fill area */}
+                          <path 
+                            d="M0,260 C30,220 60,250 90,170 C120,120 150,250 180,250 C210,230 240,100 270,50 C300,20 330,60 360,120 C390,180 420,150 450,220 C480,260 510,220 540,120 C570,50 600,100 630,50 C660,80 690,150 720,130 C750,110 780,180 810,140 C840,100 870,250 900,200 C930,150 970,100 1000,70 L1000,300 L0,300 Z"
+                            fill="url(#gradient)"
+                          />
+                        </>
+                      )}
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* X-axis labels */}
+                <div className="flex justify-between text-xs text-gray-400 mt-2 px-10">
+                  {!isLoadingCsvSummary && csvSummary?.performanceData && csvSummary.performanceData.length > 0 ? (
+                    csvSummary.performanceData.map((data: {month: string; revenue: number; streams: number}, index: number) => (
+                      <span key={index}>{data.month.split(' ')[0]}</span>
+                    ))
+                  ) : (
+                    <>
+                      <span>Jan</span>
+                      <span>Feb</span>
+                      <span>Mar</span>
+                      <span>Apr</span>
+                      <span>May</span>
+                      <span>Jun</span>
+                      <span>Jul</span>
+                      <span>Aug</span>
+                      <span>Sep</span>
+                      <span>Oct</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Top Countries for Streaming */}
+            <div className="p-5 bg-[#161A1F] rounded-lg">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-white font-medium">Top Countries for Streaming</h3>
+                <div className="relative">
+                  <button 
+                    id="countries-dropdown-button"
+                    className="bg-[#232830] text-gray-300 px-3 py-1.5 rounded text-sm flex items-center"
+                    onClick={toggleCountriesDropdown}
+                  >
+                    <span>{getTimeframeText(countriesTimeframe)}</span>
+                    <svg className="ml-2 w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  
+                  {showCountriesDropdown && (
+                    <div 
+                      id="countries-dropdown"
+                      className="absolute right-0 mt-1 w-40 bg-[#232830] rounded-md shadow-lg z-50"
+                    >
+                      <div className="py-1">
+                        {['thisMonth', 'lastMonth', 'last3Months', 'last6Months', 'thisYear', 'allTime'].map((value) => (
+                          <button 
+                            key={value}
+                            className={`block px-4 py-2 text-sm w-full text-left ${
+                              countriesTimeframe === value ? 'text-[#A365FF]' : 'text-gray-300 hover:bg-[#1A1E24]'
+                            }`}
+                            onClick={(e) => selectTimeframe('countries', value, e)}
+                          >
+                            {getTimeframeText(value)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Countries list */}
+              <div className="space-y-5 bg-[#1A1E24] p-5 rounded-lg">
+                {isLoadingCsvSummary ? (
+                  // Loading skeleton
+                  [...Array(6)].map((_, i) => (
+                    <div key={i}>
+                      <div className="flex justify-between text-white mb-1.5">
+                        <div className="animate-pulse h-4 bg-gray-700 rounded w-24"></div>
+                        <div className="animate-pulse h-4 bg-gray-700 rounded w-8"></div>
+                      </div>
+                      <div className="w-full bg-[#232830] h-2 rounded-full">
+                        <div className="animate-pulse bg-gray-700 h-2 rounded-full" style={{ width: '50%' }}></div>
+                      </div>
+                    </div>
+                  ))
+                ) : csvSummary?.countryData && csvSummary.countryData.length > 0 ? (
+                  // Real country data
+                  csvSummary.countryData.map((country: {country: string; percentage: number}, index: number) => (
+                    <div key={index}>
+                      <div className="flex justify-between text-white mb-1.5">
+                        <span>{country.country}</span>
+                        <span>{country.percentage}%</span>
+                      </div>
+                      <div className="w-full bg-[#232830] h-2 rounded-full">
+                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: `${country.percentage}%` }}></div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  // Fallback mock data
+                  <>
+                    <div>
+                      <div className="flex justify-between text-white mb-1.5">
+                        <span>USA</span>
+                        <span>46%</span>
+                      </div>
+                      <div className="w-full bg-[#232830] h-2 rounded-full">
+                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '46%' }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-white mb-1.5">
+                        <span>Bangladesh</span>
+                        <span>23%</span>
+                      </div>
+                      <div className="w-full bg-[#232830] h-2 rounded-full">
+                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '23%' }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-white mb-1.5">
+                        <span>UK</span>
+                        <span>19%</span>
+                      </div>
+                      <div className="w-full bg-[#232830] h-2 rounded-full">
+                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '19%' }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-white mb-1.5">
+                        <span>Germany</span>
+                        <span>13%</span>
+                      </div>
+                      <div className="w-full bg-[#232830] h-2 rounded-full">
+                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '13%' }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-white mb-1.5">
+                        <span>India</span>
+                        <span>11%</span>
+                      </div>
+                      <div className="w-full bg-[#232830] h-2 rounded-full">
+                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '11%' }}></div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-white mb-1.5">
+                        <span>Nepal</span>
+                        <span>8%</span>
+                      </div>
+                      <div className="w-full bg-[#232830] h-2 rounded-full">
+                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '8%' }}></div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Last Transaction Details */}
-          <div className="col-span-3 md:col-span-2 bg-[#161A1F] p-6 rounded-lg">
-            <h3 className="text-lg font-medium text-white mb-4">Last Transaction Details</h3>
-            
-            {isLoadingCsvSummary ? (
-              <div className="animate-pulse space-y-2">
-                <div className="h-4 bg-gray-700 rounded w-1/4"></div>
-                <div className="h-4 bg-gray-700 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-700 rounded w-1/3"></div>
-                <div className="h-4 bg-gray-700 rounded w-2/5"></div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-gray-400 text-sm">Artist</p>
-                    <p className="text-white">{csvSummary?.lastTransaction?.artist || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Title</p>
-                    <p className="text-white">{csvSummary?.lastTransaction?.title || 'N/A'}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-gray-400 text-sm">Service</p>
-                    <p className="text-white">{csvSummary?.lastTransaction?.service || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Territory</p>
-                    <p className="text-white">{csvSummary?.lastTransaction?.territory || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Date</p>
-                    <p className="text-white">{csvSummary?.lastTransaction?.date || 'N/A'}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-sm">Amount</p>
-                  <p className="text-white text-lg font-bold">{formatCurrency(csvSummary?.lastTransaction?.amount || 0)}</p>
-                </div>
-              </div>
-            )}
-          </div>
+
         </div>
       )}
 
@@ -1895,7 +2212,11 @@ export default function TransactionsPage() {
               <div className="flex flex-col">
                 <span className="text-gray-400 text-sm mb-2">Total Revenue</span>
                 <div className="flex items-center justify-between">
-                  <span className="text-white text-2xl font-bold">$12,480</span>
+                  {isLoadingCsvSummary ? (
+                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                  ) : (
+                    <span className="text-white text-2xl font-bold">{formatCurrency(csvSummary?.totalRevenue || 0)}</span>
+                  )}
                   <div className="h-8 w-8 bg-[#232830] rounded-full flex items-center justify-center text-[#A365FF]">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1910,7 +2231,11 @@ export default function TransactionsPage() {
               <div className="flex flex-col">
                 <span className="text-gray-400 text-sm mb-2">Total Music</span>
                 <div className="flex items-center justify-between">
-                  <span className="text-white text-2xl font-bold">6599</span>
+                  {isLoadingCsvSummary ? (
+                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                  ) : (
+                    <span className="text-white text-2xl font-bold">{csvSummary?.totalMusic?.toLocaleString() || 0}</span>
+                  )}
                   <div className="h-8 w-8 bg-[#232830] rounded-full flex items-center justify-center text-[#A365FF]">
                     <svg
                       width="18"
@@ -1955,7 +2280,11 @@ export default function TransactionsPage() {
               <div className="flex flex-col">
                 <span className="text-gray-400 text-sm mb-2">Total Videos</span>
                 <div className="flex items-center justify-between">
-                  <span className="text-white text-2xl font-bold">559</span>
+                  {isLoadingCsvSummary ? (
+                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                  ) : (
+                    <span className="text-white text-2xl font-bold">{csvSummary?.totalVideos?.toLocaleString() || 0}</span>
+                  )}
                   <div className="h-8 w-8 bg-[#232830] rounded-full flex items-center justify-center text-[#A365FF]">
                     <svg
                       width="18"
@@ -1993,7 +2322,11 @@ export default function TransactionsPage() {
               <div className="flex flex-col">
                 <span className="text-gray-400 text-sm mb-2">Total Royalty</span>
                 <div className="flex items-center justify-between">
-                  <span className="text-white text-2xl font-bold">5M</span>
+                  {isLoadingCsvSummary ? (
+                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                  ) : (
+                    <span className="text-white text-2xl font-bold">{formatCurrency(csvSummary?.totalRoyalty || 0)}</span>
+                  )}
                   <div className="h-8 w-8 bg-[#232830] rounded-full flex items-center justify-center text-[#A365FF]">
                     <svg
                       width="18"
@@ -2023,65 +2356,95 @@ export default function TransactionsPage() {
                 <h3 className="text-white font-medium">Top Platform</h3>
                 <select
                   className="bg-[#1A1E25] border border-gray-700 text-gray-300 text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  defaultValue="January"
+                  defaultValue="allTime"
                 >
-                  <option value="January">January</option>
-                  <option value="February">February</option>
-                  <option value="March">March</option>
-                  <option value="April">April</option>
-                  <option value="May">May</option>
-                  <option value="June">June</option>
-                  <option value="July">July</option>
-                  <option value="August">August</option>
-                  <option value="September">September</option>
-                  <option value="October">October</option>
-                  <option value="November">November</option>
-                  <option value="December">December</option>
+                  <option value="allTime">All Time</option>
+                  <option value="thisYear">This Year</option>
+                  <option value="lastMonth">Last Month</option>
                 </select>
               </div>
 
               {/* Pie Chart */}
               <div className="flex items-center justify-center p-4 rounded-md overflow-hidden">
-                {/* Donut chart */}
-                <div className="relative w-44 h-44">
-                  {/* This is a simple representation of a pie chart using a conic gradient */}
-                  <div
-                    className="absolute inset-0 rounded-full"
-                    style={{
-                      background:
-                        "conic-gradient(#8A85FF 0% 40%, #6AE398 40% 70%, #FFB963 70% 95%, #00C2FF 95% 100%)",
-                      clipPath: "circle(50% at center)",
-                    }}
-                  >
-                    {/* Center hollow */}
-                    <div className="absolute inset-[25%] rounded-full bg-[#1A1E25]"></div>
+                {isLoadingCsvSummary ? (
+                  <div className="w-44 h-44 flex items-center justify-center">
+                    <div className="animate-pulse h-32 w-32 bg-gray-700 rounded-full"></div>
                   </div>
+                ) : csvSummary?.platformData && csvSummary.platformData.length > 0 ? (
+                  <div className="relative w-44 h-44">
+                    {/* Generate pie chart with actual platform data */}
+                    <div
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        background: generateConicGradient(csvSummary.platformData),
+                        clipPath: "circle(50% at center)",
+                      }}
+                    >
+                      {/* Center hollow */}
+                      <div className="absolute inset-[25%] rounded-full bg-[#1A1E25]"></div>
+                    </div>
 
-                  {/* Percentages */}
-                  <div className="absolute top-16 -right-30 text-md">
-                    <div className="text-[#8A85FF] font-medium">
-                      Spotify 40%
+                    {/* Dynamic percentages */}
+                    {csvSummary.platformData.map((platform: {platform: string; percentage: number}, index: number) => {
+                      // Calculate position around the circle
+                      const positions = [
+                        { top: '16px', right: '-30px' }, // right
+                        { bottom: '2px', left: '-36px' }, // bottom
+                        { top: '16px', left: '-42px' },   // left
+                        { top: '1px', right: '-32px' }    // top
+                      ];
+                      const colors = ['#8A85FF', '#6AE398', '#FFB963', '#00C2FF'];
+                      
+                      return (
+                        <div key={index} className="absolute text-md" style={positions[index]}>
+                          <div className="font-medium" style={{ color: colors[index] }}>
+                            {platform.platform} {platform.percentage}%
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  // Fallback to mock data if no real data
+                  <div className="relative w-44 h-44">
+                    <div
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        background:
+                          "conic-gradient(#8A85FF 0% 40%, #6AE398 40% 70%, #FFB963 70% 95%, #00C2FF 95% 100%)",
+                        clipPath: "circle(50% at center)",
+                      }}
+                    >
+                      {/* Center hollow */}
+                      <div className="absolute inset-[25%] rounded-full bg-[#1A1E25]"></div>
+                    </div>
+
+                    {/* Percentages */}
+                    <div className="absolute top-16 -right-30 text-md">
+                      <div className="text-[#8A85FF] font-medium">
+                        Spotify 40%
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-2 -left-36 text-md">
+                      <div className="text-[#6AE398] font-medium">
+                        YouTube 30%
+                      </div>
+                    </div>
+
+                    <div className="absolute top-16 -left-42 text-md">
+                      <div className="text-[#FFB963] font-medium">
+                        Apple Music 25%
+                      </div>
+                    </div>
+
+                    <div className="absolute top-1 -right-32 text-md">
+                      <div className="text-[#00C2FF] font-medium">
+                        Soundcloud 5%
+                      </div>
                     </div>
                   </div>
-
-                  <div className="absolute bottom-2 -left-36 text-md">
-                    <div className="text-[#6AE398] font-medium">
-                      YouTube 30%
-                    </div>
-                  </div>
-
-                  <div className="absolute top-16 -left-42 text-md">
-                    <div className="text-[#FFB963] font-medium">
-                      Apple Music 25%
-                    </div>
-                  </div>
-
-                  <div className="absolute top-1 -right-32 text-md">
-                    <div className="text-[#00C2FF] font-medium">
-                      Soundcloud 5%
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -2093,55 +2456,90 @@ export default function TransactionsPage() {
 
               {/* Bar Chart */}
               <div className="h-72 p-4">
-                <div className="flex h-full w-full justify-between items-end px-6">
-                  {/* 2020 Bar */}
-                  <div className="flex flex-col items-center justify-end h-full">
-                    <div className="text-white text-xs mb-2">1k</div>
-                    <div className="w-12 bg-[#A365FF] h-[10%] rounded-t-md relative">
-                    </div>
-                    <div className="text-gray-400 text-xs mt-2">2020</div>
+                {isLoadingCsvSummary ? (
+                  <div className="flex h-full w-full justify-between items-end px-6">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="flex flex-col items-center justify-end h-full">
+                        <div className="animate-pulse h-4 bg-gray-700 rounded w-8 mb-2"></div>
+                        <div className="w-12 animate-pulse bg-gray-700 h-[30%] rounded-t-md"></div>
+                        <div className="animate-pulse h-4 bg-gray-700 rounded w-8 mt-2"></div>
+                      </div>
+                    ))}
                   </div>
-                  
-                  {/* 2021 Bar */}
-                  <div className="flex flex-col items-center justify-end h-full">
-                    <div className="text-white text-xs mb-2">3k</div>
-                    <div className="w-12 bg-[#A365FF] h-[20%] rounded-t-md relative">
-                    </div>
-                    <div className="text-gray-400 text-xs mt-2">2021</div>
+                ) : csvSummary?.yearlyRevenueData && csvSummary.yearlyRevenueData.length > 0 ? (
+                  <div className="flex h-full w-full justify-between items-end px-6">
+                    {/* Find the max revenue for scaling */}
+                    {(() => {
+                      const maxRevenue = Math.max(...csvSummary.yearlyRevenueData.map((d: {year: string; revenue: number}) => d.revenue));
+                      
+                      return csvSummary.yearlyRevenueData.map((yearData: {year: string; revenue: number}, index: number) => {
+                        // Calculate height percentage based on revenue
+                        const heightPercentage = maxRevenue > 0 ? (yearData.revenue / maxRevenue) * 80 : 0;
+                        
+                        return (
+                          <div key={index} className="flex flex-col items-center justify-end h-full">
+                            <div className="text-white text-xs mb-2">
+                              {formatCurrency(yearData.revenue).replace('$', '')}
+                            </div>
+                            <div className="w-12 bg-[#A365FF] rounded-t-md relative" style={{ height: `${heightPercentage}%` }}>
+                            </div>
+                            <div className="text-gray-400 text-xs mt-2">{yearData.year}</div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
-                  
-                  {/* 2022 Bar */}
-                  <div className="flex flex-col items-center justify-end h-full">
-                    <div className="text-white text-xs mb-2">3k</div>
-                    <div className="w-12 bg-[#A365FF] h-[30%] rounded-t-md relative">
+                ) : (
+                  <div className="flex h-full w-full justify-between items-end px-6">
+                    {/* 2020 Bar */}
+                    <div className="flex flex-col items-center justify-end h-full">
+                      <div className="text-white text-xs mb-2">1k</div>
+                      <div className="w-12 bg-[#A365FF] h-[10%] rounded-t-md relative">
+                      </div>
+                      <div className="text-gray-400 text-xs mt-2">2020</div>
                     </div>
-                    <div className="text-gray-400 text-xs mt-2">2022</div>
-                  </div>
-                  
-                  {/* 2023 Bar */}
-                  <div className="flex flex-col items-center justify-end h-full">
-                    <div className="text-white text-xs mb-2">6k</div>
-                    <div className="w-12 bg-[#A365FF] h-[50%] rounded-t-md relative">
+                    
+                    {/* 2021 Bar */}
+                    <div className="flex flex-col items-center justify-end h-full">
+                      <div className="text-white text-xs mb-2">3k</div>
+                      <div className="w-12 bg-[#A365FF] h-[20%] rounded-t-md relative">
+                      </div>
+                      <div className="text-gray-400 text-xs mt-2">2021</div>
                     </div>
-                    <div className="text-gray-400 text-xs mt-2">2023</div>
-                  </div>
-                  
-                  {/* 2024 Bar */}
-                  <div className="flex flex-col items-center justify-end h-full">
-                    <div className="text-white text-xs mb-2">8k</div>
-                    <div className="w-12 bg-[#A365FF] h-[65%] rounded-t-md relative">
+                    
+                    {/* 2022 Bar */}
+                    <div className="flex flex-col items-center justify-end h-full">
+                      <div className="text-white text-xs mb-2">3k</div>
+                      <div className="w-12 bg-[#A365FF] h-[30%] rounded-t-md relative">
+                      </div>
+                      <div className="text-gray-400 text-xs mt-2">2022</div>
                     </div>
-                    <div className="text-gray-400 text-xs mt-2">2024</div>
-                  </div>
-                  
-                  {/* 2025 Bar */}
-                  <div className="flex flex-col items-center justify-end h-full">
-                    <div className="text-white text-xs mb-2">10k</div>
-                    <div className="w-12 bg-[#A365FF] h-[80%] rounded-t-md relative">
+                    
+                    {/* 2023 Bar */}
+                    <div className="flex flex-col items-center justify-end h-full">
+                      <div className="text-white text-xs mb-2">6k</div>
+                      <div className="w-12 bg-[#A365FF] h-[50%] rounded-t-md relative">
+                      </div>
+                      <div className="text-gray-400 text-xs mt-2">2023</div>
                     </div>
-                    <div className="text-gray-400 text-xs mt-2">2025</div>
+                    
+                    {/* 2024 Bar */}
+                    <div className="flex flex-col items-center justify-end h-full">
+                      <div className="text-white text-xs mb-2">8k</div>
+                      <div className="w-12 bg-[#A365FF] h-[65%] rounded-t-md relative">
+                      </div>
+                      <div className="text-gray-400 text-xs mt-2">2024</div>
+                    </div>
+                    
+                    {/* 2025 Bar */}
+                    <div className="flex flex-col items-center justify-end h-full">
+                      <div className="text-white text-xs mb-2">10k</div>
+                      <div className="w-12 bg-[#A365FF] h-[80%] rounded-t-md relative">
+                      </div>
+                      <div className="text-gray-400 text-xs mt-2">2025</div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

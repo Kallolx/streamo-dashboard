@@ -35,11 +35,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      console.log("Login - Attempting login for:", email); 
-      console.log("Login - Not a test account, trying real API login");
       const response = await login({ email, password });
-      
-      console.log("Login - API response:", response.success ? "Success" : "Failed");
       
       if (response.success) {
         router.push('/dashboard');
@@ -47,7 +43,6 @@ export default function LoginPage() {
         throw new Error(response.success ? "" : 'Login failed');
       }
     } catch (error: any) {
-      console.error("Login - Error:", error);
       setError(error.response?.data?.message || error.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
