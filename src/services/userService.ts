@@ -7,6 +7,7 @@ export interface User {
   role: string;
   isActive: boolean;
   profileImage?: string;
+  split?: number;
   
   // Basic info
   birthDate?: string;
@@ -35,6 +36,7 @@ export interface User {
   documentPicture?: string;
   
   lastLogin?: Date;
+  lastPasswordChanged?: Date;
   createdAt?: Date;
 }
 
@@ -43,6 +45,7 @@ export interface CreateUserData {
   email: string;
   password: string;
   role: string;
+  split?: number;
 }
 
 /**
@@ -94,6 +97,41 @@ export const updateUser = async (id: string, userData: Partial<User>): Promise<U
     return response.data.data;
   } catch (error) {
     console.error(`Error updating user ${id}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Update current user's profile
+ */
+export const updateCurrentUser = async (userData: Partial<User>): Promise<User> => {
+  try {
+    const response = await api.put('/users/profile', userData);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    throw error;
+  }
+};
+
+/**
+ * Change current user's password
+ */
+export interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export const changePassword = async (passwordData: ChangePasswordData): Promise<void> => {
+  try {
+    await api.post('/users/change-password', passwordData);
+  } catch (error: any) {
+    // Special handling for incorrect password (401) to prevent logout
+    if (error.response && error.response.status === 401) {
+      // Throw a custom error that won't trigger the axios interceptor logout
+      throw new Error('Current password is incorrect');
+    }
+    console.error('Error changing password:', error);
     throw error;
   }
 };

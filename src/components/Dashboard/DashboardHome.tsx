@@ -1,9 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Toast from '@/components/Common/Toast';
 
 import { getUserData } from '@/services/authService';
 import { getEarningsData, EarningsData } from '@/services/royaltyService';
 import { getLatestReleases } from '@/services/dashboardService';
+import { createWithdrawalRequest, WithdrawalRequest } from '@/services/withdrawalService';
 
 
 // Icons
@@ -54,6 +56,34 @@ export default function DashboardHome() {
     statementHistory: []
   });
   const [releases, setReleases] = useState<any[]>([]);
+  
+  // State for withdraw modal
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawError, setWithdrawError] = useState('');
+  
+  // Payment method state
+  const [paymentMethod, setPaymentMethod] = useState<"Bank" | "BKash" | "Nagad">("Bank");
+  const [bankDetails, setBankDetails] = useState({
+    accountNumber: "",
+    bankName: "",
+    branch: ""
+  });
+  const [mobileNumber, setMobileNumber] = useState("");
+  
+  // Constants for withdrawal
+  const MIN_WITHDRAWAL_AMOUNT = 500; // Minimum $500 withdrawal
+  const userBalance = 0; // Setting balance to $0 as requested
+
+  // Add toast state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  
+  // Handle toast close
+  const handleToastClose = () => {
+    setToastMessage(null);
+  };
 
   // Fetch user data and earnings on component mount
   useEffect(() => {
@@ -69,14 +99,12 @@ export default function DashboardHome() {
         
         setUserData(user);
         
-        // Fetch earnings data
-        const earnings = await getEarningsData();
-        // Ensure no null values in earnings data
+        // Always set $0 balance data as requested
         setEarningsData({
-          totalEarnings: earnings.totalEarnings || '$0',
-          lastStatement: earnings.lastStatement || '$0',
-          pendingPayments: earnings.pendingPayments || '$0',
-          statementHistory: Array.isArray(earnings.statementHistory) ? earnings.statementHistory : []
+          totalEarnings: '$0',
+          lastStatement: '$0',
+          pendingPayments: '$0',
+          statementHistory: []
         });
         
         // Fetch latest releases
@@ -119,6 +147,98 @@ export default function DashboardHome() {
   const displayValue = (value: any, defaultValue: string = '$0') => {
     return value || defaultValue;
   };
+  
+  // Handle withdraw button click
+  const handleWithdrawClick = () => {
+    setWithdrawError('');
+    setWithdrawAmount('');
+    // Reset payment fields
+    setBankDetails({
+      accountNumber: "",
+      bankName: "",
+      branch: ""
+    });
+    setMobileNumber("");
+    setPaymentMethod("Bank");
+    setShowWithdrawModal(true);
+  };
+  
+  // Handle close modal
+  const handleCloseModal = () => {
+    setShowWithdrawModal(false);
+    setWithdrawAmount('');
+    setWithdrawError('');
+  };
+  
+  // Handle bank details change
+  const handleBankDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setBankDetails(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Handle withdraw confirmation
+  const handleConfirmWithdraw = async () => {
+    // Reset error state
+    setWithdrawError('');
+    
+    // Validate amount
+    if (!withdrawAmount || isNaN(parseFloat(withdrawAmount)) || parseFloat(withdrawAmount) < 0) {
+      setWithdrawError('Please enter a valid amount (0 or more)');
+      return;
+    }
+    
+    const amount = parseFloat(withdrawAmount);
+    
+    // Validate payment method details
+    if (paymentMethod === "Bank") {
+      if (!bankDetails.accountNumber || !bankDetails.bankName || !bankDetails.branch) {
+        setWithdrawError('Please fill in all bank details');
+        return;
+      }
+    } else if (paymentMethod === "BKash" || paymentMethod === "Nagad") {
+      if (!mobileNumber) {
+        setWithdrawError('Please enter your mobile number');
+        return;
+      }
+    }
+    
+    setWithdrawLoading(true);
+    
+    try {
+      // Prepare request data
+      const requestData: WithdrawalRequest = {
+        amount,
+        paymentMethod,
+        ...(paymentMethod === "Bank" ? { bankDetails } : { mobileNumber })
+      };
+      
+      // Send API request using the service
+      const response = await createWithdrawalRequest(requestData);
+      
+      console.log('Withdrawal request submitted successfully:', response);
+      
+      // Show success message using our custom Toast
+      setToastType('success');
+      setToastMessage(`Withdrawal request for $${amount} submitted successfully!`);
+      
+      setWithdrawLoading(false);
+      handleCloseModal();
+      
+    } catch (error: any) {
+      console.error('Error submitting withdraw request:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit withdraw request. Please try again.';
+      setWithdrawError(errorMessage);
+      
+      // Show error message
+      setToastType('error');
+      setToastMessage(errorMessage);
+      
+      setWithdrawLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -129,17 +249,36 @@ export default function DashboardHome() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Show Toast if message exists */}
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type={toastType}
+          onClose={handleToastClose}
+        />
+      )}
+      
       {/* User header section */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          Hi, {userData?.name || 'User'}
-        </h1>
-        <div className="flex gap-3 flex-wrap">
-          <span className="bg-purple-900 text-white px-3 py-1 rounded-md text-sm flex items-center">
-            <span className="mr-1">★</span> {getRoleBadgeText(userData?.role || '')}
-          </span>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Hi, {userData?.name || 'User'}
+          </h1>
+          <div className="flex gap-3 flex-wrap">
+            <span className="bg-purple-900 text-white px-3 py-1 rounded-md text-sm flex items-center">
+              <span className="mr-1">★</span> {getRoleBadgeText(userData?.role || '')}
+            </span>
+          </div>
         </div>
+        
+        {/* Withdraw Button */}
+        <button
+          onClick={handleWithdrawClick}
+          className="px-6 py-2.5 bg-[#A365FF] text-white rounded-md hover:bg-purple-700 transition-colors"
+        >
+          Withdraw
+        </button>
       </div>
 
       {/* Earnings and Statements section */}
@@ -208,8 +347,236 @@ export default function DashboardHome() {
           )}
         </div>
       </div>
-
-
+      
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop with blur */}
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={handleCloseModal}
+          ></div>
+          
+          {/* Modal */}
+          <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl w-full max-w-2xl max-h-[80vh] animate-fadeIn flex flex-col">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-800">
+              <h3 className="text-xl font-semibold text-white">Request Withdrawal</h3>
+              <button 
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-white transition-colors focus:outline-none"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-5 flex-1 overflow-auto">
+              {/* Error message */}
+              {withdrawError && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2 rounded-lg mb-4">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{withdrawError}</span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Prioritize Withdrawal Amount */}
+              <div className="mb-5 bg-[#161A1F] p-5 rounded-lg border border-gray-800">
+                <h4 className="text-white text-base font-medium mb-3">Withdrawal Amount</h4>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                    <span className="text-gray-400 font-medium text-lg">$</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="0.00"
+                    className="w-full py-4 pl-10 pr-3 rounded-lg bg-gray-800/60 text-white text-xl font-medium border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                  />
+                </div>
+                <p className="mt-2 text-sm text-gray-400 flex items-center">
+                  <svg className="w-3.5 h-3.5 mr-1.5 text-[#A365FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  You can request any amount including $0
+                </p>
+              </div>
+              
+              {/* Payment Method Tabs */}
+              <div className="mb-4">
+                <h4 className="text-white text-base font-medium mb-3">Payment Method</h4>
+                <div className="flex space-x-2">
+                  <button
+                    className={`px-4 py-2 rounded-md flex items-center transition-all ${
+                      paymentMethod === "Bank" 
+                        ? "bg-[#A365FF] text-white" 
+                        : "bg-[#1A1E24] text-gray-300 hover:bg-[#252A32]"
+                    }`}
+                    onClick={() => setPaymentMethod("Bank")}
+                  >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    Bank
+                  </button>
+                  
+                  <button
+                    className={`px-4 py-2 rounded-md flex items-center transition-all ${
+                      paymentMethod === "BKash" 
+                        ? "bg-[#A365FF] text-white" 
+                        : "bg-[#1A1E24] text-gray-300 hover:bg-[#252A32]"
+                    }`}
+                    onClick={() => setPaymentMethod("BKash")}
+                  >
+                    <img src="/icons/bkash.svg" alt="BKash" className="w-4 h-4 mr-1.5" />
+                    BKash
+                  </button>
+                  
+                  <button
+                    className={`px-4 py-2 rounded-md flex items-center transition-all ${
+                      paymentMethod === "Nagad" 
+                        ? "bg-[#A365FF] text-white" 
+                        : "bg-[#1A1E24] text-gray-300 hover:bg-[#252A32]"
+                    }`}
+                    onClick={() => setPaymentMethod("Nagad")}
+                  >
+                    <img src="/icons/nagad.svg" alt="Nagad" className="w-4 h-4 mr-1.5" />
+                    Nagad
+                  </button>
+                </div>
+              </div>
+              
+              {/* Payment Details Form */}
+              <div className="bg-[#161A1F] rounded-lg p-5 border border-gray-800 mb-4">
+                {paymentMethod === "Bank" ? (
+                  <>
+                    <h4 className="text-white text-sm font-medium mb-4">Bank Account Details</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-xs mb-1">Bank Name</label>
+                        <input
+                          type="text"
+                          name="bankName"
+                          value={bankDetails.bankName}
+                          onChange={handleBankDetailsChange}
+                          className="w-full py-2.5 px-3 rounded-lg bg-gray-800/60 text-white border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
+                          placeholder="Enter bank name"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-gray-400 text-xs mb-1">Branch Name</label>
+                        <input
+                          type="text"
+                          name="branch"
+                          value={bankDetails.branch}
+                          onChange={handleBankDetailsChange}
+                          className="w-full py-2.5 px-3 rounded-lg bg-gray-800/60 text-white border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
+                          placeholder="Enter branch name"
+                        />
+                      </div>
+                      
+                      <div className="col-span-2">
+                        <label className="block text-gray-400 text-xs mb-1">Account Number</label>
+                        <input
+                          type="text"
+                          name="accountNumber"
+                          value={bankDetails.accountNumber}
+                          onChange={handleBankDetailsChange}
+                          className="w-full py-2.5 px-3 rounded-lg bg-gray-800/60 text-white border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
+                          placeholder="Enter account number"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h4 className="text-white text-sm font-medium mb-4">{paymentMethod} Account Details</h4>
+                    <div>
+                      <label className="block text-gray-400 text-xs mb-1">Mobile Number</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={mobileNumber}
+                          onChange={(e) => setMobileNumber(e.target.value)}
+                          className="w-full py-2.5 pl-10 pr-3 rounded-lg bg-gray-800/60 text-white border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
+                          placeholder="Enter mobile number"
+                        />
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-400">Enter the {paymentMethod} account number where you would like to receive your payment</p>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* Important Info */}
+              <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-800">
+                <h5 className="text-xs font-medium text-gray-300 mb-2 flex items-center">
+                  <svg className="w-4 h-4 mr-1.5 text-[#A365FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Important Information
+                </h5>
+                <ul className="space-y-1 text-xs text-gray-400">
+                  <li className="flex items-start">
+                    <span className="mr-1">•</span>
+                    <span>Processed within 3-5 business days</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-1">•</span>
+                    <span>2% transaction fee may apply</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-1">•</span>
+                    <span>Email notification sent when processed</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="px-5 py-3 bg-gray-900/60 border-t border-gray-800 flex justify-end space-x-3">
+              <button
+                onClick={handleCloseModal}
+                className="px-4 py-2 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmWithdraw}
+                disabled={withdrawLoading}
+                className={`px-6 py-2 bg-[#A365FF] text-white rounded-lg transition-all ${
+                  withdrawLoading
+                    ? 'opacity-70 cursor-not-allowed' 
+                    : 'hover:shadow-lg hover:shadow-purple-500/20'
+                }`}
+              >
+                {withdrawLoading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </span>
+                ) : 'Request Withdrawal'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

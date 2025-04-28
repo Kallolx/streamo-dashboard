@@ -48,14 +48,34 @@ api.interceptors.response.use(
   (error) => {
     // Handle unauthorized errors (401)
     if (error.response && error.response.status === 401) {
-      // Clear localStorage and redirect to login
-      localStorage.removeItem('token');
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userData');
+      // Skip the automatic logout logic for certain endpoints
+      const isPasswordChangeEndpoint = error.config && 
+        error.config.url && 
+        error.config.url.includes('/users/change-password');
+        
+      const isAuthEndpoint = error.config && 
+        error.config.url && 
+        (error.config.url.includes('/auth/login') || 
+         error.config.url.includes('/auth/register') ||
+         error.config.url.includes('/auth/forget-password'));
       
-      // Redirect to login page if we're in a browser environment
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth/login';
+      // Check if we're already on a login page
+      const isOnLoginPage = typeof window !== 'undefined' && 
+        (window.location.pathname.includes('/auth/login') ||
+         window.location.pathname.includes('/auth/signup') ||
+         window.location.pathname.includes('/auth/forget-password'));
+      
+      // Only proceed with logout if not on an auth endpoint and not already on login page
+      if (!isPasswordChangeEndpoint && !isAuthEndpoint && !isOnLoginPage) {
+        // Clear localStorage and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userData');
+        
+        // Redirect to login page if we're in a browser environment
+        if (typeof window !== 'undefined') {
+          window.location.href = '/auth/login';
+        }
       }
     }
     

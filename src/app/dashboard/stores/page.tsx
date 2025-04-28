@@ -5,6 +5,8 @@ import DashboardLayout from "@/components/Dashboard/DashboardLayout";
 import { MagnifyingGlass, PencilSimple } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Toast from "@/components/Common/Toast";
+import { getAllStores, updateStore, toggleStoreStatus, Store } from "@/services/storeService";
 
 // Access control
 const checkAccess = () => {
@@ -15,40 +17,27 @@ const checkAccess = () => {
   return false;
 };
 
-// Define store data interface
-interface Store {
-  id: number;
-  name: string;
-  icon: string;
-  status: "Active" | "Inactive";
-  videosOnly: boolean;
-  color: string;
-  url?: string;
-  category?: string;
-}
-
-// Initial stores data
-const initialStores: Store[] = [
-  { id: 1, name: "YouTube", icon: "/icons/yt.svg", status: "Active", videosOnly: true, color: "#FF0000" },
-  { id: 2, name: "Soundcloud", icon: "/icons/sc.svg", status: "Inactive", videosOnly: false, color: "#FF7700" },
-  { id: 3, name: "Spotify", icon: "/icons/sp.svg", status: "Active", videosOnly: false, color: "#1DB954" },
-  { id: 4, name: "Apple Music", icon: "/icons/ap.svg", status: "Inactive", videosOnly: false, color: "#FFFFFF" },
-  { id: 5, name: "YouTube", icon: "/icons/yt.svg", status: "Active", videosOnly: true, color: "#FF0000" },
-  { id: 6, name: "YouTube", icon: "/icons/yt.svg", status: "Active", videosOnly: false, color: "#FF0000" },
-  { id: 7, name: "Soundcloud", icon: "/icons/sc.svg", status: "Inactive", videosOnly: true, color: "#FF7700" },
-  { id: 8, name: "Soundcloud", icon: "/icons/sc.svg", status: "Active", videosOnly: false, color: "#FF7700" },
-  { id: 9, name: "Spotify", icon: "/icons/sp.svg", status: "Inactive", videosOnly: false, color: "#1DB954" },
-  { id: 10, name: "Spotify", icon: "/icons/sp.svg", status: "Active", videosOnly: true, color: "#1DB954" },
-];
-
 export default function StoresPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [stores, setStores] = useState<Store[]>(initialStores);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<Store | null>(null);
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Toast state
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({
+    show: false,
+    message: "",
+    type: "success",
+  });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
@@ -59,6 +48,41 @@ export default function StoresPage() {
       router.push('/dashboard');
     }
   }, [router]);
+
+  // Fetch stores from API
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        setLoading(true);
+        const response = await getAllStores();
+        if (response.success) {
+          setStores(response.data);
+        } else {
+          setToast({
+            show: true,
+            message: "Failed to load stores",
+            type: "error",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching stores:", error);
+        setToast({
+          show: true,
+          message: "Failed to load stores",
+          type: "error",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStores();
+  }, []);
+
+  // Close toast
+  const closeToast = () => {
+    setToast({ ...toast, show: false });
+  };
 
   // Filter stores based on search term
   const filteredStores = stores.filter(
@@ -113,10 +137,96 @@ export default function StoresPage() {
   };
 
   // Handle save store
-  const handleSaveStore = () => {
-    // Handle save logic here
-    setIsModalOpen(false);
-    setEditingStore(null);
+  const handleSaveStore = async () => {
+    if (!editingStore || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Create form data
+      const formData = new FormData();
+      formData.append("name", editingStore.name);
+      formData.append("category", editingStore.category || "");
+      formData.append("status", editingStore.status);
+      formData.append("url", editingStore.url || "");
+      formData.append("color", editingStore.color);
+      formData.append("videosOnly", String(editingStore.videosOnly));
+
+      // Add logo if uploaded
+      if (fileInputRef.current?.files && fileInputRef.current.files[0]) {
+        formData.append("storeIcon", fileInputRef.current.files[0]);
+      }
+
+      // Update store in API
+      const response = await updateStore(editingStore._id!, formData);
+
+      if (response.success) {
+        // Update local stores list
+        setStores(stores.map(store => 
+          store._id === editingStore._id ? response.data : store
+        ));
+
+        setToast({
+          show: true,
+          message: "Store updated successfully",
+          type: "success",
+        });
+
+        // Close modal
+        handleCloseModal();
+      } else {
+        setToast({
+          show: true,
+          message: "Failed to update store",
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating store:", error);
+      setToast({
+        show: true,
+        message: "Failed to update store",
+        type: "error",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle toggle store status
+  const handleToggleStatus = async (storeId: string) => {
+    try {
+      const response = await toggleStoreStatus(storeId);
+
+      if (response.success) {
+        // Update local stores list
+        setStores(stores.map(store => 
+          store._id === storeId ? response.data : store
+        ));
+
+        setToast({
+          show: true,
+          message: `Store ${response.data.status === 'Active' ? 'activated' : 'deactivated'} successfully`,
+          type: "success",
+        });
+        
+        // Close modal
+        handleCloseModal();
+      } else {
+        setToast({
+          show: true,
+          message: "Failed to update store status",
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling store status:", error);
+      setToast({
+        show: true,
+        message: "Failed to update store status",
+        type: "error",
+      });
+    }
   };
 
   return (
@@ -148,156 +258,162 @@ export default function StoresPage() {
           </Link>
         </div>
 
-        {/* Stores Table */}
-        <div className="bg-[#161A1F] rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-[#1A1E24]">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Store
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Videos Only
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Color
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-[#161A1F] divide-y divide-gray-700">
-                {currentItems.map((store) => (
-                  <tr 
-                    key={store.id} 
-                    className="hover:bg-[#1A1E24] cursor-pointer"
-                    onClick={() => handleEditStore(store)}
-                  >
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-8 w-8 relative">
-                          <img
-                            src={store.icon}
-                            alt={store.name}
-                            className="rounded-full w-8 h-8"
-                          />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-white">{store.name}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`${
-                        store.status === "Active" 
-                          ? "text-green-400" 
-                          : "text-red-400"
-                      }`}>
-                        {store.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-white">
-                      {store.videosOnly ? "Yes" : "No"}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div 
-                          className="h-6 w-6 rounded-md mr-2"
-                          style={{ backgroundColor: store.color }}
-                        ></div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <button 
-                          className="text-gray-400 hover:text-white transition-colors"
-                          onClick={(e) => handleEditStore(store, e)}
-                        >
-                          <PencilSimple size={20} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Loading State */}
+        {loading ? (
+          <div className="bg-[#161A1F] rounded-lg p-8 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
           </div>
+        ) : (
+          /* Stores Table */
+          <div className="bg-[#161A1F] rounded-lg overflow-hidden">
+            {filteredStores.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-gray-400">No stores found. Add a new store to get started.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-[#1A1E24]">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Store
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Videos Only
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Color
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-[#161A1F] divide-y divide-gray-700">
+                    {currentItems.map((store) => (
+                      <tr 
+                        key={store._id} 
+                        className="hover:bg-[#1A1E24] cursor-pointer"
+                        onClick={() => handleEditStore(store)}
+                      >
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-8 w-8 relative">
+                              <img
+                                src={store.icon}
+                                alt={store.name}
+                                className="rounded-full w-8 h-8"
+                              />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-white">{store.name}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className={`${
+                            store.status === "Active" 
+                              ? "text-green-400" 
+                              : "text-red-400"
+                          }`}>
+                            {store.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-white">
+                          {store.videosOnly ? "Yes" : "No"}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div 
+                              className="h-6 w-6 rounded-md mr-2"
+                              style={{ backgroundColor: store.color }}
+                            ></div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
+                            <button 
+                              className="text-gray-400 hover:text-white transition-colors"
+                              onClick={(e) => handleEditStore(store, e)}
+                              title="Edit"
+                            >
+                              <PencilSimple size={20} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-          {/* Pagination */}
-          <div className="px-4 py-3 flex items-center justify-between border-t border-gray-700">
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-400">
-                  Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to{' '}
-                  <span className="font-medium">
-                    {Math.min(indexOfLastItem, filteredStores.length)}
-                  </span>{' '}
-                  of <span className="font-medium">{filteredStores.length}</span> results
-                </p>
+            {/* Pagination */}
+            {filteredStores.length > 0 && (
+              <div className="px-4 py-3 flex items-center justify-between border-t border-gray-700">
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-400">
+                      Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to{' '}
+                      <span className="font-medium">
+                        {Math.min(indexOfLastItem, filteredStores.length)}
+                      </span>{' '}
+                      of <span className="font-medium">{filteredStores.length}</span> results
+                    </p>
+                  </div>
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 bg-[#161A1F] text-sm font-medium ${
+                        currentPage === 1
+                          ? "text-gray-500 cursor-not-allowed"
+                          : "text-gray-300 hover:bg-gray-700"
+                      }`}
+                    >
+                      <span className="sr-only">Previous</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`relative inline-flex items-center px-4 py-2 border ${
+                          currentPage === page
+                            ? "bg-purple-600 border-purple-500 text-white"
+                            : "border-gray-700 bg-[#161A1F] text-gray-300 hover:bg-gray-700"
+                        } text-sm font-medium`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    
+                    <button
+                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 bg-[#161A1F] text-sm font-medium ${
+                        currentPage === totalPages
+                          ? "text-gray-500 cursor-not-allowed"
+                          : "text-gray-300 hover:bg-gray-700"
+                      }`}
+                    >
+                      <span className="sr-only">Next</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex space-x-1">
-                <button
-                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 bg-[#161A1F] text-sm font-medium ${
-                    currentPage === 1
-                      ? "text-gray-500 cursor-not-allowed"
-                      : "text-gray-300 hover:bg-gray-700"
-                  }`}
-                >
-                  <span className="sr-only">Previous</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    className={`relative inline-flex items-center px-4 py-2 border ${
-                      currentPage === page
-                        ? "bg-purple-600 border-purple-500 text-white"
-                        : "border-gray-700 bg-[#161A1F] text-gray-300 hover:bg-gray-700"
-                    } text-sm font-medium`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                
-                <button
-                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 bg-[#161A1F] text-sm font-medium ${
-                    currentPage === totalPages
-                      ? "text-gray-500 cursor-not-allowed"
-                      : "text-gray-300 hover:bg-gray-700"
-                  }`}
-                >
-                  <span className="sr-only">Next</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                
-                <select
-                  className="ml-2 bg-[#1A1E25] border border-gray-700 text-gray-300 text-sm rounded-md py-1 px-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  defaultValue="10"
-                >
-                  <option value="10">10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-              </div>
-            </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Store Modal */}
         {isModalOpen && (
@@ -332,7 +448,7 @@ export default function StoresPage() {
                 {editingStore && (
                   <div className="h-8 w-8 mr-3">
                     <img 
-                      src={editingStore.icon} 
+                      src={uploadedLogo || editingStore.icon} 
                       alt={editingStore.name} 
                       className="rounded-full w-8 h-8"
                     />
@@ -347,14 +463,20 @@ export default function StoresPage() {
               <div className="px-5 pt-5">
                 <p className="text-sm text-white mb-2">Upload Logo</p>
                 <div 
-                  className="border-2 border-dashed border-gray-600 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:border-purple-500"
+                  className="border-2 border-dashed border-gray-600 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-purple-500"
                   onClick={handleUploadClick}
                 >
                   {uploadedLogo ? (
                     <img
                       src={uploadedLogo}
                       alt="Logo preview"
-                      className="w-32 h-32 object-contain"
+                      className="w-24 h-24 object-contain"
+                    />
+                  ) : editingStore?.icon ? (
+                    <img
+                      src={editingStore.icon}
+                      alt="Current logo"
+                      className="w-24 h-24 object-contain"
                     />
                   ) : (
                     <>
@@ -388,7 +510,8 @@ export default function StoresPage() {
                     type="text"
                     placeholder="Store Name"
                     className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    defaultValue={editingStore?.name || ""}
+                    value={editingStore?.name || ""}
+                    onChange={(e) => setEditingStore(prev => prev ? {...prev, name: e.target.value} : null)}
                   />
                 </div>
 
@@ -397,7 +520,8 @@ export default function StoresPage() {
                   <div className="relative">
                     <select
                       className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none"
-                      defaultValue={editingStore?.category || ""}
+                      value={editingStore?.category || ""}
+                      onChange={(e) => setEditingStore(prev => prev ? {...prev, category: e.target.value} : null)}
                     >
                       <option value="" disabled>Category</option>
                       <option value="music">Music</option>
@@ -417,7 +541,8 @@ export default function StoresPage() {
                   <div className="relative">
                     <select
                       className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none"
-                      defaultValue={editingStore?.status || "Active"}
+                      value={editingStore?.status || "Active"}
+                      onChange={(e) => setEditingStore(prev => prev ? {...prev, status: e.target.value as "Active" | "Inactive"} : null)}
                     >
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
@@ -436,7 +561,8 @@ export default function StoresPage() {
                     type="text"
                     placeholder="https://www.youtube.com/"
                     className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    defaultValue={editingStore?.url || ""}
+                    value={editingStore?.url || ""}
+                    onChange={(e) => setEditingStore(prev => prev ? {...prev, url: e.target.value} : null)}
                   />
                 </div>
 
@@ -446,8 +572,25 @@ export default function StoresPage() {
                     type="text"
                     placeholder="#D9342B"
                     className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    defaultValue={editingStore?.color || ""}
+                    value={editingStore?.color || ""}
+                    onChange={(e) => setEditingStore(prev => prev ? {...prev, color: e.target.value} : null)}
                   />
+                </div>
+
+                {/* Videos Only Checkbox */}
+                <div className="mb-4">
+                  <div className="flex items-center">
+                    <input
+                      id="videosOnly"
+                      type="checkbox"
+                      className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                      checked={editingStore?.videosOnly || false}
+                      onChange={(e) => setEditingStore(prev => prev ? {...prev, videosOnly: e.target.checked} : null)}
+                    />
+                    <label htmlFor="videosOnly" className="ml-3 text-white">
+                      Videos Only
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -455,13 +598,21 @@ export default function StoresPage() {
               <div className="p-5 border-t border-gray-700">
                 <button 
                   onClick={handleSaveStore}
-                  className="w-full py-2 bg-[#A365FF] hover:bg-purple-700 text-white rounded-md transition-colors"
+                  disabled={isSubmitting}
+                  className={`w-full py-2 bg-[#A365FF] text-white rounded-md transition-colors ${
+                    isSubmitting ? "opacity-70 cursor-not-allowed" : "hover:bg-purple-700"
+                  }`}
                 >
-                  {editingStore ? "Update" : "Add Store"}
+                  {isSubmitting ? "Updating..." : (editingStore ? "Update" : "Add Store")}
                 </button>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Toast notification */}
+        {toast.show && (
+          <Toast message={toast.message} type={toast.type} onClose={closeToast} />
         )}
       </div>
     </DashboardLayout>

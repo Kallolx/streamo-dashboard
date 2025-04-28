@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { hasRole } from "@/services/authService";
+import { Copy, Check } from "@phosphor-icons/react";
 
 // Define the withdraw request data interface
 interface WithdrawRequest {
@@ -11,6 +13,13 @@ interface WithdrawRequest {
   transactionId: string;
   amount: string;
   status: "Completed" | "Pending" | "Rejected";
+  paymentMethod?: 'Bank' | 'BKash' | 'Nagad';
+  bankDetails?: {
+    accountNumber: string;
+    bankName: string;
+    branch: string;
+  };
+  mobileNumber?: string;
 }
 
 interface WithdrawDetailsModalProps {
@@ -28,6 +37,12 @@ export default function WithdrawDetailsModal({
   onApprove,
   onReject,
 }: WithdrawDetailsModalProps) {
+  // State for copy operation
+  const [copied, setCopied] = useState(false);
+  
+  // Determine if user is admin or superadmin
+  const isAdmin = hasRole(['admin', 'superadmin']);
+
   // Determine profile image based on user name to ensure consistency
   const profileImage = request.userName === "Steven Wilson" 
     ? "/images/singer/1.webp"
@@ -66,6 +81,17 @@ export default function WithdrawDetailsModal({
   const handleReject = () => {
     onReject(request.id);
     onClose();
+  };
+  
+  // Handle copy transaction ID
+  const handleCopyTransactionId = () => {
+    navigator.clipboard.writeText(request.transactionId);
+    setCopied(true);
+    
+    // Reset copied state after 2 seconds
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
   };
 
   return (
@@ -115,49 +141,25 @@ export default function WithdrawDetailsModal({
                 {request.userName}
               </h2>
 
-              {/* Genre/Style Tags */}
+              {/* Status Tag */}
               <div className="flex flex-wrap gap-2 mb-3">
-                <span className="px-3 py-1 text-xs bg-[#1D2229] rounded-full text-gray-300">
-                  USA
+                <span className={`px-3 py-1 text-xs rounded-full ${
+                  request.status === "Completed" 
+                    ? "bg-green-900/30 text-green-400" 
+                    : request.status === "Rejected"
+                    ? "bg-red-900/30 text-red-400"
+                    : "bg-gray-700/30 text-gray-300"
+                }`}>
+                  {request.status}
                 </span>
                 <span className="px-3 py-1 text-xs bg-[#1D2229] rounded-full text-gray-300">
-                  Hip-Hop
-                </span>
-                <span className="px-3 py-1 text-xs bg-[#1D2229] rounded-full text-gray-300">
-                  Alternative Rock
+                  {request.paymentMethod || 'Unknown Method'}
                 </span>
               </div>
 
-              {/* Platform icons */}
-              <div className="flex space-x-3">
-                <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center">
-                  <img
-                    src="/icons/sp.svg"
-                    alt="Spotify"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center">
-                  <img
-                    src="/icons/yt.svg"
-                    alt="YouTube Music"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center">
-                  <img
-                    src="/icons/ap.svg"
-                    alt="Apple Music"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center">
-                  <img
-                    src="/icons/sc.svg"
-                    alt="SoundCloud"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+              {/* Amount */}
+              <div className="text-xl font-semibold text-white">
+                {request.amount}
               </div>
             </div>
           </div>
@@ -180,7 +182,20 @@ export default function WithdrawDetailsModal({
             {/* Transaction ID */}
             <div className="bg-[#1A1E24] p-4 rounded">
               <div className="text-gray-400 text-sm mb-1">Transaction ID</div>
-              <div className="text-white font-medium">{request.transactionId}</div>
+              <div className="text-white font-medium flex items-center space-x-2">
+                <div className="truncate max-w-[120px]" title={request.transactionId}>
+                  {request.transactionId}
+                </div>
+                <button
+                  onClick={handleCopyTransactionId}
+                  className={`text-gray-400 hover:text-white p-1 rounded transition-all ${
+                    copied ? "text-green-400 bg-green-900/20" : ""
+                  }`}
+                  title="Copy transaction ID"
+                >
+                  {copied ? <Check size={16} weight="bold" /> : <Copy size={16} />}
+                </button>
+              </div>
             </div>
 
             {/* Amount */}
@@ -202,11 +217,43 @@ export default function WithdrawDetailsModal({
                 {request.status}
               </div>
             </div>
+            
+            {/* Payment Method */}
+            <div className="bg-[#1A1E24] p-4 rounded col-span-2">
+              <div className="text-gray-400 text-sm mb-1">Payment Method</div>
+              <div className="text-white font-medium">{request.paymentMethod || 'Not specified'}</div>
+            </div>
+            
+            {/* Bank Details (if available) */}
+            {request.paymentMethod === 'Bank' && request.bankDetails && (
+              <div className="bg-[#1A1E24] p-4 rounded col-span-2">
+                <div className="text-gray-400 text-sm mb-2">Bank Details</div>
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="text-white">
+                    <span className="text-gray-400 text-xs">Bank Name:</span> {request.bankDetails.bankName}
+                  </div>
+                  <div className="text-white">
+                    <span className="text-gray-400 text-xs">Account Number:</span> {request.bankDetails.accountNumber}
+                  </div>
+                  <div className="text-white">
+                    <span className="text-gray-400 text-xs">Branch:</span> {request.bankDetails.branch}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Mobile Number (if available) */}
+            {(request.paymentMethod === 'BKash' || request.paymentMethod === 'Nagad') && request.mobileNumber && (
+              <div className="bg-[#1A1E24] p-4 rounded col-span-2">
+                <div className="text-gray-400 text-sm mb-1">Mobile Number</div>
+                <div className="text-white font-medium">{request.mobileNumber}</div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Action buttons */}
-        {request.status === "Pending" && (
+        {/* Action buttons - only visible to admins and when status is pending */}
+        {isAdmin && request.status === "Pending" && (
           <div className="p-5 border-t border-gray-700 flex space-x-4">
             <button 
               onClick={handleApprove}

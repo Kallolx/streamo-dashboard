@@ -1,79 +1,28 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import DashboardLayout from "@/components/Dashboard/DashboardLayout";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import DashboardLayout from "@/components/Dashboard/DashboardLayout";
+import Toast from "@/components/Common/Toast";
+import { useRouter } from "next/navigation";
+import { createStore } from "@/services/storeService";
 
-// Toast component for notifications
-const Toast = ({
-  message,
-  type,
-  onClose,
-}: {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}) => {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  return (
-    <div
-      className={`fixed top-4 right-4 z-50 flex items-center p-4 rounded-md shadow-lg ${
-        type === "success" ? "bg-green-600" : "bg-red-600"
-      }`}
-    >
-      <div className="flex-shrink-0 mr-3">
-        {type === "success" ? (
-          <svg
-            className="w-5 h-5 text-white"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-              clipRule="evenodd"
-            />
-          </svg>
-        ) : (
-          <svg
-            className="w-5 h-5 text-white"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clipRule="evenodd"
-            />
-          </svg>
-        )}
-      </div>
-      <div className="text-white">{message}</div>
-      <button onClick={onClose} className="ml-4 text-white hover:text-gray-300">
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-      </button>
+// Terms component
+const Terms = () => (
+  <div className="bg-[#161A1F] rounded-lg p-6">
+    <h2 className="text-xl font-semibold mb-4">Terms and Conditions</h2>
+    <div className="text-sm text-gray-300 space-y-4">
+      <p>
+        By adding a store, you agree to the following terms and conditions:
+      </p>
+      <ol className="list-decimal pl-5 space-y-2">
+        <li>You confirm that you have the rights to use the store's name and logo.</li>
+        <li>You understand that this store will be available to all users of the platform.</li>
+        <li>You agree to maintain accurate information about the store.</li>
+      </ol>
     </div>
-  );
-};
+  </div>
+);
 
 export default function AddStorePage() {
   // State for form data
@@ -86,6 +35,8 @@ export default function AddStorePage() {
   const [storeLink, setStoreLink] = useState("");
   const [colorCode, setColorCode] = useState("");
   const [videosOnly, setVideosOnly] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
   // Handle logo upload
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,48 +69,106 @@ export default function AddStorePage() {
     type: "success",
   });
 
-  // Success messages
-  const successMessages = [
-    "Store created successfully!",
-    "Store added to your distribution channels.",
-  ];
+  // Close toast
+  const closeToast = () => {
+    setToast({ ...toast, show: false });
+  };
 
-  // Error messages
-  const errorMessages = [
-    "Failed to create store. Please try again.",
-    "Server error. Your store couldn't be processed.",
-  ];
-
-  // Handle form submission
-  const handleSubmit = () => {
-    // Validate form
+  // Form validation
+  const validateForm = () => {
     if (!storeTitle) {
       setToast({
         show: true,
         message: "Please enter a store title",
         type: "error",
       });
-      return;
+      return false;
     }
 
-    // Randomly decide if it's a success or failure (70% success, 30% failure)
-    const isSuccess = Math.random() > 0.3;
+    if (!category) {
+      setToast({
+        show: true,
+        message: "Please select a category",
+        type: "error",
+      });
+      return false;
+    }
 
-    // Get a random message based on the result
-    const messages = isSuccess ? successMessages : errorMessages;
-    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    if (!logo) {
+      setToast({
+        show: true,
+        message: "Please upload a store logo",
+        type: "error",
+      });
+      return false;
+    }
 
-    // Show the toast
-    setToast({
-      show: true,
-      message: randomMessage,
-      type: isSuccess ? "success" : "error",
-    });
+    if (!colorCode) {
+      setToast({
+        show: true,
+        message: "Please provide a color code",
+        type: "error",
+      });
+      return false;
+    }
+
+    return true;
   };
 
-  // Close toast
-  const closeToast = () => {
-    setToast({ ...toast, show: false });
+  // Handle form submission
+  const handleSubmit = async () => {
+    if (!validateForm() || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Create FormData object
+      const formData = new FormData();
+      formData.append("name", storeTitle);
+      formData.append("category", category);
+      formData.append("status", status);
+      formData.append("url", storeLink);
+      formData.append("color", colorCode);
+      formData.append("videosOnly", String(videosOnly));
+      
+      // Append logo file if it exists
+      if (logo) {
+        formData.append("storeIcon", logo);
+      }
+
+      // Call the API to create the store
+      const response = await createStore(formData);
+
+      // Show success message
+      setToast({
+        show: true,
+        message: "Store created successfully!",
+        type: "success",
+      });
+
+      // Redirect to stores page after 2 seconds
+      setTimeout(() => {
+        router.push("/dashboard/stores");
+      }, 2000);
+    } catch (error: any) {
+      console.error("Error creating store:", error);
+      let errorMessage = "Failed to create store. Please try again.";
+      
+      // Extract error message from response if available
+      if (error.response && error.response.data && error.response.data.error) {
+        errorMessage = Array.isArray(error.response.data.error)
+          ? error.response.data.error.join(', ')
+          : error.response.data.error;
+      }
+      
+      setToast({
+        show: true,
+        message: errorMessage,
+        type: "error",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -210,7 +219,6 @@ export default function AddStorePage() {
                 onChange={handleLogoUpload}
                 className="hidden"
               />
-
             </div>
 
             {/* Right side - Tips */}
@@ -254,7 +262,7 @@ export default function AddStorePage() {
                     />
                   </svg>
                   <span>
-                    Web URLs, social media handles/icons, or contact information
+                    Disruptive elements or backgrounds
                   </span>
                 </li>
                 <li className="flex items-start">
@@ -270,23 +278,8 @@ export default function AddStorePage() {
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span>Sexually explicit imagery</span>
-                </li>
-                <li className="flex items-start">
-                  <svg
-                    className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
                   <span>
-                    Third-party logos or trademarks without express written consent from the trademark holder
+                    Copyright infringing material
                   </span>
                 </li>
               </ul>
@@ -380,50 +373,7 @@ export default function AddStorePage() {
         </div>
 
         {/* Terms and Conditions Section */}
-        <div className="bg-[#161A1F] rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Terms and Conditions</h2>
-
-          <div className="space-y-4">
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
-                <input
-                  id="terms1"
-                  type="checkbox"
-                  className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                />
-              </div>
-              <label htmlFor="terms1" className="ml-3 text-sm text-gray-300">
-                I confirm that I have the necessary rights to add this store to the distribution platform.
-              </label>
-            </div>
-
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
-                <input
-                  id="terms2"
-                  type="checkbox"
-                  className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                />
-              </div>
-              <label htmlFor="terms2" className="ml-3 text-sm text-gray-300">
-                I agree to the platform's distribution terms and understand the store's terms of use.
-              </label>
-            </div>
-
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
-                <input
-                  id="terms3"
-                  type="checkbox"
-                  className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                />
-              </div>
-              <label htmlFor="terms3" className="ml-3 text-sm text-gray-300">
-                I consent to the processing of my store information according to the Privacy Policy.
-              </label>
-            </div>
-          </div>
-        </div>
+        <Terms />
 
         {/* Action Buttons */}
         <div className="flex justify-end space-x-4">
@@ -438,9 +388,12 @@ export default function AddStorePage() {
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+            disabled={isSubmitting}
+            className={`px-6 py-2 bg-purple-600 text-white rounded-md transition-colors ${
+              isSubmitting ? "opacity-70 cursor-not-allowed" : "hover:bg-purple-700"
+            }`}
           >
-            Create Store
+            {isSubmitting ? "Creating..." : "Create Store"}
           </button>
         </div>
 

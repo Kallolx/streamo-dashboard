@@ -17,6 +17,9 @@ interface LoginResponse {
   };
 }
 
+// Check if code is running in browser environment
+const isBrowser = typeof window !== 'undefined';
+
 /**
  * Login a user with email and password
  */
@@ -24,7 +27,7 @@ export const login = async (credentials: LoginCredentials): Promise<LoginRespons
   try {
     const response = await api.post('/auth/login', credentials);
     
-    if (response.data.success) {
+    if (response.data.success && isBrowser) {
       // Save auth data to localStorage
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('userRole', response.data.user.role);
@@ -32,8 +35,18 @@ export const login = async (credentials: LoginCredentials): Promise<LoginRespons
     }
     
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
+    
+    // Handle specific authentication errors
+    if (error.response && error.response.status === 401) {
+      // Create a custom error with the server's message
+      const errorMessage = error.response.data?.message || 'Invalid credentials. Please try again.';
+      const customError = new Error(errorMessage);
+      customError.name = 'AuthenticationError';
+      throw customError;
+    }
+    
     throw error;
   }
 };
@@ -47,7 +60,7 @@ export const register = async (userData: any): Promise<any> => {
     const response = await api.post('/auth/register', userData);
     
     // If registration is successful, store auth data
-    if (response.data.success) {
+    if (response.data.success && isBrowser) {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('userRole', response.data.user.role);
       localStorage.setItem('userData', JSON.stringify(response.data.user));
@@ -65,29 +78,33 @@ export const register = async (userData: any): Promise<any> => {
  */
 export const logout = (): void => {
   // Clear all auth data from localStorage
-  localStorage.removeItem('token');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userData');
+  if (isBrowser) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userData');
+  }
 };
 
 /**
  * Check if the user is authenticated
  */
 export const isAuthenticated = (): boolean => {
-  return !!localStorage.getItem('token');
+  return isBrowser ? !!localStorage.getItem('token') : false;
 };
 
 /**
  * Get the current user's role
  */
 export const getUserRole = (): string | null => {
-  return localStorage.getItem('userRole');
+  return isBrowser ? localStorage.getItem('userRole') : null;
 };
 
 /**
  * Get the current user's data
  */
 export const getUserData = (): any => {
+  if (!isBrowser) return null;
+  
   const userData = localStorage.getItem('userData');
   return userData ? JSON.parse(userData) : null;
 };

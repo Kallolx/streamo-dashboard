@@ -43,7 +43,20 @@ export default function LoginPage() {
         throw new Error(response.success ? "" : 'Login failed');
       }
     } catch (error: any) {
-      setError(error.response?.data?.message || error.message || 'Login failed. Please check your credentials.');
+      console.error('Login error:', error);
+      
+      // Display the error message from the server or a default message
+      if (error.name === 'AuthenticationError') {
+        setError(error.message);
+      } else {
+        setError(error.response?.data?.message || error.message || 'Login failed. Please check your credentials.');
+      }
+      
+      // Focus the password field for better UX
+      const passwordField = document.getElementById('password') as HTMLInputElement;
+      if (passwordField) {
+        passwordField.focus();
+      }
     } finally {
       setIsLoading(false);
     }
