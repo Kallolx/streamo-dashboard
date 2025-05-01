@@ -16,26 +16,26 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
   }, [onClose]);
   
   return (
-    <div className={`fixed top-4 right-4 z-50 flex items-center p-4 rounded-md shadow-lg ${
+    <div className={`fixed top-4 right-4 left-4 md:left-auto z-50 flex items-center p-3 md:p-4 rounded-md shadow-lg ${
       type === 'success' ? 'bg-green-600' : 'bg-red-600'
     }`}>
-      <div className="flex-shrink-0 mr-3">
+      <div className="flex-shrink-0 mr-2 md:mr-3">
         {type === 'success' ? (
-          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
         ) : (
-          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
           </svg>
         )}
       </div>
-      <div className="text-white">{message}</div>
+      <div className="text-white text-sm md:text-base flex-1 pr-2">{message}</div>
       <button 
         onClick={onClose}
-        className="ml-4 text-white hover:text-gray-300"
+        className="text-white hover:text-gray-300 ml-1 md:ml-4"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
@@ -363,16 +363,16 @@ export default function TrackCreate() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8 px-2 sm:px-0">
       {/* Upload Cover Art Section */}
-      <div className="rounded-lg">
-        <h2 className="text-xl font-semibold mb-4 ">Upload Cover Art</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2">
+      <div className="rounded-lg p-3 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Upload Cover Art</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Left side - Upload */}
-          <div className="flex flex-col items-start">
+          <div className="flex justify-center md:justify-start">
             <div 
               onClick={() => fileInputRef.current?.click()} 
-              className="w-full max-w-sm h-100 bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center overflow-hidden cursor-pointer hover:border-purple-500 transition-colors"
+              className="w-full max-w-[250px] md:max-w-sm h-[250px] md:h-[300px] bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center overflow-hidden cursor-pointer hover:border-purple-500 transition-colors"
             >
               {coverArtPreview ? (
                 <img 
@@ -381,11 +381,11 @@ export default function TrackCreate() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="text-center p-6">
-                  <svg className="w-12 h-12 text-gray-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <div className="text-center p-3 md:p-6">
+                  <svg className="w-10 h-10 md:w-12 md:h-12 text-gray-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-sm text-gray-400">Click to browse or drag and drop image file</p>
+                  <p className="text-xs md:text-sm text-gray-400">Click to browse or drag and drop image file</p>
                 </div>
               )}
             </div>
@@ -399,31 +399,31 @@ export default function TrackCreate() {
           </div>
           
           {/* Right side - Tips */}
-          <div className="rounded-md">
-            <h3 className="text-lg font-medium mb-3">Tips</h3>
-            <p className="text-sm text-gray-300 mb-3">Please ensure your cover art is square, less than 10 MB and a minimum of 1400px wide (3000px width is recommended for best results).</p>
-            <p className="text-sm text-gray-300 mb-1">Your cover art cannot contain:</p>
-            <ul className="space-y-2 text-sm text-gray-300">
+          <div className="rounded-md mt-2 md:mt-0">
+            <h3 className="text-base md:text-lg font-medium mb-2 md:mb-3">Tips</h3>
+            <p className="text-xs md:text-sm text-gray-300 mb-2 md:mb-3">Please ensure your cover art is square, less than 10 MB and a minimum of 1400px wide (3000px width is recommended for best results).</p>
+            <p className="text-xs md:text-sm text-gray-300 mb-1">Your cover art cannot contain:</p>
+            <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-gray-300">
               <li className="flex items-start">
-                <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-red-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
                 <span>Any text other than the release title and/or artist name.</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-red-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
                 <span>Web URLs, social media handles/icons, or contact information.</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-red-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
                 <span>Sexually explicit imagery.</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-red-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
                 <span>Third-party logos or trademarks without express written consent from the trademark holder.</span>
@@ -434,31 +434,31 @@ export default function TrackCreate() {
       </div>
 
       {/* Upload Audio File Section */}
-      <div className="rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Upload Audio File</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2">
+      <div className="rounded-lg p-3 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Upload Audio File</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Left side - Upload */}
-          <div className="flex flex-col items-start">
+          <div className="flex justify-center md:justify-start">
             <div 
               onClick={() => audioInputRef.current?.click()} 
-              className="w-full max-w-sm h-28 bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
+              className="w-full max-w-[250px] md:max-w-sm h-[100px] md:h-[120px] bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
             >
               {audioFileName ? (
-                <div className="flex items-center px-4">
-                  <svg className="w-8 h-8 text-purple-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <div className="flex items-center px-3 md:px-4">
+                  <svg className="w-6 h-6 md:w-8 md:h-8 text-purple-500 mr-2 md:mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                   </svg>
-                  <div>
-                    <p className="text-sm text-white font-medium">{audioFileName}</p>
+                  <div className="overflow-hidden">
+                    <p className="text-xs md:text-sm text-white font-medium truncate max-w-[150px] md:max-w-[200px]">{audioFileName}</p>
                     <p className="text-xs text-gray-400">Click to replace</p>
                   </div>
                 </div>
               ) : (
-                <div className="text-center p-6">
-                  <svg className="w-10 h-10 text-gray-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <div className="text-center p-3 md:p-4">
+                  <svg className="w-8 h-8 md:w-10 md:h-10 text-gray-500 mx-auto mb-1 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                   </svg>
-                  <p className="text-sm text-gray-400">Click to browse or drag and drop audio file</p>
+                  <p className="text-xs md:text-sm text-gray-400">Click to browse or drag and drop audio file</p>
                 </div>
               )}
             </div>
@@ -472,25 +472,25 @@ export default function TrackCreate() {
           </div>
           
           {/* Right side - Tips */}
-          <div className="">
-            <h3 className="text-lg font-medium mb-3">Audio Tips</h3>
-            <p className="text-sm text-gray-300 mb-3">Please ensure your audio file is in a high-quality format (WAV or FLAC preferred for masters, MP3 at least 320kbps).</p>
-            <p className="text-sm text-gray-300 mb-1">Requirements:</p>
-            <ul className="space-y-2 text-sm text-gray-300">
+          <div className="mt-2 md:mt-0">
+            <h3 className="text-base md:text-lg font-medium mb-2 md:mb-3">Audio Tips</h3>
+            <p className="text-xs md:text-sm text-gray-300 mb-2 md:mb-3">Please ensure your audio file is in a high-quality format (WAV or FLAC preferred for masters, MP3 at least 320kbps).</p>
+            <p className="text-xs md:text-sm text-gray-300 mb-1">Requirements:</p>
+            <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-gray-300">
               <li className="flex items-start">
-                <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span>File size under 100MB</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span>Accepted formats: WAV, FLAC, MP3, AAC, AIFF</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span>No silence at beginning or end</span>
@@ -501,17 +501,17 @@ export default function TrackCreate() {
       </div>
 
       {/* Add Metadata Section */}
-      <div className="rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Add Metadata</h2>
+      <div className="rounded-lg p-3 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Add Metadata</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
           {/* Left side */}
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             <div>
               <input
                 type="text"
                 id="releaseTitle"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Track Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -522,7 +522,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="artist"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Artist Name"
                 value={artist}
                 onChange={(e) => setArtist(e.target.value)}
@@ -533,7 +533,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="label"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
@@ -543,7 +543,7 @@ export default function TrackCreate() {
             <div>
               <select
                 id="recordingYear"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={recordingYear}
                 onChange={(e) => setRecordingYear(e.target.value)}
               >
@@ -559,7 +559,7 @@ export default function TrackCreate() {
               <input
                 type="date"
                 id="releaseDate"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Release Date"
                 value={releaseDate}
                 onChange={(e) => setReleaseDate(e.target.value)}
@@ -569,7 +569,7 @@ export default function TrackCreate() {
             <div>
               <select
                 id="selectGenre"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
               >
@@ -588,7 +588,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="isrc"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="ISRC"
                 value={isrc}
                 onChange={(e) => setIsrc(e.target.value)}
@@ -598,7 +598,7 @@ export default function TrackCreate() {
             <div>
               <select
                 id="type"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
               >
@@ -613,7 +613,7 @@ export default function TrackCreate() {
             <div>
               <select
                 id="version"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={version}
                 onChange={(e) => setVersion(e.target.value)}
               >
@@ -628,11 +628,11 @@ export default function TrackCreate() {
           </div>
           
           {/* Right side */}
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4 mt-3 md:mt-0">
             <div>
               <select
                 id="releaseType"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={releaseType}
                 onChange={(e) => setReleaseType(e.target.value)}
               >
@@ -646,7 +646,7 @@ export default function TrackCreate() {
             <div>
               <select
                 id="format"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
               >
@@ -661,7 +661,7 @@ export default function TrackCreate() {
             <div>
               <select
                 id="selectLanguage"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
               >
@@ -680,7 +680,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="upc"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="UPC"
                 value={upc}
                 onChange={(e) => setUpc(e.target.value)}
@@ -690,14 +690,13 @@ export default function TrackCreate() {
             <div>
               <select
                 id="contentRating"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={contentRating}
                 onChange={(e) => setContentRating(e.target.value)}
               >
                 <option value="">Content Rating</option>
                 <option value="clean">Clean</option>
                 <option value="explicit">Explicit</option>
-                <option value="instrumental">Instrumental</option>
               </select>
             </div>
             
@@ -705,7 +704,7 @@ export default function TrackCreate() {
               <textarea
                 id="lyrics"
                 rows={6}
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                 placeholder="Type Lyrics"
                 value={lyrics}
                 onChange={(e) => setLyrics(e.target.value)}
@@ -716,17 +715,17 @@ export default function TrackCreate() {
       </div>
 
       {/* Add Contributors Section */}
-      <div className="rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Add Contributors</h2>
+      <div className="rounded-lg p-3 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Add Contributors</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
           {/* Left side - 4 fields (removed remixer artist) */}
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             <div>
               <input
                 type="text"
                 id="copyrightHeader"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Copyright Header"
                 value={copyrightHeader}
                 onChange={(e) => setCopyrightHeader(e.target.value)}
@@ -737,7 +736,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="composer"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Composer"
                 value={composer}
                 onChange={(e) => setComposer(e.target.value)}
@@ -748,7 +747,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="musicProducer"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Music Producer"
                 value={musicProducer}
                 onChange={(e) => setMusicProducer(e.target.value)}
@@ -759,7 +758,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="singer"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Singer"
                 value={singer}
                 onChange={(e) => setSinger(e.target.value)}
@@ -768,12 +767,12 @@ export default function TrackCreate() {
           </div>
           
           {/* Right side - 4 fields */}
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4 mt-3 md:mt-0">
             <div>
               <input
                 type="text"
                 id="featureArtist"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Feature Artist"
                 value={featureArtist}
                 onChange={(e) => setFeatureArtist(e.target.value)}
@@ -783,7 +782,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="lyricist"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Lyricist"
                 value={lyricist}
                 onChange={(e) => setLyricist(e.target.value)}
@@ -794,7 +793,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="publisher"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Publisher"
                 value={publisher}
                 onChange={(e) => setPublisher(e.target.value)}
@@ -805,7 +804,7 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="musicDirector"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Music Director"
                 value={musicDirector}
                 onChange={(e) => setMusicDirector(e.target.value)}
@@ -816,134 +815,134 @@ export default function TrackCreate() {
       </div>
 
       {/* Select Store Section */}
-      <div className="rounded-lg p-6 bg-[#161A1F]">
-        <h2 className="text-xl font-semibold mb-4">Distribution Platforms</h2>
-        <p className="text-gray-400 mb-6">
+      <div className="rounded-lg p-3 md:p-6 bg-[#161A1F]">
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Distribution Platforms</h2>
+        <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-6">
           Select where you want your music to be available. You can choose multiple platforms.
         </p>
 
         {loadingStores ? (
-          <div className="flex justify-center my-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+          <div className="flex justify-center my-4 md:my-8">
+            <div className="animate-spin rounded-full h-6 w-6 md:h-8 md:w-8 border-t-2 border-b-2 border-purple-500"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-4">
             {/* Dynamic store rendering from API */}
             {stores.length > 0 ? (
               stores.map((store) => (
                 <div 
                   key={store._id}
                   onClick={() => handleStoreSelection(store._id || "")}
-                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
                     selectedStores.includes(store._id || "") 
                       ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
                       : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
                   }`}
                 >
                   {selectedStores.includes(store._id || "") && (
-                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                   )}
-                  <div>
+                  <div className="flex flex-col items-center">
                     {store.icon && (
                       <div 
-                        className="w-12 h-12 mb-2 rounded bg-cover bg-center"
+                        className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2 rounded bg-cover bg-center"
                         style={{ 
                           backgroundImage: `url(${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${store.icon})` 
                         }}
                       />
                     )}
-                    <span className="text-center text-gray-300 font-medium">{store.name}</span>
+                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium line-clamp-1">{store.name}</span>
                   </div>
                 </div>
               ))
             ) : (
               // Fallback to hardcoded platforms if API fails or returns empty
-              <div className="col-span-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="col-span-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-4">
                 <div 
                   onClick={() => handleStoreSelection("spotify")}
-                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
                     selectedStores.includes("spotify") 
                       ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
                       : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
                   }`}
                 >
                   {selectedStores.includes("spotify") && (
-                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                   )}
                   <div className="flex flex-col items-center">
-                    <img src="/icons/sp.svg" alt="Spotify" className="w-12 h-12 mb-2" />
-                    <span className="text-center text-gray-300 font-medium">Spotify</span>
+                    <img src="/icons/sp.svg" alt="Spotify" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
+                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">Spotify</span>
                   </div>
                 </div>
                 
                 <div 
                   onClick={() => handleStoreSelection("apple")}
-                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
                     selectedStores.includes("apple") 
                       ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
                       : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
                   }`}
                 >
                   {selectedStores.includes("apple") && (
-                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                   )}
                   <div className="flex flex-col items-center">
-                    <img src="/icons/ap.svg" alt="Apple Music" className="w-12 h-12 mb-2" />
-                    <span className="text-center text-gray-300 font-medium">Apple Music</span>
+                    <img src="/icons/ap.svg" alt="Apple Music" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
+                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">Apple Music</span>
                   </div>
                 </div>
                 
                 <div 
                   onClick={() => handleStoreSelection("youtube")}
-                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
                     selectedStores.includes("youtube") 
                       ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
                       : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
                   }`}
                 >
                   {selectedStores.includes("youtube") && (
-                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                   )}
                   <div className="flex flex-col items-center">
-                    <img src="/icons/yt.svg" alt="YouTube Music" className="w-12 h-12 mb-2" />
-                    <span className="text-center text-gray-300 font-medium">YouTube Music</span>
+                    <img src="/icons/yt.svg" alt="YouTube Music" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
+                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">YouTube Music</span>
                   </div>
                 </div>
                 
                 <div 
                   onClick={() => handleStoreSelection("soundcloud")}
-                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
                     selectedStores.includes("soundcloud") 
                       ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
                       : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
                   }`}
                 >
                   {selectedStores.includes("soundcloud") && (
-                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                   )}
                   <div className="flex flex-col items-center">
-                    <img src="/icons/sc.svg" alt="SoundCloud" className="w-12 h-12 mb-2" />
-                    <span className="text-center text-gray-300 font-medium">SoundCloud</span>
+                    <img src="/icons/sc.svg" alt="SoundCloud" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
+                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">SoundCloud</span>
                   </div>
                 </div>
               </div>
@@ -953,14 +952,14 @@ export default function TrackCreate() {
 
         {/* Selected platforms summary */}
         {selectedStores.length > 0 && (
-          <div className="mt-6 bg-[#1A1D24] border border-[#2A2F36] rounded-lg p-4">
-            <div className="flex items-center mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mt-4 md:mt-6 bg-[#1A1D24] border border-[#2A2F36] rounded-lg p-3 md:p-4">
+            <div className="flex items-center mb-2 md:mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 md:h-5 md:w-5 text-purple-500 mr-1 md:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3 className="text-sm font-medium text-gray-300">Selected platforms ({selectedStores.length})</h3>
+              <h3 className="text-xs md:text-sm font-medium text-gray-300">Selected platforms ({selectedStores.length})</h3>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1 md:gap-2">
               {selectedStores.map(storeId => {
                 // Try to find store name if it's an ID
                 const store = stores.find(s => s._id === storeId);
@@ -994,14 +993,14 @@ export default function TrackCreate() {
       </div>
 
       {/* Track Pricing Section */}
-      <div className="rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-2">Track Pricing</h2>
-        <p className="text-gray-400 mb-4">How much would you like to charge for each track?</p>
+      <div className="rounded-lg p-3 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold mb-2">Track Pricing</h2>
+        <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-4">How much would you like to charge for each track?</p>
         
-        <div className="mb-4">
+        <div className="mb-3 md:mb-4">
           <select
             id="trackPricing"
-            className="w-full md:w-1/2 bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full md:w-1/2 bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             value={pricing}
             onChange={(e) => setPricing(e.target.value)}
           >
@@ -1017,45 +1016,45 @@ export default function TrackCreate() {
       </div>
 
       {/* Terms and Conditions Section */}
-      <div className="rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Terms and Conditions</h2>
+      <div className="rounded-lg p-3 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Terms and Conditions</h2>
         
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <div className="flex items-start">
-            <div className="flex items-center h-5">
+            <div className="flex items-center h-5 mt-0.5">
               <input
                 id="terms1"
                 type="checkbox"
                 className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
               />
             </div>
-            <label htmlFor="terms1" className="ml-3 text-sm text-gray-300">
+            <label htmlFor="terms1" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
               I confirm that I own or have licensed the necessary rights to distribute this content.
             </label>
           </div>
           
           <div className="flex items-start">
-            <div className="flex items-center h-5">
+            <div className="flex items-center h-5 mt-0.5">
               <input
                 id="terms2"
                 type="checkbox"
                 className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
               />
             </div>
-            <label htmlFor="terms2" className="ml-3 text-sm text-gray-300">
+            <label htmlFor="terms2" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
               I agree to the platform's distribution terms and understand the royalty payment structure.
             </label>
           </div>
           
           <div className="flex items-start">
-            <div className="flex items-center h-5">
+            <div className="flex items-center h-5 mt-0.5">
               <input
                 id="terms3"
                 type="checkbox"
                 className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
               />
             </div>
-            <label htmlFor="terms3" className="ml-3 text-sm text-gray-300">
+            <label htmlFor="terms3" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
               I consent to the processing of my personal information according to the Privacy Policy.
             </label>
           </div>
@@ -1063,10 +1062,10 @@ export default function TrackCreate() {
       </div>
       
       {/* Submit Button */}
-      <div className="flex justify-end space-x-4">
+      <div className="flex justify-between md:justify-end space-x-2 md:space-x-4 mt-4 md:mt-6">
         <button
           type="button"
-          className="px-4 py-2 border border-gray-600 text-gray-400 rounded-md hover:bg-gray-700 transition-colors"
+          className="flex-1 md:flex-initial px-3 py-2 md:px-4 md:py-2 border border-gray-600 text-gray-400 text-sm md:text-base rounded-md hover:bg-gray-700 transition-colors"
           onClick={() => router.back()}
           disabled={isSubmitting}
         >
@@ -1076,11 +1075,11 @@ export default function TrackCreate() {
           type="button"
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center"
+          className="flex-1 md:flex-initial px-3 py-2 md:px-4 md:py-2 bg-purple-600 text-white text-sm md:text-base rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center"
         >
           {isSubmitting ? (
             <>
-              <div className="w-4 h-4 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></div>
+              <div className="w-3 h-3 md:w-4 md:h-4 border-t-2 border-b-2 border-white rounded-full animate-spin mr-1 md:mr-2"></div>
               <span>Creating...</span>
             </>
           ) : (
