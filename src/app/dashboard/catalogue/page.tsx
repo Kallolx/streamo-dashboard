@@ -12,7 +12,7 @@ import TracksTable from "@/components/Dashboard/Tables/TracksTable";
 import VideosTable from "@/components/Dashboard/Tables/VideosTable";
 import ArtistsTable from "@/components/Dashboard/Tables/ArtistsTable";
 import LabelsTable from "@/components/Dashboard/Tables/LabelsTable";
-import axios from "axios";
+import api from '@/services/api';
 
 // Example track data for the modal
 const sampleTracks = [
@@ -216,14 +216,8 @@ export default function CataloguePage() {
         setLoading(true);
         setError('');
         try {
-          const token = localStorage.getItem('token');
-          
           if (activeTab === 'Releases') {
-            const response = await axios.get('http://localhost:5000/api/releases', {
-              headers: {
-                Authorization: `Bearer ${token}`
-              }
-            });
+            const response = await api.get('/releases');
             
             if (response.data.success) {
               setReleases(response.data.data);
@@ -231,11 +225,7 @@ export default function CataloguePage() {
               setError('Failed to fetch releases');
             }
           } else if (activeTab === 'Tracks') {
-            const response = await axios.get('http://localhost:5000/api/tracks', {
-              headers: {
-                Authorization: `Bearer ${token}`
-              }
-            });
+            const response = await api.get('/tracks');
             
             if (response.data.success) {
               setTracks(response.data.data);
@@ -334,14 +324,8 @@ export default function CataloguePage() {
   // Handle release approval
   const handleReleaseApprove = async (releaseId: string) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:5000/api/releases/${releaseId}/status`, 
-        { status: 'approved' },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+      await api.patch(`/releases/${releaseId}/status`, 
+        { status: 'approved' }
       );
       
       // Update the local state
@@ -362,14 +346,8 @@ export default function CataloguePage() {
   // Handle release rejection
   const handleReleaseReject = async (releaseId: string) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(`http://localhost:5000/api/releases/${releaseId}/status`, 
-        { status: 'rejected' },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+      await api.patch(`/releases/${releaseId}/status`, 
+        { status: 'rejected' }
       );
       
       // Update the local state
@@ -390,12 +368,7 @@ export default function CataloguePage() {
   // Handle release deletion
   const handleReleaseDelete = async (releaseId: string) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/releases/${releaseId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      await api.delete(`/releases/${releaseId}`);
       
       // Update the local state by removing the deleted release
       setReleases(prevReleases => 

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Toast from '@/components/Common/Toast';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import api from '@/services/api';
 
 import { getUserData } from '@/services/authService';
 import { getEarningsData, EarningsData } from '@/services/royaltyService';
@@ -166,12 +167,9 @@ export default function DashboardHome() {
         return;
       }
       
-      const response = await axios.get('http://localhost:5000/api/releases', {
+      const response = await api.get('/releases', {
         params: {
           limit: 6 // Get only 6 most recent releases for the dashboard
-        },
-        headers: {
-          'Authorization': `Bearer ${token}`
         }
       });
       

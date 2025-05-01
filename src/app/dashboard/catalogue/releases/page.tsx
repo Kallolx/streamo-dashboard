@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
 import ReleasesTable from "@/components/Dashboard/Tables/ReleasesTable";
 import ReleaseDetailsModal from "@/components/Dashboard/models/ReleaseDetailsModal";
-import axios from "axios";
+import api from '@/services/api';
 
 // Interface for release data
 interface Release {
@@ -74,11 +74,7 @@ export default function ReleasesPage() {
           return;
         }
         
-        const response = await axios.get('http://localhost:5000/api/releases', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const response = await api.get('/releases');
         
         console.log("API Response:", response.data);
         
@@ -128,15 +124,9 @@ export default function ReleasesPage() {
         return;
       }
       
-      const response = await axios.patch(
-        `http://localhost:5000/api/releases/${releaseId}/status`, 
-        { status: newStatus },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
+      const response = await api.patch(
+        `/releases/${releaseId}/status`, 
+        { status: newStatus }
       );
       
       if (response.data.success) {
@@ -167,14 +157,7 @@ export default function ReleasesPage() {
         return;
       }
       
-      const response = await axios.delete(
-        `http://localhost:5000/api/releases/${releaseId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
+      const response = await api.delete(`/releases/${releaseId}`);
       
       if (response.data.success) {
         // Remove the release from the local state

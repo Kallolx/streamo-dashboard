@@ -2,12 +2,12 @@ import axios from 'axios';
 
 // Determine the base URL based on environment
 const getBaseUrl = () => {
-  // For Vercel deployment, use environment variable
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+  // For production environment (Vercel)
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://streamo-backend.onrender.com/api';
   }
   
-  // For local development
+  // For local development environment
   return 'http://localhost:5000/api';
 };
 
