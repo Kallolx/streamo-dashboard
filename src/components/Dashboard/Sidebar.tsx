@@ -67,8 +67,13 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
     
     if (userRole === 'superadmin') return true; // Superadmin can see everything
     
-    // For other roles, hide specific items
-    if (item === 'user-management' || item === 'stores') {
+    if (userRole === 'admin') {
+      // Admin can see everything except what's explicitly restricted
+      return true;
+    }
+    
+    // For artist and label owners, hide specific items
+    if (item === 'user-management' || item === 'stores' || item === 'distribution') {
       return false;
     }
     
@@ -228,21 +233,23 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
               {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Withdraw Request</span>}
             </Link>
 
-            <Link
-              href="/dashboard/distribution"
-              className={`flex items-center p-3 rounded-lg transition-colors ${
-                isActive('/dashboard/distribution')
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-700'
-              }`}
-              onClick={() => handleLinkClick('/dashboard/distribution')}
-            >
-              {isActive('/dashboard/distribution') ? 
-                <ArrowsDownUp size={20} weight="fill" /> : 
-                <ArrowsDownUp size={20} />
-              }
-              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Distribution</span>}
-            </Link>
+            {isMenuItemVisible('distribution') && (
+              <Link
+                href="/dashboard/distribution"
+                className={`flex items-center p-3 rounded-lg transition-colors ${
+                  isActive('/dashboard/distribution')
+                    ? 'bg-purple-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700'
+                }`}
+                onClick={() => handleLinkClick('/dashboard/distribution')}
+              >
+                {isActive('/dashboard/distribution') ? 
+                  <ArrowsDownUp size={20} weight="fill" /> : 
+                  <ArrowsDownUp size={20} />
+                }
+                {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Distribution</span>}
+              </Link>
+            )}
 
             {isMenuItemVisible('stores') && (
               <Link

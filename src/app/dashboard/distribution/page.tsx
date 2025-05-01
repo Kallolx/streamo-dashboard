@@ -108,6 +108,9 @@ export default function DistributionPage() {
   const itemsPerPage = 10;
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<DistributionItem | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
+  
   // Toast state
   const [toast, setToast] = useState<{
     show: boolean;
@@ -118,6 +121,40 @@ export default function DistributionPage() {
     message: "",
     type: "success",
   });
+
+  // Check user role and redirect if not admin/superadmin
+  useEffect(() => {
+    const role = localStorage.getItem('userRole');
+    setUserRole(role);
+    
+    if (role !== 'admin' && role !== 'superadmin') {
+      setRedirecting(true);
+      // Redirect to dashboard home
+      window.location.href = '/dashboard';
+    }
+  }, []);
+
+  // If redirecting or not authorized, show loading
+  if (redirecting) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-white">Redirecting...</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+  
+  // If not admin or superadmin, don't render the rest of the component
+  if (userRole !== 'admin' && userRole !== 'superadmin') {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-white">You don't have permission to access this page.</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   // Close toast
   const closeToast = () => {
