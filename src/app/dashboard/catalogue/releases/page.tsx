@@ -1,102 +1,229 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
 import ReleasesTable from "@/components/Dashboard/Tables/ReleasesTable";
-import TrackDetailsModal from "@/components/Dashboard/models/ReleaseDetailsModal";
+import ReleaseDetailsModal from "@/components/Dashboard/models/ReleaseDetailsModal";
+import axios from "axios";
 
-// Example track data for the modal
-const sampleTracks = [
-  {
-    id: "TRK00123",
-    title: "Midnight Drive",
-    imageSrc: "/images/music/1.png",
-    primaryArtist: "Neon Pulse",
-    genre: "Alternative Rock",
-    contentRating: "PG",
-    isrc: "US-XYZ-23-00001",
-    duration: "3:41",
-    releaseDate: "25 March, 2025",
-  },
-  {
-    id: "TRK00124",
-    title: "Urban Echoes",
-    imageSrc: "/images/music/2.png",
-    primaryArtist: "Cyber Waves",
-    genre: "Electronic",
-    contentRating: "PG",
-    isrc: "US-XYZ-23-00002",
-    duration: "4:15",
-    releaseDate: "18 April, 2025",
-  },
-  {
-    id: "TRK00125",
-    title: "Neon Dreams",
-    imageSrc: "/images/music/3.png",
-    primaryArtist: "Future Sound",
-    genre: "Synthwave",
-    contentRating: "PG",
-    isrc: "US-XYZ-23-00003",
-    duration: "3:58",
-    releaseDate: "2 May, 2025",
-  },
-  {
-    id: "TRK00126",
-    title: "Electric Sky",
-    imageSrc: "/images/music/4.png",
-    primaryArtist: "Digital Horizon",
-    genre: "EDM",
-    contentRating: "PG",
-    isrc: "US-XYZ-23-00004",
-    duration: "4:32",
-    releaseDate: "15 June, 2025",
-  },
-  {
-    id: "TRK00127",
-    title: "Midnight Rhythm",
-    imageSrc: "/images/music/5.png",
-    primaryArtist: "Beat Masters",
-    genre: "Hip-Hop",
-    contentRating: "PG",
-    isrc: "US-XYZ-23-00005",
-    duration: "3:22",
-    releaseDate: "30 July, 2025",
-  }
-];
+// Interface for release data
+interface Release {
+  _id: string;
+  title: string;
+  artist: string;
+  coverArt: string;
+  releaseType: string;
+  genre: string;
+  format: string;
+  upc: string;
+  duration: string;
+  releaseDate: string;
+  createdAt: string;
+  updatedAt: string;
+  tracks: any[];
+  status: string;
+  stores: string[];
+  userId?: string;
+  // Additional fields that might be used in the modal
+  contentRating?: string;
+  isrc?: string;
+  label?: string;
+  featuredArtist?: string;
+  composer?: string;
+  lyricist?: string;
+  musicProducer?: string;
+  publisher?: string;
+  singer?: string;
+}
 
 export default function ReleasesPage() {
+  const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState(sampleTracks[0]);
+  const [selectedRelease, setSelectedRelease] = useState<Release | null>(null);
+  const [releases, setReleases] = useState<Release[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [userRole, setUserRole] = useState<'admin' | 'superadmin' | 'artist' | 'label'>('artist');
+  const [userId, setUserId] = useState<string>("");
 
-  // Handle track selection
-  const handleTrackSelect = (trackId: number) => {
-    // In a real application, you would fetch the track data here
-    // For now, we'll select a track based on the trackId
-    const trackIndex = trackId % sampleTracks.length;
-    setSelectedTrack(sampleTracks[trackIndex]);
-    setIsModalOpen(true);
+  // Get user role and ID from localStorage
+  useEffect(() => {
+    // Get user role and ID from localStorage
+    const role = localStorage.getItem('userRole');
+    const id = localStorage.getItem('userId');
+    
+    if (role === 'admin' || role === 'superadmin' || role === 'artist' || role === 'label') {
+      setUserRole(role as 'admin' | 'superadmin' | 'artist' | 'label');
+    }
+    
+    if (id) {
+      setUserId(id);
+    }
+  }, []);
+
+  // Fetch releases data
+  useEffect(() => {
+    const fetchReleases = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          router.push('/login');
+          return;
+        }
+        
+        const response = await axios.get('http://localhost:5000/api/releases', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log("API Response:", response.data);
+        
+        if (response.data.success) {
+          if (Array.isArray(response.data.data)) {
+            console.log("Number of releases loaded:", response.data.data.length);
+            setReleases(response.data.data);
+          } else {
+            console.error("API response data is not an array:", response.data.data);
+            setError("Invalid data format received from server");
+            setReleases([]);
+          }
+        } else {
+          console.error("API returned failure:", response.data);
+          setError("Failed to load releases");
+          setReleases([]);
+        }
+      } catch (error) {
+        console.error("Error fetching releases:", error);
+        setError("Failed to load releases");
+        setReleases([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReleases();
+  }, [router]);
+
+  // Handle release selection
+  const handleReleaseSelect = (releaseId: string) => {
+    const release = releases.find(r => r._id === releaseId);
+    
+    if (release) {
+      setSelectedRelease(release);
+      setIsModalOpen(true);
+    }
   };
 
-  // Pass the track selection handler to the ReleasesTable
+  // Handle status change (approve, reject)
+  const handleStatusChange = async (releaseId: string, newStatus: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+      
+      const response = await axios.patch(
+        `http://localhost:5000/api/releases/${releaseId}/status`, 
+        { status: newStatus },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        // Update the release in the local state
+        setReleases(releases.map(release => 
+          release._id === releaseId 
+            ? { ...release, status: newStatus } 
+            : release
+        ));
+        
+        // Update modal state if open
+        if (selectedRelease && selectedRelease._id === releaseId) {
+          setSelectedRelease({ ...selectedRelease, status: newStatus });
+        }
+      }
+    } catch (error) {
+      console.error(`Error changing release status to ${newStatus}:`, error);
+    }
+  };
+
+  // Handle release deletion
+  const handleDeleteRelease = async (releaseId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+      
+      const response = await axios.delete(
+        `http://localhost:5000/api/releases/${releaseId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        // Remove the release from the local state
+        setReleases(releases.filter(release => release._id !== releaseId));
+        
+        // Close modal if open
+        if (selectedRelease && selectedRelease._id === releaseId) {
+          setIsModalOpen(false);
+          setSelectedRelease(null);
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting release:", error);
+    }
+  };
+
   return (
     <DashboardLayout 
       title="Releases" 
       subtitle="Manage your music releases"
     >
-      <ReleasesTable onTrackSelect={handleTrackSelect} />
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        </div>
+      ) : error ? (
+        <div className="bg-red-900 bg-opacity-20 border border-red-800 text-red-300 px-4 py-3 rounded relative">
+          {error}
+        </div>
+      ) : (
+        <ReleasesTable 
+          releases={releases} 
+          onReleaseSelect={handleReleaseSelect}
+          userRole={userRole}
+          userId={userId} 
+        />
+      )}
       
-      <TrackDetailsModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        track={selectedTrack}
-        initialStatus="processing"
-        onApprove={(trackId) => {
-          console.log(`Track ${trackId} approved`);
-        }}
-        onReject={(trackId) => {
-          console.log(`Track ${trackId} rejected`);
-        }}
-      />
+      {selectedRelease && (
+        <ReleaseDetailsModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          release={selectedRelease}
+          onApprove={(releaseId) => handleStatusChange(releaseId, 'approved')}
+          onReject={(releaseId) => handleStatusChange(releaseId, 'rejected')}
+          onDelete={handleDeleteRelease}
+          userRole={userRole}
+        />
+      )}
     </DashboardLayout>
   );
 } 

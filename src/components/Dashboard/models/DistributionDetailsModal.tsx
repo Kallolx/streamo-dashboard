@@ -5,20 +5,22 @@ import Image from "next/image";
 
 // Define the distribution request data interface
 interface DistributionRequest {
-  id: number;
+  id: string;
   userName: string;
   trackRelease: string;
   artist: string;
   label: string;
-  status: "Approved" | "Pending" | "Rejected" | "Completed";
+  status: "Approved" | "Pending" | "Rejected" | "Completed" | "approved" | "pending" | "rejected" | "completed" | "submitted" | "processing";
+  itemType?: 'track' | 'release';
+  originalData?: any;
 }
 
 interface DistributionDetailsModalProps {
   request: DistributionRequest;
   isOpen: boolean;
   onClose: () => void;
-  onApprove: (id: number) => void;
-  onReject: (id: number) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
 }
 
 export default function DistributionDetailsModal({
@@ -178,9 +180,9 @@ export default function DistributionDetailsModal({
             <div className="bg-[#1A1E24] p-4 rounded">
               <div className="text-gray-400 text-sm mb-1">Status</div>
               <div className={`font-medium ${
-                request.status === "Approved" || request.status === "Completed"
+                request.status === "Approved" || request.status === "approved" || request.status === "Completed" || request.status === "completed"
                   ? "text-green-400" 
-                  : request.status === "Rejected"
+                  : request.status === "Rejected" || request.status === "rejected"
                   ? "text-red-400"
                   : "text-gray-400"
               }`}>
@@ -226,7 +228,8 @@ export default function DistributionDetailsModal({
         </div>
 
         {/* Action buttons */}
-        {request.status === "Pending" && (
+        {(request.status === "Pending" || request.status === "pending" || 
+          request.status === "submitted" || request.status === "processing") && (
           <div className="p-5 border-t border-gray-700 flex space-x-4">
             <button 
               onClick={handleApprove}
@@ -259,10 +262,11 @@ export default function DistributionDetailsModal({
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <path 
-                  d="M6 6L18 18M6 18L18 6" 
+                  d="M18 6L6 18M6 6L18 18" 
                   stroke="currentColor" 
                   strokeWidth="2" 
                   strokeLinecap="round" 
+                  strokeLinejoin="round"
                 />
               </svg>
               Reject

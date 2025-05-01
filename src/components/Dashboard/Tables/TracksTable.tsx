@@ -1,116 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { getAllTracks, Track } from '@/services/trackService';
 
 interface TracksTableProps {
-  onTrackSelect?: (trackId: number) => void;
+  onTrackSelect?: (trackId: string) => void;
+  tracks?: any[];
 }
 
-// Mock data for tracks
-const tracksData = [
-  { 
-    id: 1, 
-    title: 'Midnight Drive', 
-    trackId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    contentRating: 'PG',
-    type: 'Single',
-    isrc: 'US-XYZ-23-00001',
-    status: 'Released' 
-  },
-  { 
-    id: 2, 
-    title: 'Echoes of Time', 
-    trackId: 'TRK00456',
-    artist: 'Luna Waves', 
-    contentRating: 'G',
-    type: 'Album Track',
-    isrc: 'US-XYZ-23-00002',
-    status: 'Released'
-  },
-  { 
-    id: 3, 
-    title: 'Wildfire Heart', 
-    trackId: 'TRK00789',
-    artist: 'Atlas Rogue', 
-    contentRating: 'PG-13',
-    type: 'EP Track',
-    isrc: 'US-XYZ-23-00003',
-    status: 'Unreleased'
-  },
-  { 
-    id: 4, 
-    title: 'Midnight Drive', 
-    trackId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    contentRating: 'PG',
-    type: 'Single',
-    isrc: 'US-XYZ-23-00001',
-    status: 'Released' 
-  },
-  { 
-    id: 5, 
-    title: 'Echoes of Time', 
-    trackId: 'TRK00456',
-    artist: 'Luna Waves', 
-    contentRating: 'G',
-    type: 'Album Track',
-    isrc: 'US-XYZ-23-00002',
-    status: 'Released'
-  },
-  { 
-    id: 6, 
-    title: 'Wildfire Heart', 
-    trackId: 'TRK00789',
-    artist: 'Atlas Rogue', 
-    contentRating: 'PG-13',
-    type: 'EP Track',
-    isrc: 'US-XYZ-23-00003',
-    status: 'Unreleased'
-  },
-  { 
-    id: 7, 
-    title: 'Midnight Drive', 
-    trackId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    contentRating: 'PG',
-    type: 'Single',
-    isrc: 'US-XYZ-23-00001',
-    status: 'Released' 
-  },
-  { 
-    id: 8, 
-    title: 'Echoes of Time', 
-    trackId: 'TRK00456',
-    artist: 'Luna Waves', 
-    contentRating: 'G',
-    type: 'Album Track',
-    isrc: 'US-XYZ-23-00002',
-    status: 'Released'
-  },
-  { 
-    id: 9, 
-    title: 'Wildfire Heart', 
-    trackId: 'TRK00789',
-    artist: 'Atlas Rogue', 
-    contentRating: 'PG-13',
-    type: 'EP Track',
-    isrc: 'US-XYZ-23-00003',
-    status: 'Unreleased'
-  },
-  { 
-    id: 10, 
-    title: 'Midnight Drive', 
-    trackId: 'TRK00123',
-    artist: 'Neon Pulse', 
-    contentRating: 'PG',
-    type: 'Single',
-    isrc: 'US-XYZ-23-00001',
-    status: 'Released' 
-  },
-];
+// Component for the table header cell with sorting functionality
+interface TableHeaderProps {
+  label: string;
+  sortKey: string;
+  currentSort: { key: string; direction: string };
+  onSort: (key: string) => void;
+}
 
 // Sort Icon Component
 const SortIcon = ({ isActive = false, direction = 'asc' }) => (
@@ -127,14 +33,6 @@ const SortIcon = ({ isActive = false, direction = 'asc' }) => (
     )}
   </svg>
 );
-
-// Component for the table header cell with sorting functionality
-interface TableHeaderProps {
-  label: string;
-  sortKey: string;
-  currentSort: { key: string; direction: string };
-  onSort: (key: string) => void;
-}
 
 const TableHeader = ({ label, sortKey, currentSort, onSort }: TableHeaderProps) => {
   const isActive = currentSort.key === sortKey;
@@ -157,28 +55,33 @@ const TableHeader = ({ label, sortKey, currentSort, onSort }: TableHeaderProps) 
   );
 };
 
-export default function TracksTable({ onTrackSelect }: TracksTableProps) {
+export default function TracksTable({ onTrackSelect, tracks = [] }: TracksTableProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTracks, setSelectedTracks] = useState<number[]>([]);
+  const [selectedTracks, setSelectedTracks] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [currentSort, setCurrentSort] = useState({ key: 'title', direction: 'asc' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const itemsPerPage = 8;
   
   // Filter and sort tracks
-  const filteredData = tracksData
+  const filteredData = tracks
     .filter(item => 
-      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.trackId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.status.toLowerCase().includes(searchTerm.toLowerCase())
+      (item.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (item.artist?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (item._id?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (item.type?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (item.status?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
-      const key = currentSort.key as keyof typeof a;
-      if (a[key] < b[key]) return currentSort.direction === 'asc' ? -1 : 1;
-      if (a[key] > b[key]) return currentSort.direction === 'asc' ? 1 : -1;
+      const key = currentSort.key as keyof Track;
+      const aValue = a[key] || '';
+      const bValue = b[key] || '';
+      
+      if (aValue < bValue) return currentSort.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return currentSort.direction === 'asc' ? 1 : -1;
       return 0;
     });
   
@@ -205,13 +108,13 @@ export default function TracksTable({ onTrackSelect }: TracksTableProps) {
     if (selectAll) {
       setSelectedTracks([]);
     } else {
-      const allTrackIds = currentTracks.map(track => track.id);
+      const allTrackIds = currentTracks.map(track => track._id || '').filter(id => id !== '');
       setSelectedTracks(allTrackIds);
     }
     setSelectAll(!selectAll);
   };
 
-  const handleSelectTrack = (id: number) => {
+  const handleSelectTrack = (id: string) => {
     setSelectedTracks(prev => {
       if (prev.includes(id)) {
         return prev.filter(trackId => trackId !== id);
@@ -222,7 +125,7 @@ export default function TracksTable({ onTrackSelect }: TracksTableProps) {
   };
 
   // Handle row click
-  const handleRowClick = (id: number, e: React.MouseEvent) => {
+  const handleRowClick = (id: string, e: React.MouseEvent) => {
     // Prevent triggering if clicking on checkbox or link
     if ((e.target as HTMLElement).tagName === 'INPUT' || 
         (e.target as HTMLElement).tagName === 'A') {
@@ -278,46 +181,52 @@ export default function TracksTable({ onTrackSelect }: TracksTableProps) {
                 </div>
               </th>
               <TableHeader label="Title" sortKey="title" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Track ID" sortKey="trackId" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Artist Name" sortKey="artist" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Content Rating" sortKey="contentRating" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Artist" sortKey="artist" currentSort={currentSort} onSort={handleSort} />
               <TableHeader label="Type" sortKey="type" currentSort={currentSort} onSort={handleSort} />
               <TableHeader label="ISRC" sortKey="isrc" currentSort={currentSort} onSort={handleSort} />
               <TableHeader label="Status" sortKey="status" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Date" sortKey="createdAt" currentSort={currentSort} onSort={handleSort} />
             </tr>
           </thead>
           <tbody className="bg-[#161A1F] divide-y divide-gray-700">
-            {currentTracks.map((track) => (
+            {currentTracks.map((track, index) => (
               <tr 
-                key={track.id} 
+                key={track._id || `track-${index}`} 
                 className="hover:bg-[#1A1E24] transition-colors cursor-pointer"
-                onClick={(e) => handleRowClick(track.id, e)}
+                onClick={(e) => track._id ? handleRowClick(track._id, e) : undefined}
               >
                 <td className="sticky left-0 z-10 bg-[#161A1F] hover:bg-[#1A1E24] px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center">
                     <input 
                       type="checkbox"
                       className="w-4 h-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                      checked={selectedTracks.includes(track.id)}
-                      onChange={() => handleSelectTrack(track.id)}
+                      checked={track._id ? selectedTracks.includes(track._id) : false}
+                      onChange={() => track._id ? handleSelectTrack(track._id) : undefined}
                     />
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <Link 
-                    href={`/dashboard/catalogue/tracks/${track.id}`} 
+                    href={`/dashboard/catalogue/tracks/${track._id || ''}`} 
                     className="text-white hover:text-purple-400"
                   >
                     {track.title}
                   </Link>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{track.trackId}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{track.artist}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{track.contentRating}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{track.type}</td>
-                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{track.isrc}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{track.type || 'Single'}</td>
+                <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{track.isrc || '-'}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-gray-300">
-                  {track.status}
+                  <span className={`${
+                    track.status === 'approved' ? 'text-green-400' :
+                    track.status === 'rejected' ? 'text-red-400' :
+                    'text-gray-400'
+                  }`}>
+                    {(track.status && track.status.charAt(0).toUpperCase() + track.status.slice(1)) || 'Draft'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-gray-400 text-sm">
+                  {track.createdAt ? new Date(track.createdAt).toLocaleDateString() : '-'}
                 </td>
               </tr>
             ))}

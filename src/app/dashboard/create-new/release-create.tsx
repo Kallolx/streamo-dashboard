@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createRelease, createReleaseWithoutFile } from "@/services/releaseService";
+import { getAllStores, Store } from "@/services/storeService";
+import axios from "axios"; // Import axios directly
 
 // Toast component for notifications
 const Toast = ({
@@ -79,14 +82,92 @@ export default function ReleaseCreate() {
   const [coverArtPreview, setCoverArtPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Define track type
+  interface Track {
+    id?: number;
+    title: string;
+    artistName: string;
+    duration?: string;
+    isrc?: string;
+    version?: string;
+    contentRating?: string;
+    lyrics?: string;
+  }
+
   // Track list state
-  const [tracks, setTracks] = useState([
-    { id: 1, title: "The Overview", artistName: "Steven Wilson" },
-    { id: 2, title: "The Overview", artistName: "Linkin Park" },
-    { id: 3, title: "The Overview", artistName: "Steven Wilson" },
-    { id: 4, title: "The Overview", artistName: "Linkin Park" },
-    { id: 5, title: "The Overview", artistName: "Steven Wilson" },
-  ]);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  
+  // Track modal state
+  const [showTrackModal, setShowTrackModal] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState<Track>({
+    title: "",
+    artistName: "",
+    duration: "",
+    isrc: "",
+    version: "original",
+    contentRating: "",
+    lyrics: ""
+  });
+  
+  // Add or edit track
+  const handleAddOrEditTrack = () => {
+    if (!currentTrack.title || !currentTrack.artistName) {
+      setToast({
+        show: true,
+        message: "Track title and artist name are required",
+        type: "error",
+      });
+      return;
+    }
+    
+    if (currentTrack.id) {
+      // Edit existing track
+      setTracks(
+        tracks.map(track => 
+          track.id === currentTrack.id ? { ...track, ...currentTrack } : track
+        )
+      );
+    } else {
+      // Add new track
+      const newId = Math.max(0, ...tracks.map(t => t.id || 0)) + 1;
+      setTracks([...tracks, { ...currentTrack, id: newId }]);
+    }
+    
+    // Close modal and reset form
+    setShowTrackModal(false);
+    resetTrackForm();
+  };
+  
+  // Reset track form
+  const resetTrackForm = () => {
+    setCurrentTrack({
+      title: "",
+      artistName: "",
+      duration: "",
+      isrc: "",
+      version: "original",
+      contentRating: "",
+      lyrics: ""
+    });
+  };
+  
+  // Edit track
+  const handleEditTrack = (id: number) => {
+    const track = tracks.find(t => t.id === id);
+    if (track) {
+      setCurrentTrack({
+        id: track.id,
+        title: track.title,
+        artistName: track.artistName,
+        duration: track.duration || "",
+        isrc: track.isrc || "",
+        version: track.version || "original",
+        contentRating: track.contentRating || "",
+        lyrics: track.lyrics || ""
+      });
+      setShowTrackModal(true);
+    }
+  };
 
   // Handle cover art upload
   const handleCoverArtUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,14 +191,74 @@ export default function ReleaseCreate() {
 
   // State for selected stores
   const [selectedStores, setSelectedStores] = useState<string[]>([]);
+  // State for available stores from the API
+  const [stores, setStores] = useState<Store[]>([]);
+  const [loadingStores, setLoadingStores] = useState(false);
+  // State to track if tracks are confirmed
+  const [tracksConfirmed, setTracksConfirmed] = useState(false);
+
+  // Fetch stores from API on component mount
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        setLoadingStores(true);
+        const response = await getAllStores({ status: 'Active' });
+        if (response && response.data) {
+          setStores(response.data);
+        } else {
+          console.error('Invalid response format:', response);
+          setStores([]);
+        }
+      } catch (error) {
+        console.error('Error fetching stores:', error);
+        setToast({
+          show: true,
+          message: "Failed to load distribution platforms",
+          type: "error",
+        });
+        setStores([]);
+      } finally {
+        setLoadingStores(false);
+      }
+    };
+
+    fetchStores();
+  }, []);
 
   // Handle store selection
   const handleStoreSelection = (store: string) => {
+    let newSelectedStores;
     if (selectedStores.includes(store)) {
-      setSelectedStores(selectedStores.filter((s) => s !== store));
+      newSelectedStores = selectedStores.filter((s) => s !== store);
     } else {
-      setSelectedStores([...selectedStores, store]);
+      newSelectedStores = [...selectedStores, store];
     }
+    
+    // Set the state with the new array
+    setSelectedStores(newSelectedStores);
+    
+    // Debug logging
+    console.log(`Store ${store} ${selectedStores.includes(store) ? 'removed from' : 'added to'} selection.`);
+    console.log('Current selectedStores:', newSelectedStores);
+  };
+
+  // Confirm tracks for submission
+  const confirmTracks = () => {
+    if (tracks.length === 0) {
+      setToast({
+        show: true,
+        message: "Please add at least one track before confirming",
+        type: "error",
+      });
+      return;
+    }
+    
+    setTracksConfirmed(true);
+    setToast({
+      show: true,
+      message: "Tracks confirmed for submission",
+      type: "success",
+    });
   };
 
   // Toast state
@@ -144,20 +285,147 @@ export default function ReleaseCreate() {
   ];
 
   // Handle form submission
-  const handleSubmit = () => {
-    // Randomly decide if it's a success or failure (70% success, 30% failure)
-    const isSuccess = Math.random() > 0.3;
+  const handleSubmit = async () => {
+    try {
+      // No longer require coverArt
+      // if (!coverArt) {
+      //   setToast({
+      //     show: true,
+      //     message: "Please upload a cover art image",
+      //     type: "error",
+      //   });
+      //   return;
+      // }
+      
+      // Get values directly from form elements with EXACT keys matching MongoDB schema
+      const title = (document.getElementById('releaseTitle') as HTMLInputElement)?.value || "Untitled Release";
+      const artist = (document.getElementById('artistName') as HTMLInputElement)?.value || 
+                    (document.getElementById('featureArtist') as HTMLInputElement)?.value || 
+                    "Unknown Artist";
+      const genre = (document.getElementById('selectGenre') as HTMLSelectElement)?.value || "pop";
+      const format = (document.getElementById('format') as HTMLSelectElement)?.value || "digital";
+      const releaseType = (document.getElementById('releaseType') as HTMLSelectElement)?.value || "single";
 
-    // Get a random message based on the result
-    const messages = isSuccess ? successMessages : errorMessages;
-    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+      // Check if tracks are confirmed before proceeding
+      if (!tracksConfirmed && tracks.length > 0) {
+        setToast({
+          show: true,
+          message: "Please click 'Done' to confirm your tracks first",
+          type: "error",
+        });
+        return;
+      }
 
-    // Show the toast
-    setToast({
-      show: true,
-      message: randomMessage,
-      type: isSuccess ? "success" : "error",
-    });
+      // Debug logging for stores selection
+      console.log("DEBUG - Selected stores before submission:", selectedStores);
+      
+      // Create a data object with all fields
+      const releaseData = {
+        // Basic info
+        title: title,
+        artist: artist,
+        genre: genre,
+        format: format,
+        releaseType: releaseType,
+        
+        // Metadata
+        language: (document.getElementById('selectLanguage') as HTMLSelectElement)?.value || "",
+        upc: (document.getElementById('upc') as HTMLInputElement)?.value || "",
+        releaseDate: (document.getElementById('releaseDate') as HTMLInputElement)?.value || new Date().toISOString().split('T')[0],
+        
+        // Stores selection - ensure it's explicitly an array
+        stores: Array.isArray(selectedStores) ? [...selectedStores] : [],
+        
+        // Contributors
+        featuredArtist: (document.getElementById('featureArtist') as HTMLInputElement)?.value || "",
+        composer: (document.getElementById('composer') as HTMLInputElement)?.value || "",
+        lyricist: (document.getElementById('lyricist') as HTMLInputElement)?.value || "",
+        musicProducer: (document.getElementById('musicProducer') as HTMLInputElement)?.value || "",
+        publisher: (document.getElementById('publisher') as HTMLInputElement)?.value || "",
+        singer: (document.getElementById('singer') as HTMLInputElement)?.value || "",
+        musicDirector: (document.getElementById('musicDirector') as HTMLInputElement)?.value || "",
+        copyrightHeader: (document.getElementById('copyrightHeader') as HTMLInputElement)?.value || "",
+        
+        // Pricing
+        pricing: (document.getElementById('trackPricing') as HTMLSelectElement)?.value || "free",
+        
+        // Track data with complete information
+        tracks: tracks.map(track => ({
+          title: track.title || "Untitled Track",
+          artistName: track.artistName || "Unknown Artist",
+          duration: track.duration || "",
+          isrc: track.isrc || "",
+          version: track.version || "original",
+          contentRating: track.contentRating || "",
+          lyrics: track.lyrics || ""
+        })),
+      };
+
+      console.log('Release data being submitted:', releaseData);
+      
+      // Use the JSON-only method to create the release
+      const response = await createReleaseWithoutFile(releaseData);
+
+      console.log("Success response:", response);
+      console.log("Stores in response:", response.data.stores);
+      console.log("Cover art path:", response.data.coverArt);
+      
+      // Show success message
+      setToast({
+        show: true,
+        message: `Release created successfully with cover art: ${response.data.coverArt}`,
+        type: "success",
+      });
+      
+      // Clear the form data
+      setCoverArt(null);
+      setCoverArtPreview(null);
+      setTracks([]);
+      setSelectedStores([]);
+      setTracksConfirmed(false);
+      
+      // Reset form fields
+      const formElements = document.querySelectorAll('input:not([type="file"]), select');
+      formElements.forEach((element: any) => {
+        if (element.type === 'checkbox') {
+          element.checked = false;
+        } else {
+          element.value = '';
+        }
+      });
+      
+      // Redirect to the releases page after a short delay
+      setTimeout(() => {
+        window.location.href = '/dashboard/catalogue';
+      }, 1500);
+    } catch (error: any) {
+      console.error("Error details:", error);
+      
+      let message = "Failed to save release. ";
+      
+      // Try to extract specific error details
+      if (error.response?.data) {
+        console.error("Server response data:", error.response.data);
+        
+        if (error.response.data.error) {
+          if (typeof error.response.data.error === 'string') {
+            message += error.response.data.error;
+          } else if (Array.isArray(error.response.data.error)) {
+            message += error.response.data.error.join(', ');
+          }
+        }
+        
+        if (error.response.status === 401) {
+          message = "Authentication error. Please log in first.";
+        }
+      }
+
+      setToast({
+        show: true,
+        message,
+        type: "error",
+      });
+    }
   };
 
   // Close toast
@@ -298,83 +566,36 @@ export default function ReleaseCreate() {
         </div>
       </div>
 
-      {/* Add Tracks Section */}
-      <div className="bg-[#161A1F] rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Add Tracks</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-          {/* Left side - 3 fields */}
-          <div className="md:col-span-3 space-y-4">
-            <div>
-              <input
-                type="text"
-                id="isrc"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="ISRC"
-              />
-            </div>
-
-            <div>
-              <select
-                id="type"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="">Type</option>
-                <option value="single">Single</option>
-                <option value="album">Album</option>
-                <option value="ep">EP</option>
-              </select>
-            </div>
-
-            <div>
-              <select
-                id="version"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="">Version</option>
-                <option value="original">Original</option>
-                <option value="remix">Remix</option>
-                <option value="acoustic">Acoustic</option>
-                <option value="live">Live</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Right side - 2 fields */}
-          <div className="md:col-span-2 space-y-4">
-            <div>
-              <select
-                id="contentRating"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="">Content Rating</option>
-                <option value="clean">Clean</option>
-                <option value="explicit">Explicit</option>
-              </select>
-            </div>
-
-            <div>
-              <textarea
-                id="typeLyrics"
-                rows={4}
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Type Lyrics"
-              ></textarea>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Upload or Add Tracks Section */}
       <div className="bg-[#161A1F] rounded-lg p-6">
         <h2 className="text-xl font-semibold mb-4">Upload or Add Tracks</h2>
 
         <div className="mb-4">
-          <select className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+          <select 
+            className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            defaultValue="add"
+          >
             <option value="add">Add Existing or Upload New Tracks</option>
             <option value="existing">Add Existing Tracks</option>
             <option value="upload">Upload New Tracks</option>
           </select>
+        </div>
+
+        {/* Add Track Button */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => {
+              resetTrackForm();
+              setShowTrackModal(true);
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Add New Track
+          </button>
         </div>
 
         {/* Track List */}
@@ -387,6 +608,9 @@ export default function ReleaseCreate() {
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Artist Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Duration
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Action
@@ -402,13 +626,35 @@ export default function ReleaseCreate() {
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
                     {track.artistName}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                    {track.duration || "-"}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right space-x-2">
                     <button
-                      onClick={() => handleDeleteTrack(track.id)}
-                      className="text-red-500 hover:text-red-400"
+                      onClick={() => track.id && handleEditTrack(track.id)}
+                      className="text-blue-500 hover:text-blue-400"
                     >
                       <svg
-                        className="w-5 h-5"
+                        className="w-5 h-5 inline-block"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        ></path>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => track.id && handleDeleteTrack(track.id)}
+                      className="text-red-500 hover:text-red-400 ml-3"
+                    >
+                      <svg
+                        className="w-5 h-5 inline-block"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                         xmlns="http://www.w3.org/2000/svg"
@@ -427,13 +673,36 @@ export default function ReleaseCreate() {
           </table>
         </div>
 
+        {/* Track Confirmation Status */}
+        <div className="mb-4 flex items-center">
+          {tracksConfirmed ? (
+            <div className="flex items-center text-green-500">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+              </svg>
+              <span>Tracks confirmed</span>
+            </div>
+          ) : (
+            <div className="flex items-center text-yellow-500">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+              <span>Please click "Done" to confirm tracks for submission</span>
+            </div>
+          )}
+        </div>
+
         {/* Done Button */}
         <div className="flex justify-end">
           <button
             type="button"
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors"
+            onClick={confirmTracks}
+            className={`${tracksConfirmed 
+              ? 'bg-green-600 hover:bg-green-700' 
+              : 'bg-purple-600 hover:bg-purple-700'
+            } text-white px-4 py-2 rounded-md transition-colors`}
           >
-            Done
+            {tracksConfirmed ? 'Tracks Confirmed' : 'Done'}
           </button>
         </div>
       </div>
@@ -573,16 +842,7 @@ export default function ReleaseCreate() {
                 type="text"
                 id="copyrightHeader"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Copyright Header (optional)"
-              />
-            </div>
-
-            <div>
-              <input
-                type="text"
-                id="remixerArtist"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Remixer Artist (optional)"
+                placeholder="Copyright Header"
               />
             </div>
 
@@ -591,7 +851,7 @@ export default function ReleaseCreate() {
                 type="text"
                 id="composer"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Composer (optional)"
+                placeholder="Composer"
               />
             </div>
             <div>
@@ -599,7 +859,7 @@ export default function ReleaseCreate() {
                 type="text"
                 id="musicProducer"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Music Producer (optional)"
+                placeholder="Music Producer"
               />
             </div>
 
@@ -608,7 +868,7 @@ export default function ReleaseCreate() {
                 type="text"
                 id="singer"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Singer (optional)"
+                placeholder="Singer"
               />
             </div>
           </div>
@@ -620,7 +880,7 @@ export default function ReleaseCreate() {
                 type="text"
                 id="featureArtist"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Feature Artist (optional)"
+                placeholder="Feature Artist"
               />
             </div>
             <div>
@@ -628,7 +888,7 @@ export default function ReleaseCreate() {
                 type="text"
                 id="lyricist"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Lyricist (optional)"
+                placeholder="Lyricist"
               />
             </div>
 
@@ -637,7 +897,7 @@ export default function ReleaseCreate() {
                 type="text"
                 id="publisher"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Publisher (optional)"
+                placeholder="Publisher"
               />
             </div>
 
@@ -646,149 +906,203 @@ export default function ReleaseCreate() {
                 type="text"
                 id="musicDirector"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Music Director (optional)"
+                placeholder="Music Director"
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Select Store Section */}
-      <div className="rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Select Stores</h2>
-        <p className="text-gray-400 mb-4">
-          Choose the platforms where you want to distribute your release.
+      {/* Distribution Platforms Section */}
+      <div className="rounded-lg p-6 bg-[#161A1F]">
+        <h2 className="text-xl font-semibold mb-4">Distribution Platforms</h2>
+        <p className="text-gray-400 mb-6">
+          Select where you want your music to be available. You can choose multiple platforms.
         </p>
 
-        <div className="flex flex-wrap gap-4">
-          {/* Spotify */}
-          <div className="group">
-            <label
-              className={`flex flex-col items-center bg-[#1D2229] hover:bg-[#2a313b] border ${
-                selectedStores.includes("spotify")
-                  ? "border-purple-500 ring-2 ring-purple-500/50"
-                  : "border-gray-700"
-              } rounded-lg p-4 cursor-pointer transition-all`}
-            >
-              <input
-                type="checkbox"
-                className="absolute opacity-0"
-                checked={selectedStores.includes("spotify")}
-                onChange={() => handleStoreSelection("spotify")}
-              />
-              <img
-                src="/icons/sp.svg"
-                alt="Spotify"
-                className="w-12 h-12 mb-2"
-              />
-              <span
-                className={`${
-                  selectedStores.includes("spotify")
-                    ? "text-purple-400"
-                    : "text-white group-hover:text-purple-300"
-                } transition-colors`}
-              >
-                Spotify
-              </span>
-            </label>
+        {loadingStores ? (
+          <div className="flex justify-center my-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
           </div>
-
-          {/* Apple Music */}
-          <div className="group">
-            <label
-              className={`flex flex-col items-center bg-[#1D2229] hover:bg-[#2a313b] border ${
-                selectedStores.includes("apple")
-                  ? "border-purple-500 ring-2 ring-purple-500/50"
-                  : "border-gray-700"
-              } rounded-lg p-4 cursor-pointer transition-all`}
-            >
-              <input
-                type="checkbox"
-                className="absolute opacity-0"
-                checked={selectedStores.includes("apple")}
-                onChange={() => handleStoreSelection("apple")}
-              />
-              <img
-                src="/icons/ap.svg"
-                alt="Apple Music"
-                className="w-12 h-12 mb-2"
-              />
-              <span
-                className={`${
-                  selectedStores.includes("apple")
-                    ? "text-purple-400"
-                    : "text-white group-hover:text-purple-300"
-                } transition-colors`}
-              >
-                Apple Music
-              </span>
-            </label>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {/* Dynamic store rendering from API */}
+            {stores.length > 0 ? (
+              stores.map((store) => (
+                <div 
+                  key={store._id}
+                  onClick={() => handleStoreSelection(store._id || "")}
+                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                    selectedStores.includes(store._id || "") 
+                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
+                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                  }`}
+                >
+                  {selectedStores.includes(store._id || "") && (
+                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center">
+                    {store.icon && (
+                      <div 
+                        className="w-12 h-12 mb-2 rounded bg-cover bg-center"
+                        style={{ 
+                          backgroundImage: `url(${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${store.icon})` 
+                        }}
+                      />
+                    )}
+                    <span className="text-center text-gray-300 font-medium">{store.name}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center text-gray-400">
+                No distribution platforms available. Please check back later.
+              </div>
+            )}
+            
+            {/* Fallback to hardcoded platforms if API fails or returns empty */}
+            {stores.length === 0 && !loadingStores && (
+              <>
+                <div 
+                  onClick={() => handleStoreSelection("spotify")}
+                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                    selectedStores.includes("spotify") 
+                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
+                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                  }`}
+                >
+                  {selectedStores.includes("spotify") && (
+                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center">
+                    <img src="/icons/sp.svg" alt="Spotify" className="w-12 h-12 mb-2" />
+                    <span className="text-center text-gray-300 font-medium">Spotify</span>
+                  </div>
+                </div>
+                
+                <div 
+                  onClick={() => handleStoreSelection("apple")}
+                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                    selectedStores.includes("apple") 
+                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
+                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                  }`}
+                >
+                  {selectedStores.includes("apple") && (
+                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center">
+                    <img src="/icons/ap.svg" alt="Apple Music" className="w-12 h-12 mb-2" />
+                    <span className="text-center text-gray-300 font-medium">Apple Music</span>
+                  </div>
+                </div>
+                
+                <div 
+                  onClick={() => handleStoreSelection("youtube")}
+                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                    selectedStores.includes("youtube") 
+                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
+                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                  }`}
+                >
+                  {selectedStores.includes("youtube") && (
+                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center">
+                    <img src="/icons/yt.svg" alt="YouTube Music" className="w-12 h-12 mb-2" />
+                    <span className="text-center text-gray-300 font-medium">YouTube Music</span>
+                  </div>
+                </div>
+                
+                <div 
+                  onClick={() => handleStoreSelection("soundcloud")}
+                  className={`relative rounded-xl p-3 transition-all cursor-pointer ${
+                    selectedStores.includes("soundcloud") 
+                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
+                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                  }`}
+                >
+                  {selectedStores.includes("soundcloud") && (
+                    <div className="absolute -top-2 -right-2 bg-purple-500 rounded-full p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center">
+                    <img src="/icons/sc.svg" alt="SoundCloud" className="w-12 h-12 mb-2" />
+                    <span className="text-center text-gray-300 font-medium">SoundCloud</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-
-          {/* YouTube Music */}
-          <div className="group">
-            <label
-              className={`flex flex-col items-center bg-[#1D2229] hover:bg-[#2a313b] border ${
-                selectedStores.includes("youtube")
-                  ? "border-purple-500 ring-2 ring-purple-500/50"
-                  : "border-gray-700"
-              } rounded-lg p-4 cursor-pointer transition-all`}
-            >
-              <input
-                type="checkbox"
-                className="absolute opacity-0"
-                checked={selectedStores.includes("youtube")}
-                onChange={() => handleStoreSelection("youtube")}
-              />
-              <img
-                src="/icons/yt.svg"
-                alt="YouTube Music"
-                className="w-12 h-12 mb-2"
-              />
-              <span
-                className={`${
-                  selectedStores.includes("youtube")
-                    ? "text-purple-400"
-                    : "text-white group-hover:text-purple-300"
-                } transition-colors`}
-              >
-                YouTube Music
-              </span>
-            </label>
+        )}
+        
+        {/* Selected platforms summary */}
+        {selectedStores.length > 0 && (
+          <div className="mt-6 bg-[#1A1D24] border border-[#2A2F36] rounded-lg p-4">
+            <div className="flex items-center mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="text-sm font-medium text-gray-300">Selected platforms ({selectedStores.length})</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedStores.map(storeId => {
+                // Try to find store name if it's an ID
+                const store = stores.find(s => s._id === storeId);
+                const storeName = store?.name || storeId;
+                const storeColor = store?.color || '#6b46c1'; // Default purple if no color
+                
+                return (
+                  <div 
+                    key={storeId} 
+                    className="inline-flex items-center px-3 py-1.5 rounded-full text-sm"
+                    style={{ backgroundColor: `${storeColor}30` }} // Using color with 30% opacity
+                  >
+                    {store?.icon && (
+                      <div 
+                        className="w-4 h-4 mr-2 rounded-full bg-cover bg-center"
+                        style={{ 
+                          backgroundImage: `url(${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${store.icon})` 
+                        }}
+                      />
+                    )}
+                    <span className="text-white">{storeName}</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card selection
+                        handleStoreSelection(storeId);
+                      }}
+                      className="ml-2 text-gray-300 hover:text-white"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-
-          {/* SoundCloud */}
-          <div className="group">
-            <label
-              className={`flex flex-col items-center bg-[#1D2229] hover:bg-[#2a313b] border ${
-                selectedStores.includes("soundcloud")
-                  ? "border-purple-500 ring-2 ring-purple-500/50"
-                  : "border-gray-700"
-              } rounded-lg p-4 cursor-pointer transition-all`}
-            >
-              <input
-                type="checkbox"
-                className="absolute opacity-0"
-                checked={selectedStores.includes("soundcloud")}
-                onChange={() => handleStoreSelection("soundcloud")}
-              />
-              <img
-                src="/icons/sc.svg"
-                alt="SoundCloud"
-                className="w-12 h-12 mb-2"
-              />
-              <span
-                className={`${
-                  selectedStores.includes("soundcloud")
-                    ? "text-purple-400"
-                    : "text-white group-hover:text-purple-300"
-                } transition-colors`}
-              >
-                SoundCloud
-              </span>
-            </label>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Track Pricing Section */}
@@ -883,6 +1197,154 @@ export default function ReleaseCreate() {
       {/* Toast notification */}
       {toast.show && (
         <Toast message={toast.message} type={toast.type} onClose={closeToast} />
+      )}
+
+      {/* Track Modal */}
+      {showTrackModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="fixed inset-0 bg-black opacity-75" onClick={() => setShowTrackModal(false)}></div>
+            <div className="relative bg-[#1D2229] rounded-lg w-full max-w-2xl p-6 z-10">
+              <h3 className="text-xl font-semibold mb-4">
+                {currentTrack.id ? 'Edit Track' : 'Add New Track'}
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {/* Track Title */}
+                <div>
+                  <label htmlFor="trackTitle" className="block text-sm font-medium text-gray-400 mb-1">
+                    Track Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="trackTitle"
+                    value={currentTrack.title}
+                    onChange={(e) => setCurrentTrack({...currentTrack, title: e.target.value})}
+                    className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Enter track title"
+                    required
+                  />
+                </div>
+                
+                {/* Artist Name */}
+                <div>
+                  <label htmlFor="trackArtist" className="block text-sm font-medium text-gray-400 mb-1">
+                    Artist Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="trackArtist"
+                    value={currentTrack.artistName}
+                    onChange={(e) => setCurrentTrack({...currentTrack, artistName: e.target.value})}
+                    className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Enter artist name"
+                    required
+                  />
+                </div>
+                
+                {/* Duration */}
+                <div>
+                  <label htmlFor="trackDuration" className="block text-sm font-medium text-gray-400 mb-1">
+                    Duration
+                  </label>
+                  <input
+                    type="text"
+                    id="trackDuration"
+                    value={currentTrack.duration}
+                    onChange={(e) => setCurrentTrack({...currentTrack, duration: e.target.value})}
+                    className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="e.g. 3:45"
+                  />
+                </div>
+                
+                {/* ISRC */}
+                <div>
+                  <label htmlFor="trackIsrc" className="block text-sm font-medium text-gray-400 mb-1">
+                    ISRC
+                  </label>
+                  <input
+                    type="text"
+                    id="trackIsrc"
+                    value={currentTrack.isrc}
+                    onChange={(e) => setCurrentTrack({...currentTrack, isrc: e.target.value})}
+                    className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="e.g. USXXX2000000"
+                  />
+                </div>
+                
+                {/* Version */}
+                <div>
+                  <label htmlFor="trackVersion" className="block text-sm font-medium text-gray-400 mb-1">
+                    Version
+                  </label>
+                  <select
+                    id="trackVersion"
+                    value={currentTrack.version}
+                    onChange={(e) => setCurrentTrack({...currentTrack, version: e.target.value})}
+                    className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="original">Original</option>
+                    <option value="remix">Remix</option>
+                    <option value="acoustic">Acoustic</option>
+                    <option value="live">Live</option>
+                    <option value="instrumental">Instrumental</option>
+                    <option value="radio edit">Radio Edit</option>
+                  </select>
+                </div>
+                
+                {/* Content Rating */}
+                <div>
+                  <label htmlFor="trackContentRating" className="block text-sm font-medium text-gray-400 mb-1">
+                    Content Rating
+                  </label>
+                  <select
+                    id="trackContentRating"
+                    value={currentTrack.contentRating}
+                    onChange={(e) => setCurrentTrack({...currentTrack, contentRating: e.target.value})}
+                    className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">Select...</option>
+                    <option value="clean">Clean</option>
+                    <option value="explicit">Explicit</option>
+                  </select>
+                </div>
+              </div>
+              
+              {/* Lyrics */}
+              <div className="mb-6">
+                <label htmlFor="trackLyrics" className="block text-sm font-medium text-gray-400 mb-1">
+                  Lyrics
+                </label>
+                <textarea
+                  id="trackLyrics"
+                  value={currentTrack.lyrics}
+                  onChange={(e) => setCurrentTrack({...currentTrack, lyrics: e.target.value})}
+                  rows={5}
+                  className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Enter track lyrics"
+                ></textarea>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setShowTrackModal(false)}
+                  className="px-4 py-2 border border-gray-600 text-gray-300 rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddOrEditTrack}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                >
+                  {currentTrack.id ? 'Update Track' : 'Add Track'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

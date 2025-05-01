@@ -8,14 +8,20 @@ import { getUserData, logout } from '@/services/authService';
 
 // Icons
 const MenuIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
   </svg>
 );
 
 const BellIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+  </svg>
+);
+
+const SearchIcon = () => (
+  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
   </svg>
 );
 
@@ -43,6 +49,7 @@ export default function Header({
   const router = useRouter();
   const pathname = usePathname();
   const [userData, setUserData] = useState<any>(null);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -114,6 +121,8 @@ export default function Header({
   const handleSearch = (query: string) => {
     // In a real app, you would search with the query
     console.log('Searching for:', query);
+    // Close mobile search after submitting
+    setShowMobileSearch(false);
   };
 
   const handleLogout = () => {
@@ -139,45 +148,54 @@ export default function Header({
   };
 
   return (
-    <header className="bg-[#161A1F] border-b border-gray-700 sticky top-0 z-10">
-      <div className="flex items-center justify-between h-16 px-6">
-        {/* Left side */}
-        <div className="flex items-center">
+    <header className="bg-[#161A1F] border-b border-gray-700 sticky top-0 z-10 w-full shadow-md">
+      <div className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-6">
+        {/* Left side - Menu button, breadcrumb and title */}
+        <div className="flex items-center flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-gray-300 hover:text-white focus:outline-none"
+            className="text-gray-300 hover:text-white focus:outline-none p-1 mr-2"
             aria-label="Toggle sidebar"
           >
             <MenuIcon />
           </button>
           
-          <div className="ml-4 flex items-center">
+          <div className="flex items-center">
             {displayParentTitle && displayParentPath ? (
               <>
                 <Link 
                   href={displayParentPath} 
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-400 hover:text-white transition-colors hidden sm:inline-block text-sm"
                 >
                   {displayParentTitle}
                 </Link>
                 <ChevronRightIcon />
               </>
             ) : null}
-            <h2 className="text-xl font-semibold text-white">{displayTitle}</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-white truncate max-w-[100px] sm:max-w-[150px]">{displayTitle}</h2>
           </div>
         </div>
-
-        {/* Center - Search bar */}
-        <div className="flex-1 max-w-xl px-4">
+        
+        {/* Search field - Hidden on mobile, visible on larger screens */}
+        <div className="hidden md:block flex-1 mx-2 sm:mx-4 max-w-md">
           <Search 
             placeholder="Search for tracks, artists, releases..." 
-            onSearch={handleSearch} 
+            onSearch={handleSearch}
           />
         </div>
 
-        {/* Right side - User info */}
-        <div className="flex items-center">
-          <button className="mr-4 p-1 rounded-full text-gray-400 hover:text-white focus:outline-none">
+        {/* Right side - User info with search icon on mobile */}
+        <div className="flex items-center flex-shrink-0">
+          {/* Search icon for mobile */}
+          <button 
+            className="md:hidden p-1 mr-2 rounded-full text-gray-400 hover:text-white focus:outline-none"
+            onClick={() => setShowMobileSearch(!showMobileSearch)}
+            aria-label="Toggle search"
+          >
+            <SearchIcon />
+          </button>
+          
+          <button className="mr-2 sm:mr-4 p-1 rounded-full text-gray-400 hover:text-white focus:outline-none">
             <BellIcon />
           </button>
           
@@ -185,7 +203,7 @@ export default function Header({
             <Link href="/dashboard/profile" className="flex items-center">
               <div className="relative">
                 <img
-                  className="h-9 w-9 rounded-full border-2 border-gray-700"
+                  className="h-8 w-8 sm:h-9 sm:w-9 rounded-full border-2 border-gray-700"
                   src={userData?.profileImage || "/placeholder.png"} 
                   alt="User avatar"
                   onError={(e) => {
@@ -197,13 +215,23 @@ export default function Header({
               </div>
               
               <div className="ml-3 hidden md:block">
-                <p className="text-sm font-medium text-white">{userData?.name || 'User'}</p>
+                <p className="text-sm font-medium text-white truncate max-w-[100px] lg:max-w-[150px]">{userData?.name || 'User'}</p>
                 <p className="text-xs text-gray-400">{userData ? getRoleDisplay(userData.role) : 'Guest'}</p>
               </div>
             </Link>
           </div>
         </div>
       </div>
+      
+      {/* Mobile search bar - Slides down when search icon is clicked */}
+      {showMobileSearch && (
+        <div className="md:hidden px-3 pb-3 animate-slideDown">
+          <Search 
+            placeholder="Search..." 
+            onSearch={handleSearch}
+          />
+        </div>
+      )}
     </header>
   );
 } 

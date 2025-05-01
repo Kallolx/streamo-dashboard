@@ -15,6 +15,13 @@ export interface Store {
 }
 
 /**
+ * Utility function to validate if a string is a valid MongoDB ObjectId
+ */
+export const isValidObjectId = (id: string): boolean => {
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
+
+/**
  * Get all stores with optional filtering
  */
 export const getAllStores = async (filters = {}) => {
@@ -32,6 +39,11 @@ export const getAllStores = async (filters = {}) => {
  */
 export const getStoreById = async (storeId: string) => {
   try {
+    // Validate store ID format before making API call
+    if (!isValidObjectId(storeId)) {
+      throw new Error(`Invalid store ID format: ${storeId}`);
+    }
+    
     const response = await api.get(`/stores/${storeId}`);
     return response.data;
   } catch (error) {
@@ -41,14 +53,20 @@ export const getStoreById = async (storeId: string) => {
 };
 
 /**
- * Create a new store
- * Uses FormData to handle file uploads
+ * Create a new store with JSON data
  */
-export const createStore = async (storeData: FormData) => {
+export const createStore = async (storeData: {
+  name: string;
+  category: string;
+  status: string;
+  url: string;
+  color: string;
+  videosOnly: boolean;
+}) => {
   try {
     const response = await api.post('/stores', storeData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'application/json',
       },
     });
     return response.data;
@@ -64,6 +82,11 @@ export const createStore = async (storeData: FormData) => {
  */
 export const updateStore = async (storeId: string, storeData: FormData) => {
   try {
+    // Validate store ID format before making API call
+    if (!isValidObjectId(storeId)) {
+      throw new Error(`Invalid store ID format: ${storeId}`);
+    }
+    
     const response = await api.put(`/stores/${storeId}`, storeData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -81,6 +104,11 @@ export const updateStore = async (storeId: string, storeData: FormData) => {
  */
 export const deleteStore = async (storeId: string) => {
   try {
+    // Validate store ID format before making API call
+    if (!isValidObjectId(storeId)) {
+      throw new Error(`Invalid store ID format: ${storeId}`);
+    }
+    
     const response = await api.delete(`/stores/${storeId}`);
     return response.data;
   } catch (error) {
@@ -94,6 +122,11 @@ export const deleteStore = async (storeId: string) => {
  */
 export const toggleStoreStatus = async (storeId: string) => {
   try {
+    // Validate store ID format before making API call
+    if (!isValidObjectId(storeId)) {
+      throw new Error(`Invalid store ID format: ${storeId}`);
+    }
+    
     const response = await api.patch(`/stores/${storeId}/toggle-status`);
     return response.data;
   } catch (error) {

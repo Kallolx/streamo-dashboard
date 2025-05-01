@@ -23,7 +23,7 @@ const catalogueTabs = [
 // Component to handle tabs with useSearchParams
 function TabContent() {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'releases';
+  const initialTab = searchParams?.get('tab') || 'releases';
   const [activeTab, setActiveTab] = useState(initialTab);
 
   const handleTabChange = (tabId: string) => {

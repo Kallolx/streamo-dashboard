@@ -9,9 +9,10 @@ import { House, Books, ChartBar, SignOut, User, ArrowsDownUp, CurrencyDollar, Sh
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
+  isMobile?: boolean;
 }
 
-export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
+export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -49,6 +50,17 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     router.push('/auth/login');
   };
 
+  // Close sidebar on link click if on mobile
+  const handleLinkClick = (href: string) => {
+    if (isMobile) {
+      setIsOpen(false);
+    }
+    // For mobile, manually push the router to the new page
+    if (isMobile && href !== pathname) {
+      router.push(href);
+    }
+  };
+
   // Check if a menu item should be visible based on user role
   const isMenuItemVisible = (item: string) => {
     if (!userRole) return false; // If no role is set, hide restricted items
@@ -66,8 +78,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   return (
     <div
       className={`${
-        isOpen ? 'w-64' : 'w-20'
-      } bg-[#161A1F] h-screen fixed transition-all duration-300 ease-in-out z-10`}
+        isOpen ? 'w-64 translate-x-0' : 'w-20 lg:translate-x-0 -translate-x-full'
+      } bg-[#161A1F] h-screen fixed left-0 top-0 transition-all duration-300 ease-in-out z-30 overflow-y-auto`}
     >
       <div className="flex flex-col h-full">
         {/* Logo */}
@@ -91,12 +103,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                 ? 'bg-purple-600 text-white'
                 : 'text-gray-300 hover:bg-gray-700'
             }`}
+            onClick={() => handleLinkClick('/dashboard')}
           >
             {isActive('/dashboard') ? 
               <House size={20} weight="fill" /> : 
               <House size={20} />
             }
-            {isOpen && <span className="ml-3">Home</span>}
+            {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Home</span>}
           </Link>
 
           {/* Others Section */}         
@@ -108,12 +121,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-300 hover:bg-gray-700'
               }`}
+              onClick={() => handleLinkClick('/dashboard/catalogue')}
             >
               {isActive('/dashboard/catalogue') ? 
                 <Books size={20} weight="fill" /> : 
                 <Books size={20} />
               }
-              {isOpen && <span className="ml-3">Catalogue</span>}
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Catalogue</span>}
             </Link>
 
             <Link
@@ -123,12 +137,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-300 hover:bg-gray-700'
               }`}
+              onClick={() => handleLinkClick('/dashboard/transactions')}
             >
               {isActive('/dashboard/transactions') ? 
                 <ArrowsDownUp size={20} weight="fill" /> : 
                 <ArrowsDownUp size={20} />
               }
-              {isOpen && <span className="ml-3">Transactions</span>}
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Transactions</span>}
             </Link>
 
             <Link
@@ -138,12 +153,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-300 hover:bg-gray-700'
               }`}
+              onClick={() => handleLinkClick('/dashboard/royalties')}
             >
               {isActive('/dashboard/royalties') ? 
                 <CurrencyDollar size={20} weight="fill" /> : 
                 <CurrencyDollar size={20} />
               }
-              {isOpen && <span className="ml-3">Royalties</span>}
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Royalties</span>}
             </Link>
 
             <Link
@@ -153,12 +169,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-300 hover:bg-gray-700'
               }`}
+              onClick={() => handleLinkClick('/dashboard/statements')}
             >
               {isActive('/dashboard/statements') ? 
                 <Files size={20} weight="fill" /> : 
                 <Files size={20} />
               }
-              {isOpen && <span className="ml-3">Statements</span>}
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Statements</span>}
             </Link>
 
             <Link
@@ -168,12 +185,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-300 hover:bg-gray-700'
               }`}
+              onClick={() => handleLinkClick('/dashboard/analytics')}
             >
               {isActive('/dashboard/analytics') ? 
                 <ChartBar size={20} weight="fill" /> : 
                 <ChartBar size={20} />
               }
-              {isOpen && <span className="ml-3">Analytics</span>}
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Analytics</span>}
             </Link>
 
             {isMenuItemVisible('user-management') && (
@@ -184,12 +202,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     ? 'bg-purple-600 text-white'
                     : 'text-gray-300 hover:bg-gray-700'
                 }`}
+                onClick={() => handleLinkClick('/dashboard/user-management')}
               >
                 {isActive('/dashboard/user-management') ? 
                   <User size={20} weight="fill" /> : 
                   <User size={20} />
                 }
-                {isOpen && <span className="ml-3">User Management</span>}
+                {isOpen && <span className="ml-3 whitespace-nowrap text-sm">User Management</span>}
               </Link>
             )}
 
@@ -200,12 +219,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-300 hover:bg-gray-700'
               }`}
+              onClick={() => handleLinkClick('/dashboard/withdraw-request')}
             >
               {isActive('/dashboard/withdraw-request') ? 
                 <CurrencyDollar size={20} weight="fill" /> : 
                 <CurrencyDollar size={20} />
               }
-              {isOpen && <span className="ml-3">Withdraw Request</span>}
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Withdraw Request</span>}
             </Link>
 
             <Link
@@ -215,12 +235,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-300 hover:bg-gray-700'
               }`}
+              onClick={() => handleLinkClick('/dashboard/distribution')}
             >
               {isActive('/dashboard/distribution') ? 
                 <ArrowsDownUp size={20} weight="fill" /> : 
                 <ArrowsDownUp size={20} />
               }
-              {isOpen && <span className="ml-3">Distribution</span>}
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Distribution</span>}
             </Link>
 
             {isMenuItemVisible('stores') && (
@@ -231,12 +252,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     ? 'bg-purple-600 text-white'
                     : 'text-gray-300 hover:bg-gray-700'
                 }`}
+                onClick={() => handleLinkClick('/dashboard/stores')}
               >
                 {isActive('/dashboard/stores') ? 
                   <ShoppingCart size={20} weight="fill" /> : 
                   <ShoppingCart size={20} />
                 }
-                {isOpen && <span className="ml-3">Stores</span>}
+                {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Stores</span>}
               </Link>
             )}
           </div>
@@ -245,11 +267,16 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         {/* Logout Button */}
         <div className="px-4 pb-6">
           <button
-            onClick={handleLogout}
+            onClick={() => {
+              if (isMobile) {
+                setIsOpen(false);
+              }
+              handleLogout();
+            }}
             className="w-full flex items-center p-3 rounded-lg transition-colors text-gray-300 hover:bg-gray-700"
           >
             <SignOut size={20} />
-            {isOpen && <span className="ml-3">Logout</span>}
+            {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Logout</span>}
           </button>
         </div>
       </div>

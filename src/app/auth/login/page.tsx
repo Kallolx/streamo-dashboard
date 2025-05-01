@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { login } from "@/services/authService"; 
-
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -63,26 +63,37 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-16">
-      <div className="w-full max-w-[1400px] h-auto lg:h-[750px] mx-4 lg:mx-auto flex flex-col lg:flex-row shadow-2xl overflow-hidden rounded-xl">
-        {/* Left Section - Purple background with message - 40% width */}
-        <div className="w-full lg:w-2/5 bg-[#683BAB] text-white p-10 lg:p-[60px] flex flex-col justify-between relative overflow-hidden">
+    <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-8 px-4 sm:px-6">
+      <div className="w-full max-w-[1200px] h-auto mx-auto flex flex-col lg:flex-row shadow-2xl overflow-hidden rounded-xl">
+        {/* Left Section - Purple background with message - 40% width - Hidden on mobile */}
+        <div className="hidden lg:flex w-full lg:w-2/5 bg-[#683BAB] text-white p-6 sm:p-8 lg:p-[40px] flex-col justify-between relative overflow-hidden">
+          {/* Logo at the top left */}
+          <div className="flex justify-start">
+            <Image 
+              src="/images/logo.svg" 
+              alt="Logo" 
+              width={180} 
+              height={70} 
+              className="w-[180px]"
+            />
+          </div>
+          
           <div className="max-w-md">
-            <h1 className="text-4xl lg:text-5xl font-normal -tracking-[0.05em] mb-6">
+            <h1 className="text-3xl lg:text-4xl font-normal -tracking-[0.05em] mb-4">
               Welcome back to <br /> Your Music Dashboard
             </h1>
-            <p className="text-lg opacity-80 mb-10">
+            <p className="text-lg opacity-80 mb-6">
               Manage your music, track performance, and grow your audience with our all-in-one music distribution platform.
             </p>
           </div>
 
           <div className="max-w-md">
             {/* Rating stars */}
-            <div className="flex mb-6">
+            <div className="flex mb-4">
               {[1, 2, 3, 4, 5].map((star) => (
                 <svg
                   key={star}
-                  className="w-7 h-7 text-yellow-400 mr-1"
+                  className="w-6 h-6 text-yellow-400 mr-1"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -91,13 +102,13 @@ export default function LoginPage() {
               ))}
             </div>
 
-            <p className="text-base mb-10">
+            <p className="text-base mb-6">
               "This platform has completely transformed how I distribute and manage my music. The analytics are comprehensive and the interface is intuitive."
             </p>
 
             {/* Testimonial */}
             <div className="flex items-center">
-              <div className="w-14 h-14 rounded-full bg-purple-800 mr-4 overflow-hidden">
+              <div className="w-12 h-12 rounded-full bg-purple-800 mr-3 overflow-hidden">
                 <img
                   src="/james.png"
                   alt="James Hetfield"
@@ -122,27 +133,38 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Right Section - Login Form - 60% width */}
-        <div className="w-full lg:w-3/5 bg-[#161A1F] flex items-center justify-center p-10 lg:p-[60px]">
+        {/* Right Section - Login Form - 60% width on desktop, 100% on mobile */}
+        <div className="w-full lg:w-3/5 bg-[#161A1F] flex items-center justify-center p-6 sm:p-8 lg:p-[40px]">
           <div className="w-full max-w-md">
-            <h2 className="text-3xl lg:text-4xl font-semibold mb-4 text-white">
+            {/* Logo only visible on mobile */}
+            <div className="flex justify-center mb-6 lg:hidden">
+              <Image 
+                src="/images/logo.svg" 
+                alt="Logo" 
+                width={180} 
+                height={70} 
+                className="w-[180px]"
+              />
+            </div>
+            
+            <h2 className="text-2xl lg:text-3xl font-semibold mb-2 text-white">
               Welcome back
             </h2>
-            <p className="text-gray-400 text-sm mb-12">
+            <p className="text-gray-400 text-sm mb-6">
               Log in to access your dashboard and continue managing your music catalog
             </p>
 
             {error && (
-              <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded mb-6">
+              <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-2 rounded mb-4">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-8">
+            <form onSubmit={handleLogin} className="space-y-5">
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-medium text-gray-300 mb-3"
+                  className="block text-sm font-medium text-gray-300 mb-2"
                 >
                   Email
                 </label>
@@ -162,7 +184,7 @@ export default function LoginPage() {
                   <input
                     type="email"
                     id="email"
-                    className="pl-14 block w-full h-[56px] text-white bg-gray-800 shadow-sm border placeholder:text-gray-500 placeholder:text-sm border-gray-700 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="pl-14 block w-full h-[50px] text-white bg-gray-800 shadow-sm border placeholder:text-gray-500 placeholder:text-sm border-gray-700 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="Enter Your Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -172,7 +194,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2">
                   <label
                     htmlFor="password"
                     className="block text-sm font-medium text-gray-300"
@@ -199,7 +221,7 @@ export default function LoginPage() {
                   <input
                     type={showPassword ? "text" : "password"}
                     id="password"
-                    className="pl-14 block w-full h-[56px] text-white bg-gray-800 shadow-sm border placeholder:text-gray-500 placeholder:text-sm border-gray-700 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="pl-14 block w-full h-[50px] text-white bg-gray-800 shadow-sm border placeholder:text-gray-500 placeholder:text-sm border-gray-700 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="Enter Your Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -233,13 +255,13 @@ export default function LoginPage() {
                     <input
                       id="remember-me"
                       type="checkbox"
-                      className="h-5 w-5 text-purple-600 focus:ring-purple-500 border-gray-700 bg-gray-800 rounded"
+                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-700 bg-gray-800 rounded"
                       checked={rememberMe}
                       onChange={() => setRememberMe(!rememberMe)}
                     />
                     <label
                       htmlFor="remember-me"
-                      className="ml-3 block text-sm text-gray-300"
+                      className="ml-2 block text-sm text-gray-300"
                     >
                       Remember me
                     </label>
@@ -255,7 +277,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="w-full cursor-pointer flex justify-center h-[60px] items-center rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-purple-500 mt-8 transition-colors"
+                className="w-full cursor-pointer flex justify-center h-[50px] items-center rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-purple-500 mt-4 transition-colors"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -272,7 +294,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <p className="mt-10 text-center text-sm text-gray-400">
+            <p className="mt-6 text-center text-sm text-gray-400">
               Don't have an account?{" "}
               <Link
                 href="/auth/signup"

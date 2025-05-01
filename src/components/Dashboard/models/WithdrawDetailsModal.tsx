@@ -7,7 +7,7 @@ import { Copy, Check } from "@phosphor-icons/react";
 
 // Define the withdraw request data interface
 interface WithdrawRequest {
-  id: number;
+  id: string;
   userName: string;
   date: string;
   transactionId: string;
@@ -26,8 +26,9 @@ interface WithdrawDetailsModalProps {
   request: WithdrawRequest;
   isOpen: boolean;
   onClose: () => void;
-  onApprove: (id: number) => void;
-  onReject: (id: number) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 export default function WithdrawDetailsModal({
@@ -36,6 +37,7 @@ export default function WithdrawDetailsModal({
   onClose,
   onApprove,
   onReject,
+  onDelete,
 }: WithdrawDetailsModalProps) {
   // State for copy operation
   const [copied, setCopied] = useState(false);
@@ -80,6 +82,12 @@ export default function WithdrawDetailsModal({
   // Handle reject click
   const handleReject = () => {
     onReject(request.id);
+    onClose();
+  };
+  
+  // Handle delete click
+  const handleDelete = () => {
+    onDelete(request.id);
     onClose();
   };
   
@@ -275,7 +283,7 @@ export default function WithdrawDetailsModal({
               </svg>
               Approve
             </button>
-            <button 
+            <button
               onClick={handleReject}
               className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center justify-center"
             >
@@ -293,6 +301,32 @@ export default function WithdrawDetailsModal({
                 />
               </svg>
               Reject
+            </button>
+          </div>
+        )}
+
+        {/* Delete button - always visible to admins */}
+        {isAdmin && (
+          <div className={`p-5 ${request.status === "Pending" ? "" : "border-t border-gray-700"}`}>
+            <button 
+              onClick={handleDelete}
+              className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors flex items-center justify-center"
+            >
+              <svg 
+                className="w-5 h-5 mr-2" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path 
+                  d="M4 7H20M10 11V17M14 11V17M5 7L6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19L19 7M15 7V4C15 3.45 14.55 3 14 3H10C9.45 3 9 3.45 9 4V7" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Delete
             </button>
           </div>
         )}

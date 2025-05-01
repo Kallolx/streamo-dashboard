@@ -99,4 +99,18 @@ export const updateWithdrawalRequestStatus = async (
     console.error(`Error updating withdrawal request with ID ${id}:`, error);
     throw error;
   }
-}; 
+};
+
+/**
+ * Delete withdrawal request (admin only)
+ * @param id - Withdrawal request ID
+ */
+export const deleteWithdrawalRequest = async (id: string): Promise<boolean> => {
+  try {
+    await api.delete(`/withdrawals/${id}`);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting withdrawal request with ID ${id}:`, error);
+    throw error;
+  }
+};

@@ -472,13 +472,13 @@ export default function UserManagementPage() {
       <DashboardLayout title="User Management" subtitle="Manage all users and their roles">
         <div>
           {/* Header with Add New User Button */}
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
             <div className="flex flex-wrap gap-2 overflow-x-auto">
               {roleTabs.map((tab) => (
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab)}
-                  className={`px-5 py-2 rounded-full whitespace-nowrap ${
+                  className={`px-3 sm:px-5 py-2 rounded-full whitespace-nowrap text-sm ${
                     activeTab === tab
                       ? "bg-[#A365FF] text-white"
                       : "bg-[#1A1E24] text-gray-300 hover:bg-[#252A33]"
@@ -491,18 +491,19 @@ export default function UserManagementPage() {
             
             <button
               onClick={() => setShowNewUserModal(true)}
-              className="px-4 py-2 bg-[#683BAB] text-white rounded-md hover:bg-[#7948C7] transition-colors"
+              className="px-4 py-2 bg-[#683BAB] text-white rounded-md hover:bg-[#7948C7] transition-colors flex-shrink-0 whitespace-nowrap text-sm sm:text-base"
             >
-              Add New User
+              <span className="hidden sm:inline">Add New User</span>
+              <span className="sm:hidden">Add User</span>
             </button>
           </div>
 
           {/* Search Bar */}
-          <div className="relative w-full md:w-80 mb-6">
+          <div className="relative w-full sm:w-80 mb-6">
             <input
               type="text"
               placeholder="Search users..."
-              className="w-full py-2 px-4 pl-10 rounded-md bg-[#1D2229] text-gray-300 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full py-2 px-4 pl-10 rounded-md bg-[#1D2229] text-gray-300 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -558,10 +559,10 @@ export default function UserManagementPage() {
                 </svg>
               </div>
             ) : users.length === 0 ? (
-              <div className="py-10 text-center">
-                <p className="text-gray-400 text-lg">No users found</p>
+              <div className="py-10 px-4 text-center">
+                <p className="text-gray-400 text-base sm:text-lg mb-4">No users found</p>
                 <button 
-                  className="mt-4 px-4 py-2 bg-purple-600 rounded-md text-white hover:bg-purple-700 transition-colors"
+                  className="mt-2 px-4 py-2 bg-purple-600 rounded-md text-white hover:bg-purple-700 transition-colors text-sm sm:text-base"
                   onClick={() => setShowNewUserModal(true)}
                 >
                   Add New User
@@ -581,13 +582,13 @@ export default function UserManagementPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Email
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Account Status
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         User Status
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Split(%)
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -609,17 +610,21 @@ export default function UserManagementPage() {
                           {indexOfFirstItem + index + 1}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-white">
-                          {user.name}
-                          {isNewUser(user.createdAt) && (
-                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-600 text-white">
-                              New
-                            </span>
-                          )}
+                          <div className="flex items-center">
+                            <span className="truncate max-w-[100px] sm:max-w-none">{user.name}</span>
+                            {isNewUser(user.createdAt) && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-600 text-white">
+                                New
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-white">
-                          {user.email}
+                          <div className="max-w-[120px] md:max-w-none truncate">
+                            {user.email}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap">
                           <span className={`${
                             user.accountStatus === "Active" 
                               ? "text-green-400" 
@@ -628,19 +633,21 @@ export default function UserManagementPage() {
                             {user.accountStatus}
                           </span>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-white">
+                        <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap text-white">
                           {user.userStatus}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-white">
+                        <td className="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-white">
                           {user.split}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-white">
-                          {user.userType}
+                          <span className="truncate max-w-[100px] sm:max-w-none block">
+                            {user.userType}
+                          </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center space-x-3">
                             <button 
-                              className="text-purple-400 hover:text-purple-300 transition-colors"
+                              className="text-purple-400 hover:text-purple-300 transition-colors p-1"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openEditUserModal(user);
@@ -660,99 +667,64 @@ export default function UserManagementPage() {
 
             {/* Pagination - Only show if we have users */}
             {users.length > 0 && (
-              <div className="px-4 py-3 flex items-center justify-between border-t border-gray-700">
-                <div className="flex-1 flex justify-between sm:hidden">
-                  <button
-                    onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium rounded-md ${
-                      currentPage === 1
-                        ? "text-gray-500 cursor-not-allowed"
-                        : "text-gray-300 hover:bg-gray-700"
-                    }`}
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium rounded-md ${
-                      currentPage === totalPages
-                        ? "text-gray-500 cursor-not-allowed"
-                        : "text-gray-300 hover:bg-gray-700"
-                    }`}
-                  >
-                    Next
-                  </button>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-t border-gray-700">
+                <div className="text-sm text-gray-400 mb-4 sm:mb-0">
+                  Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to{' '}
+                  <span className="font-medium">
+                    {Math.min(indexOfLastItem, filteredUsers.length)}
+                  </span>{' '}
+                  of <span className="font-medium">{filteredUsers.length}</span> results
                 </div>
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">
-                      Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to{' '}
-                      <span className="font-medium">
-                        {Math.min(indexOfLastItem, filteredUsers.length)}
-                      </span>{' '}
-                      of <span className="font-medium">{filteredUsers.length}</span> results
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <div className="flex justify-center">
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 bg-[#161A1F] text-sm font-medium ${
+                        currentPage === 1
+                          ? "text-gray-500 cursor-not-allowed"
+                          : "text-gray-300 hover:bg-gray-700"
+                      }`}
+                    >
+                      <span className="sr-only">Previous</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    {/* Only show a limited number of page numbers on small screens */}
+                    {Array.from(
+                      { length: Math.min(totalPages, window.innerWidth < 640 ? 3 : 5) }, 
+                      (_, i) => i + 1
+                    ).map((page) => (
                       <button
-                        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 bg-[#161A1F] text-sm font-medium ${
-                          currentPage === 1
-                            ? "text-gray-500 cursor-not-allowed"
-                            : "text-gray-300 hover:bg-gray-700"
-                        }`}
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`relative inline-flex items-center px-4 py-2 border ${
+                          currentPage === page
+                            ? "bg-purple-600 border-purple-500 text-white"
+                            : "border-gray-700 bg-[#161A1F] text-gray-300 hover:bg-gray-700"
+                        } text-sm font-medium`}
                       >
-                        <span className="sr-only">Previous</span>
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
+                        {page}
                       </button>
-                      
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
-                        <button
-                          key={page}
-                          onClick={() => handlePageChange(page)}
-                          className={`relative inline-flex items-center px-4 py-2 border ${
-                            currentPage === page
-                              ? "bg-purple-600 border-purple-500 text-white"
-                              : "border-gray-700 bg-[#161A1F] text-gray-300 hover:bg-gray-700"
-                          } text-sm font-medium`}
-                        >
-                          {page}
-                        </button>
-                      ))}
-                      
-                      <button
-                        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 bg-[#161A1F] text-sm font-medium ${
-                          currentPage === totalPages
-                            ? "text-gray-500 cursor-not-allowed"
-                            : "text-gray-300 hover:bg-gray-700"
-                        }`}
-                      >
-                        <span className="sr-only">Next</span>
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-                <div className="hidden sm:flex items-center">
-                  <select
-                    className="ml-4 bg-[#1A1E25] border border-gray-700 text-gray-300 text-sm rounded-md py-1 px-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    defaultValue="10"
-                  >
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                  </select>
+                    ))}
+                    
+                    <button
+                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 bg-[#161A1F] text-sm font-medium ${
+                        currentPage === totalPages
+                          ? "text-gray-500 cursor-not-allowed"
+                          : "text-gray-300 hover:bg-gray-700"
+                      }`}
+                    >
+                      <span className="sr-only">Next</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </nav>
                 </div>
               </div>
             )}
@@ -763,7 +735,7 @@ export default function UserManagementPage() {
         {showNewUserModal && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={() => setShowNewUserModal(false)}></div>
-            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-full transform transition-all">
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full transform transition-all">
               {/* Close button */}
               <button
                 className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
@@ -927,7 +899,7 @@ export default function UserManagementPage() {
         {showSuccessModal && createdUserInfo && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center">
             <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={() => setShowSuccessModal(false)}></div>
-            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-full transform transition-all">
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full transform transition-all">
               {/* Close button */}
               <button
                 className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
@@ -1009,7 +981,7 @@ export default function UserManagementPage() {
         {showDeleteModal && userToDelete && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center">
             <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={cancelDeleteUser}></div>
-            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-full transform transition-all">
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full transform transition-all">
               {/* Close button */}
               <button
                 className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
@@ -1099,7 +1071,7 @@ export default function UserManagementPage() {
         {showEditUserModal && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={() => setShowEditUserModal(false)}></div>
-            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-full transform transition-all">
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full transform transition-all">
               {/* Close button */}
               <button
                 className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"

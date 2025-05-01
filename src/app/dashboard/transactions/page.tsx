@@ -10,7 +10,8 @@ import {
   X, 
   Info, 
   CaretLeft as ChevronLeft, 
-  CaretRight as ChevronRight 
+  CaretRight as ChevronRight,
+  MagnifyingGlass as SearchIcon
 } from "@phosphor-icons/react";
 import TransactionDetailsModal from "@/components/Dashboard/models/TransactionDetailsModal";
 import { getUserRole, isAuthenticated } from "@/services/authService";
@@ -1086,13 +1087,13 @@ export default function TransactionsPage() {
       subtitle="Manage your earnings and transactions"
     >
       {/* Tabs */}
-      <div className="mb-8">
-        <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto">
+      <div className="mb-6 md:mb-8">
+        <div className="flex overflow-x-auto no-scrollbar pb-2">
           {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`px-5 py-2 rounded-full whitespace-nowrap ${
+              className={`px-3 sm:px-5 py-2 rounded-full whitespace-nowrap mr-2 text-sm ${
                 activeTab === tab.id
                   ? "bg-[#A365FF] text-white"
                   : "bg-[#1A1E24] text-gray-300 hover:bg-[#252A33]"
@@ -1107,20 +1108,20 @@ export default function TransactionsPage() {
       {activeTab === "transactionManagement" && (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
             {/* Balance */}
-            <div className="bg-[#161A1F] p-6 rounded-lg">
+            <div className="bg-[#161A1F] p-4 md:p-6 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm">Balance</span>
+                <span className="text-gray-400 text-xs sm:text-sm">Balance</span>
                 <div className="flex items-center justify-between mt-2">
                   {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                    <div className="animate-pulse h-6 sm:h-8 bg-gray-700 rounded w-24 sm:w-28"></div>
                   ) : (
-                    <span className="text-white text-2xl font-bold">
+                    <span className="text-white text-lg sm:text-2xl font-bold">
                       {formatCurrency(csvSummary?.totalBalance || 0)}
                     </span>
                   )}
-                  <div className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center">
+                  <div className="h-6 w-6 sm:h-8 sm:w-8 bg-gray-800 rounded-full flex items-center justify-center">
                     <DollarIcon />
                   </div>
                 </div>
@@ -1128,14 +1129,14 @@ export default function TransactionsPage() {
             </div>
 
             {/* Last Transaction */}
-            <div className="bg-[#161A1F] p-6 rounded-lg">
+            <div className="bg-[#161A1F] p-4 md:p-6 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm">Last Transaction</span>
+                <span className="text-gray-400 text-xs sm:text-sm">Last Transaction</span>
                 <div className="flex items-center justify-between mt-2">
                   {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                    <div className="animate-pulse h-6 sm:h-8 bg-gray-700 rounded w-24 sm:w-28"></div>
                   ) : (
-                    <span className="text-white text-2xl font-bold">
+                    <span className="text-white text-lg sm:text-2xl font-bold">
                       {formatCurrency(csvSummary?.lastTransaction?.amount || 0)}
                     </span>
                   )}

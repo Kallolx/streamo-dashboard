@@ -2,9 +2,9 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
-import { MagnifyingGlass, Eye, Check, X, CalendarBlank, CaretDown, X as XIcon, Copy } from "@phosphor-icons/react";
+import { MagnifyingGlass, Eye, Check, X, CalendarBlank, CaretDown, X as XIcon, Copy, Trash } from "@phosphor-icons/react";
 import WithdrawDetailsModal from "@/components/Dashboard/models/WithdrawDetailsModal";
-import { getAllWithdrawalRequests, getUserWithdrawalRequests, updateWithdrawalRequestStatus } from "@/services/withdrawalService";
+import { getAllWithdrawalRequests, getUserWithdrawalRequests, updateWithdrawalRequestStatus, deleteWithdrawalRequest } from "@/services/withdrawalService";
 import { getUserData, getUserRole, hasRole } from "@/services/authService";
 import { format } from "date-fns";
 
@@ -41,6 +41,14 @@ interface WithdrawRequest {
   processedDate?: string;
 }
 
+interface WithdrawDetailsModalProps {
+  request: WithdrawRequest;
+  isOpen: boolean;
+  onClose: () => void;
+  onStatusChange: (id: string, status: string) => void;
+  onDelete?: (id: string) => void;
+}
+
 export default function WithdrawRequestPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,6 +60,9 @@ export default function WithdrawRequestPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<WithdrawRequest | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const itemsPerPage = 10;
 
   // Check user role and set states
@@ -148,6 +159,54 @@ export default function WithdrawRequestPage() {
       // Show error message to user
       setError("Failed to update withdrawal status. Please try again.");
     }
+  };
+
+  // Handle delete request
+  const handleDeleteRequest = (request: WithdrawRequest) => {
+    // Show delete confirmation modal
+    setRequestToDelete(request);
+    setShowDeleteModal(true);
+  };
+
+  // Confirm delete request
+  const confirmDeleteRequest = async () => {
+    if (!requestToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      const requestId = getRequestId(requestToDelete);
+      
+      // Only allow admin/superadmin to delete
+      if (!isAdmin()) {
+        setError("You don't have permission to perform this action");
+        setIsDeleting(false);
+        return;
+      }
+      
+      await deleteWithdrawalRequest(requestId);
+      
+      // Update local state to remove the deleted request
+      setWithdrawRequestsData(
+        withdrawRequestsData.filter(
+          (request) => getRequestId(request) !== requestId
+        )
+      );
+      
+      // Close the modal and reset state
+      setShowDeleteModal(false);
+      setRequestToDelete(null);
+      setIsDeleting(false);
+    } catch (err) {
+      console.error("Error deleting withdrawal request:", err);
+      setError("Failed to delete withdrawal request. Please try again.");
+      setIsDeleting(false);
+    }
+  };
+
+  // Cancel delete
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setRequestToDelete(null);
   };
 
   // Handle view request details
@@ -335,6 +394,9 @@ export default function WithdrawRequestPage() {
                         Method
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Mobile Number
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Status
                       </th>
                       {isAdmin() && (
@@ -385,6 +447,9 @@ export default function WithdrawRequestPage() {
                           <td className="px-4 py-3 whitespace-nowrap text-white">
                             {request.paymentMethod}
                           </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-white">
+                            {request.mobileNumber || (request.paymentMethod === 'Bank' ? '-' : 'Not provided')}
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className={`px-2 py-1 rounded-full text-xs ${
                               request.status === "completed" 
@@ -431,6 +496,15 @@ export default function WithdrawRequestPage() {
                                   }}
                                 >
                                   <Eye size={20} />
+                                </button>
+                                <button 
+                                  className="text-red-500 hover:text-red-400 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteRequest(request);
+                                  }}
+                                >
+                                  <Trash size={20} />
                                 </button>
                               </div>
                             </td>
@@ -634,7 +708,7 @@ export default function WithdrawRequestPage() {
         {selectedRequest && (
           <WithdrawDetailsModal
             request={{
-              id: parseInt(getRequestId(selectedRequest)) || 0,
+              id: getRequestId(selectedRequest),
               userName: selectedRequest.userName || `User ID: ${getUserId(selectedRequest)}`,
               date: formatDate(selectedRequest.createdAt),
               transactionId: getRequestId(selectedRequest),
@@ -670,7 +744,64 @@ export default function WithdrawRequestPage() {
               }
               handleCloseModal();
             }}
+            onDelete={() => {
+              handleDeleteRequest(selectedRequest);
+              handleCloseModal();
+            }}
           />
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && requestToDelete && (
+          <div className="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-70 flex items-center justify-center p-4">
+            <div className="bg-[#1A1E24] rounded-lg shadow-xl w-full max-w-md mx-auto">
+              <div className="flex justify-between items-center p-4 border-b border-gray-700">
+                <h3 className="text-xl font-medium text-white">
+                  Delete Withdrawal Request
+                </h3>
+                <button
+                  onClick={cancelDelete}
+                  className="text-gray-400 hover:text-white focus:outline-none"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-300 mb-6">
+                  Are you sure you want to delete this withdrawal request? This action cannot be undone.
+                </p>
+                
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={cancelDelete}
+                    className="px-4 py-2 bg-gray-600 text-gray-300 rounded-md hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteRequest}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash size={20} className="mr-2" />
+                        Delete
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>

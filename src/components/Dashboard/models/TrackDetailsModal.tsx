@@ -2,73 +2,88 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { getAllStores, Store } from "@/services/storeService";
 
 // Tab interfaces for the modal
-type TabType = "details" | "performance" | "lyrics";
-type ActionType = "play" | "edit" | "copyright";
+type TabType = "details" | "lyrics";
 
-// Track status types
-type TrackStatus = "processing" | "approved" | "rejected";
-
-// Copyright check status
-type CopyrightStatus = "checking" | "clear" | "found";
-
-// For the performance chart
-type StreamData = {
-  day: number;
-  streams: number;
-};
+// Interface for the track data
+interface Track {
+  _id: string;
+  title: string;
+  primaryArtist: string;
+  imageSrc: string;
+  genre: string;
+  contentRating: string;
+  duration: string;
+  releaseDate: string;
+  status: string;
+  stores?: string[];
+  isrc?: string;
+  upc?: string;
+  label?: string;
+  lyrics?: string;
+  subgenre?: string;
+  featuredArtists?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Props interface for the modal
 interface TrackDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  track: {
-    id: string;
-    title: string;
-    imageSrc: string;
-    primaryArtist: string;
-    featuredArtists?: string[];
-    genre: string;
-    subgenre?: string;
-    contentRating: string;
-    isrc?: string;
-    upc?: string;
-    duration: string;
-    releaseDate: string;
-    label?: string;
-    lyrics?: string;
-  };
-  initialAction?: ActionType;
-  initialStatus?: TrackStatus;
+  track: Track;
   onApprove?: (trackId: string) => void;
   onReject?: (trackId: string) => void;
-  onEdit?: (trackId: string) => void;
-  onPlay?: (trackId: string) => void;
+  onDelete?: (trackId: string) => void;
+  userRole?: 'admin' | 'superadmin' | 'artist' | 'label';
 }
 
 export default function TrackDetailsModal({
   isOpen,
   onClose,
   track,
-  initialAction = "copyright",
-  initialStatus = "processing",
   onApprove,
   onReject,
-  onEdit,
-  onPlay,
+  onDelete,
+  userRole = 'artist'
 }: TrackDetailsModalProps) {
   // State variables
   const [currentTab, setCurrentTab] = useState<TabType>("details");
-  const [currentAction, setCurrentAction] = useState<ActionType>(initialAction);
-  const [trackStatus, setTrackStatus] = useState<TrackStatus>(initialStatus);
-  const [copyrightStatus, setCopyrightStatus] =
-    useState<CopyrightStatus>("checking");
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editedTrack, setEditedTrack] = useState({ ...track });
-
+  const [storeMap, setStoreMap] = useState<Record<string, Store>>({});
+  const [storesLoading, setStoresLoading] = useState(true);
+  
   // Default image fallback if track has no image
-  const defaultImage = "/images/music/3.png";
+  const defaultImage = "/images/music/placeholder.png";
+
+  // Fetch stores when modal opens
+  useEffect(() => {
+    if (isOpen && track.stores && track.stores.length > 0) {
+      const fetchStores = async () => {
+        try {
+          setStoresLoading(true);
+          const response = await getAllStores();
+          if (response.success && response.data) {
+            // Create a map of store IDs to store objects for quick lookup
+            const storesById: Record<string, Store> = {};
+            response.data.forEach((store: Store) => {
+              if (store._id) {
+                storesById[store._id] = store;
+              }
+            });
+            setStoreMap(storesById);
+          }
+        } catch (error) {
+          console.error('Error fetching stores:', error);
+        } finally {
+          setStoresLoading(false);
+        }
+      };
+      
+      fetchStores();
+    }
+  }, [isOpen, track.stores]);
 
   // Handle close with Escape key
   const handleKeyDown = useCallback(
@@ -84,115 +99,52 @@ export default function TrackDetailsModal({
   useEffect(() => {
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
-      // Simulate copyright check when the modal opens and copyright action is selected
-      if (currentAction === "copyright") {
-        simulateCopyrightCheck();
-      }
-      // Reset track status to initial status when modal opens
-      setTrackStatus(initialStatus);
-      // Reset edit mode and edited track
-      setIsEditMode(false);
-      setEditedTrack({ ...track });
-    } else {
-      // Reset track status when modal closes
-      setTrackStatus(initialStatus);
     }
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, handleKeyDown, currentAction, initialStatus, track]);
+  }, [isOpen, handleKeyDown]);
 
-  // Simulate copyright check
-  const simulateCopyrightCheck = () => {
-    setCopyrightStatus("checking");
-    // Mock API call with timeout
-    setTimeout(() => {
-      // Randomly decide if copyright is found or clear
-      setCopyrightStatus(Math.random() > 0.3 ? "clear" : "found");
-    }, 2500);
+  // Helper function to get store name from ID
+  const getStoreName = (storeId: string) => {
+    if (storeMap[storeId]) {
+      return storeMap[storeId].name;
+    }
+    return storeId; // Fallback to ID if name not found
   };
 
   // Handle approval
   const handleApprove = () => {
-    setTrackStatus("approved");
-    if (onApprove) onApprove(track.id);
-    // Keep the modal open and don't change the UI state
+    if (onApprove) onApprove(track._id);
   };
 
   // Handle rejection
   const handleReject = () => {
-    setTrackStatus("rejected");
-    if (onReject) onReject(track.id);
-    // Keep the modal open and don't change the UI state
+    if (onReject) onReject(track._id);
   };
-
-  // Handle play button
-  const handlePlay = () => {
-    if (onPlay) onPlay(track.id);
-  };
-
-  // Handle edit button
-  const handleEdit = () => {
-    if (onEdit) onEdit(track.id);
-    setIsEditMode(true);
-  };
-
-  // Add a save changes function
-  const handleSaveChanges = () => {
-    // In a real app, you would save the changes to the backend here
-    // For now, we'll just log the changes and exit edit mode
-    console.log("Changes saved:", editedTrack);
-    setIsEditMode(false);
-  };
-
-  // Add a cancel changes function
-  const handleCancelChanges = () => {
-    setEditedTrack({ ...track });
-    setIsEditMode(false);
-  };
-
-  // Add a field change handler
-  const handleFieldChange = (field: string, value: string) => {
-    setEditedTrack({
-      ...editedTrack,
-      [field]: value
-    });
-  };
-
-  // Switch action type
-  const switchAction = (action: ActionType) => {
-    setCurrentAction(action);
-    if (action === "copyright") {
-      simulateCopyrightCheck();
+  
+  // Handle deletion
+  const handleDelete = () => {
+    if (confirm("Are you sure you want to delete this track? This action cannot be undone.")) {
+      if (onDelete) onDelete(track._id);
     }
   };
 
-  // Sample data for demo
-  const defaultData = {
-    primaryArtist: "Neon Pulse",
-    featuredArtists: [],
-    genre: "Alternative Rock",
-    contentRating: "PG",
-    upc: "093624241126",
-    label: "Independent",
-    releaseDate: "25 March, 2025",
-  };
-
-  // Use default data if not provided
-  const displayData = {
-    primaryArtist: track.primaryArtist || defaultData.primaryArtist,
-    featuredArtists: track.featuredArtists || defaultData.featuredArtists,
-    genre: track.genre || defaultData.genre,
-    contentRating: track.contentRating || defaultData.contentRating,
-    upc: track.upc || defaultData.upc,
-    label: track.label || defaultData.label,
-    releaseDate: track.releaseDate || defaultData.releaseDate,
-  };
-
-  // Add a new handler to reset track status
-  const handleResetStatus = () => {
-    setTrackStatus("processing");
+  // Format date to be more readable
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
 
   // If modal is not open, don't render anything
@@ -201,10 +153,10 @@ export default function TrackDetailsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center">
       {/* Backdrop */}
-      <div className="fixed inset-0 backdrop-blur-sm " onClick={onClose}></div>
+      <div className="fixed inset-0 backdrop-blur-sm" onClick={onClose}></div>
 
       {/* Modal */}
-      <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col mt-16 transform transition-all">
+      <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col mt-16 transform transition-all mx-4 sm:mx-auto">
         {/* Close button */}
         <button
           className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
@@ -226,194 +178,85 @@ export default function TrackDetailsModal({
           </svg>
         </button>
 
-        {/* Header with album art and actions */}
-        <div className="p-5">
-          <div className="flex">
-            {/* Left side - Album Art */}
-            <div className="w-40 h-40 relative rounded-md overflow-hidden mr-6 flex-shrink-0 bg-gray-800">
-              <Image
-                src={track.imageSrc || defaultImage}
-                alt={track.title || "Album artwork"}
-                fill
-                className="object-cover"
-                onError={(e) => {
-                  // Fall back to default image if the track image fails to load
-                  const target = e.target as HTMLImageElement;
-                  target.src = defaultImage;
-                }}
-              />
+        {/* Header with track art and basic info */}
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row">
+            {/* Left side - Track Art */}
+            <div className="w-32 h-32 sm:w-40 sm:h-40 relative rounded-md overflow-hidden mx-auto sm:mx-0 sm:mr-6 flex-shrink-0 bg-gray-800 mb-4 sm:mb-0">
+              <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 text-center p-2">
+                <svg 
+                  className="w-16 h-16 text-gray-600 mb-2" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={1} 
+                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
+                  />
+                </svg>
+                <span className="text-xs text-gray-400">Track Artwork</span>
+              </div>
             </div>
 
-            {/* Right side - Title and Actions */}
+            {/* Right side - Title and Info */}
             <div className="flex-1 flex flex-col">
               {/* Title and ID */}
-              <div className="mb-4">
-                <div className="flex items-center">
-                  <h2 className="text-2xl font-semibold text-white mr-2">
-                    {track.title || "Midnight Drive"}
+              <div className="mb-4 text-center sm:text-left">
+                <div className="flex items-center justify-center sm:justify-start flex-wrap">
+                  <h2 className="text-xl sm:text-2xl font-semibold text-white mr-2">
+                    {track.title || "Untitled Track"}
                   </h2>
-                  <span className="text-gray-400 text-sm">Album</span>
+                  <span className="text-gray-400 text-sm">Track</span>
                 </div>
                 <div className="mt-1 text-sm text-gray-400">
-                  {displayData.primaryArtist}
+                  {track.primaryArtist}
                 </div>
 
                 {/* Status Badge */}
                 <div className="mt-1">
                   <span
                     className={`inline-block px-2 py-0.5 text-xs rounded-full capitalize ${
-                      trackStatus === "approved"
+                      track.status === "approved"
                         ? "bg-green-900 text-green-200"
-                        : trackStatus === "rejected"
+                        : track.status === "rejected"
                         ? "bg-red-900 text-red-200"
                         : "bg-gray-800 text-gray-200"
                     }`}
                   >
-                    {trackStatus}
+                    {track.status}
                   </span>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex space-x-3 mt-auto">
-                <button
-                  className={`flex items-center px-3 py-2 rounded-full ${
-                    currentAction === "play" ? "bg-[#A365FF]" : "bg-[#1A1E24]"
-                  } transition-colors`}
-                  onClick={() => switchAction("play")}
-                >
-                  <svg
-                    className={`w-5 h-5 mr-2 ${
-                      currentAction === "play" ? "text-white" : "text-[#A365FF]"
-                    }`}
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span
-                    className={`text-sm ${
-                      currentAction === "play" ? "text-white" : "text-gray-200"
-                    }`}
-                  >
-                    Play
-                  </span>
-                </button>
-
-                <button
-                  className={`flex items-center px-3 py-2 rounded-full ${
-                    currentAction === "edit" ? "bg-[#A365FF]" : "bg-[#1A1E24]"
-                  } transition-colors`}
-                  onClick={() => switchAction("edit")}
-                >
-                  <svg
-                    className={`w-5 h-5 mr-2 ${
-                      currentAction === "edit" ? "text-white" : "text-[#A365FF]"
-                    }`}
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                  <span
-                    className={`text-sm ${
-                      currentAction === "edit" ? "text-white" : "text-gray-200"
-                    }`}
-                  >
-                    Edit
-                  </span>
-                </button>
-
-                <button
-                  className={`flex items-center px-3 py-2 rounded-full ${
-                    currentAction === "copyright"
-                      ? "bg-[#A365FF]"
-                      : "bg-[#1A1E24]"
-                  } transition-colors`}
-                  onClick={() => switchAction("copyright")}
-                >
-                  <svg
-                    className={`w-5 h-5 mr-2 ${
-                      currentAction === "copyright"
-                        ? "text-white"
-                        : "text-[#A365FF]"
-                    }`}
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span
-                    className={`text-sm ${
-                      currentAction === "copyright"
-                        ? "text-white"
-                        : "text-gray-200"
-                    }`}
-                  >
-                    Check Copyright
-                  </span>
-                </button>
-              </div>
+              {/* Distribution Platforms */}
+              {track.stores && track.stores.length > 0 && (
+                <div className="mt-2 mb-4">
+                  <h3 className="text-sm text-gray-400 mb-1">Distribution Platforms</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {storesLoading ? (
+                      <div className="text-xs text-gray-400">Loading stores...</div>
+                    ) : (
+                      track.stores.map(storeId => (
+                        <span key={storeId} className="inline-flex items-center px-2 py-1 bg-[#1D2229] rounded-md text-xs text-white">
+                          {getStoreName(storeId)}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Copyright Status - Bottom right */}
-        {currentAction === "copyright" && (
-          <div className="absolute bottom-5 right-5 z-10 px-3 py-2 bg-[#1A1E24] rounded-md max-w-[200px]">
-            {copyrightStatus === "checking" && (
-              <p className="text-yellow-400 flex items-center gap-2 text-sm">
-                <svg
-                  className="animate-spin h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Checking copyright...
-              </p>
-            )}
-            {copyrightStatus === "clear" && (
-              <p className="text-green-500 font-medium text-sm">
-                No Copyright Found
-              </p>
-            )}
-            {copyrightStatus === "found" && (
-              <p className="text-red-500 font-medium text-sm">
-                Copyright Found
-              </p>
-            )}
-          </div>
-        )}
-
         {/* Tabs for navigation */}
-        <div className="flex px-5 py-2 space-x-2 mb-2">
+        <div className="flex px-4 sm:px-5 py-2 gap-2 mb-2">
           <button
-            className={`px-5 py-2 rounded-full ${
+            className={`px-3 sm:px-5 py-2 rounded-full text-sm ${
               currentTab === "details"
                 ? "bg-[#A365FF] text-white"
                 : "bg-[#1A1E24] text-gray-300"
@@ -422,21 +265,8 @@ export default function TrackDetailsModal({
           >
             Details
           </button>
-          {/* Only show Performance tab when copyright is clear (not when checking or found) */}
-          {copyrightStatus === "clear" && (
-            <button
-              className={`px-5 py-2 rounded-full ${
-                currentTab === "performance"
-                  ? "bg-[#A365FF] text-white"
-                  : "bg-[#1A1E24] text-gray-300"
-              }`}
-              onClick={() => setCurrentTab("performance")}
-            >
-              Performance
-            </button>
-          )}
           <button
-            className={`px-5 py-2 rounded-full ${
+            className={`px-3 sm:px-5 py-2 rounded-full text-sm ${
               currentTab === "lyrics"
                 ? "bg-[#A365FF] text-white"
                 : "bg-[#1A1E24] text-gray-300"
@@ -448,542 +278,136 @@ export default function TrackDetailsModal({
         </div>
 
         {/* Content Area */}
-        {currentAction === "copyright" && (
-          <div className="flex flex-col flex-1 overflow-auto">
-            {/* Tab Content */}
-            <div className="px-5 pb-5 flex-1 overflow-y-auto ">
-              {currentTab === "details" ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Artist */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Artist</h3>
-                    <p className="text-white text-base font-medium">
-                      {displayData.primaryArtist}
-                    </p>
-                  </div>
+        <div className="flex flex-col flex-1 overflow-auto">
+          {/* Tab Content */}
+          <div className="px-4 sm:px-5 pb-5 flex-1 overflow-y-auto">
+            {currentTab === "details" ? (
+              <div className="flex flex-col">
+                {/* All Metadata Section */}
+                <div className="mb-4">
+                  <h3 className="text-white text-md font-medium mb-4">Track Metadata</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Artist */}
+                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                      <h3 className="text-gray-400 text-xs sm:text-sm">Artist</h3>
+                      <p className="text-white text-sm sm:text-base font-medium truncate">
+                        {track.primaryArtist || "Unknown Artist"}
+                      </p>
+                    </div>
 
-                  {/* Content Rating */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Content Rating</h3>
-                    <p className="text-white text-base font-medium">
-                      {displayData.contentRating}
-                    </p>
-                  </div>
+                    {/* Featured Artists */}
+                    {track.featuredArtists && track.featuredArtists.length > 0 && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Featured Artists</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {track.featuredArtists.join(', ')}
+                        </p>
+                      </div>
+                    )}
 
-                  {/* ISRC */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">ISRC</h3>
-                    <p className="text-white text-base font-medium">
-                      {track.isrc || "Not Available"}
-                    </p>
-                  </div>
+                    {/* Genre */}
+                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                      <h3 className="text-gray-400 text-xs sm:text-sm">Genre</h3>
+                      <p className="text-white text-sm sm:text-base font-medium truncate">
+                        {track.genre || "Unspecified"}
+                      </p>
+                    </div>
 
-                  {/* Release date */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Release Date</h3>
-                    <p className="text-white text-base font-medium">
-                      {displayData.releaseDate}
-                    </p>
-                  </div>
+                    {/* Subgenre */}
+                    {track.subgenre && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Subgenre</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {track.subgenre}
+                        </p>
+                      </div>
+                    )}
 
-                  {/* Genre & Subgenre */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Genre & Subgenre</h3>
-                    <p className="text-white text-base font-medium">
-                      {displayData.genre}
-                      {track.subgenre ? ` / ${track.subgenre}` : ""}
-                    </p>
-                  </div>
+                    {/* ISRC */}
+                    {track.isrc && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">ISRC</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {track.isrc}
+                        </p>
+                      </div>
+                    )}
 
-                  {/* Type */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Type</h3>
-                    <p className="text-white text-base font-medium">
-                      Single
-                    </p>
-                  </div>
+                    {/* UPC */}
+                    {track.upc && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">UPC</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {track.upc}
+                        </p>
+                      </div>
+                    )}
 
-                  {/* Duration */}
-                  <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                    <h3 className="text-gray-400 text-sm">Duration</h3>
-                    <p className="text-white text-base font-medium">
-                      {track.duration}
-                    </p>
+                    {/* Release Date */}
+                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                      <h3 className="text-gray-400 text-xs sm:text-sm">Release Date</h3>
+                      <p className="text-white text-sm sm:text-base font-medium truncate">
+                        {formatDate(track.releaseDate)}
+                      </p>
+                    </div>
+                    
+                    {/* Duration */}
+                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                      <h3 className="text-gray-400 text-xs sm:text-sm">Duration</h3>
+                      <p className="text-white text-sm sm:text-base font-medium truncate">
+                        {track.duration}
+                      </p>
+                    </div>
+                    
+                    {/* Content Rating */}
+                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                      <h3 className="text-gray-400 text-xs sm:text-sm">Content Rating</h3>
+                      <p className="text-white text-sm sm:text-base font-medium truncate">
+                        {track.contentRating}
+                      </p>
+                    </div>
+                    
+                    {/* Label */}
+                    {track.label && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Label</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {track.label}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Created Date */}
+                    {track.createdAt && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Created</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {formatDate(track.createdAt)}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              ) : currentTab === "performance" && copyrightStatus === "clear" ? (
-                <div className="space-y-4">
-                  {/* Stream Analytics */}
-                  <div className=" p-4 rounded-md">
-                    <div className="bg-[#1E222B] px-4 py-2 rounded-md flex justify-between items-center mb-4">
-                      <h3 className="text-white font-medium">Streams</h3>
-                      <select
-                        className="bg-[#1A1E25] border border-gray-700 text-gray-300 text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                        defaultValue="2023"
-                      >
-                        <option value="2023">2023</option>
-                        <option value="2022">2022</option>
-                        <option value="2021">2021</option>
-                        <option value="2020">2020</option>
-                      </select>
-                    </div>
-
-                    {/* Chart container with transparent background */}
-                    <div className="h-64 relative flex bg-transparent">
-                      {/* Y-axis labels */}
-                      <div className="flex flex-col justify-between text-right pr-2 text-xs text-gray-400 h-full">
-                        <span>50K</span>
-                        <span>10K</span>
-                        <span>1K</span>
-                        <span>500</span>
-                        <span>100</span>
-                        <span>00</span>
-                      </div>
-
-                      {/* Chart Area */}
-                      <div className="flex-1 flex items-end">
-                        <div className="w-full flex justify-around items-end px-2">
-                          {/* Jan */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "40px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Jan
-                            </span>
-                          </div>
-
-                          {/* Feb */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "60px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Feb
-                            </span>
-                          </div>
-
-                          {/* Mar */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "180px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Mar
-                            </span>
-                          </div>
-
-                          {/* Apr */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "80px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Apr
-                            </span>
-                          </div>
-
-                          {/* May */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "55px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              May
-                            </span>
-                          </div>
-
-                          {/* Jun */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "140px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Jun
-                            </span>
-                          </div>
-
-                          {/* Jul */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "95px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Jul
-                            </span>
-                          </div>
-
-                          {/* Aug */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "110px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Aug
-                            </span>
-                          </div>
-
-                          {/* Sep */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "125px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Sep
-                            </span>
-                          </div>
-
-                          {/* Oct */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "90px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Oct
-                            </span>
-                          </div>
-
-                          {/* Nov */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "70px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Nov
-                            </span>
-                          </div>
-
-                          {/* Dec */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "200px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Dec
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Platform Distribution Pie Chart */}
-                  <div className="p-4 rounded-md">
-                    <div className="bg-[#1E222B] px-4 py-2 rounded-md flex justify-between items-center mb-4">
-                      <h3 className="text-white font-medium">Top Platform</h3>
-                      <select
-                        className="bg-[#1A1E25] border border-gray-700 text-gray-300 text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                        defaultValue="January"
-                      >
-                        <option value="January">January</option>
-                        <option value="February">February</option>
-                        <option value="March">March</option>
-                        <option value="April">April</option>
-                        <option value="May">May</option>
-                        <option value="June">June</option>
-                        <option value="July">July</option>
-                        <option value="August">August</option>
-                        <option value="September">September</option>
-                        <option value="October">October</option>
-                        <option value="November">November</option>
-                        <option value="December">December</option>
-                      </select>
-                    </div>
-
-                    {/* Pie Chart */}
-                    <div className="flex items-center justify-center p-4 rounded-md">
-                      {/* Donut chart */}
-                      <div className="relative w-44 h-44">
-                        {/* This is a simple representation of a pie chart using a conic gradient */}
-                        <div
-                          className="absolute inset-0 rounded-full"
-                          style={{
-                            background:
-                              "conic-gradient(#8A85FF 0% 40%, #6AE398 40% 70%, #FFB963 70% 95%, #00C2FF 95% 100%)",
-                            clipPath: "circle(50% at center)",
-                          }}
-                        >
-                          {/* Center hollow */}
-                          <div className="absolute inset-[25%] rounded-full bg-[#1A1E25]"></div>
-                        </div>
-
-                        {/* Only percentages */}
-                        <div className="absolute top-16 -right-30 text-md">
-                          <div className="text-[#8A85FF] font-medium">
-                            Spotify 40%
-                          </div>
-                        </div>
-
-                        <div className="absolute bottom-2 -left-36 text-md">
-                          <div className="text-[#6AE398] font-medium">
-                            Soundcloud 30%
-                          </div>
-                        </div>
-
-                        <div className="absolute top-16 -left-42 text-md">
-                          <div className="text-[#FFB963] font-medium">
-                            Apple Music 25%
-                          </div>
-                        </div>
-
-                        <div className="absolute top-1 -left-16 text-md">
-                          <div className="text-[#00C2FF] font-medium">
-                            Tidal 5%
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Revenue Analytics */}
-                  <div className=" p-4 rounded-md">
-                    <div className="bg-[#1E222B] px-4 py-2 rounded-md flex justify-between items-center mb-4">
-                      <h3 className="text-white font-medium">Revenue</h3>
-                      <select
-                        className="bg-[#1A1E25] border border-gray-700 text-gray-300 text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                        defaultValue="2023"
-                      >
-                        <option value="2023">2023</option>
-                        <option value="2022">2022</option>
-                        <option value="2021">2021</option>
-                        <option value="2020">2020</option>
-                      </select>
-                    </div>
-
-                    {/* Chart container with transparent background */}
-                    <div className="h-64 relative flex bg-transparent">
-                      {/* Y-axis labels */}
-                      <div className="flex flex-col justify-between text-right pr-2 text-xs text-gray-400 h-full">
-                        <span>50K</span>
-                        <span>10K</span>
-                        <span>1K</span>
-                        <span>500</span>
-                        <span>100</span>
-                        <span>00</span>
-                      </div>
-
-                      {/* Chart Area */}
-                      <div className="flex-1 flex items-end">
-                        <div className="w-full flex justify-around items-end px-2">
-                          {/* Jan */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "40px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Jan
-                            </span>
-                          </div>
-
-                          {/* Feb */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "60px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Feb
-                            </span>
-                          </div>
-
-                          {/* Mar */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "180px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Mar
-                            </span>
-                          </div>
-
-                          {/* Apr */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "80px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Apr
-                            </span>
-                          </div>
-
-                          {/* May */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "55px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              May
-                            </span>
-                          </div>
-
-                          {/* Jun */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "140px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Jun
-                            </span>
-                          </div>
-
-                          {/* Jul */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "95px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Jul
-                            </span>
-                          </div>
-
-                          {/* Aug */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "110px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Aug
-                            </span>
-                          </div>
-
-                          {/* Sep */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "125px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Sep
-                            </span>
-                          </div>
-
-                          {/* Oct */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "90px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Oct
-                            </span>
-                          </div>
-
-                          {/* Nov */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "70px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Nov
-                            </span>
-                          </div>
-
-                          {/* Dec */}
-                          <div className="flex flex-col items-center">
-                            <div
-                              className="w-5 bg-[#DAB6FC] rounded-t-sm"
-                              style={{ height: "200px" }}
-                            ></div>
-                            <span className="mt-1 text-xs text-gray-400">
-                              Dec
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+              </div>
+            ) : (
+              <div className="bg-[#1A1E24] p-4 rounded-sm">
+                <h3 className="text-white font-medium mb-3">Song Lyrics</h3>
+                <div className="text-gray-300 whitespace-pre-line">
+                  {track.lyrics || `No lyrics available for this track.`}
                 </div>
-              ) : (
-                <div className="bg-[#1A1E24] p-4 rounded-sm">
-                  <h3 className="text-white font-medium mb-3">Song Lyrics</h3>
-                  <div className="text-gray-300 whitespace-pre-line">
-                    {track.lyrics || `Wake up not chasing dreams.
-Road is rough, but so am I.
-Every fall just makes me stronger,
-I'm not giving up.
+              </div>
+            )}
+          </div>
 
-Oh, I keep moving on.
-Through the rain, the sun, I stay strong.
-No matter what comes, I won't back down.
-I'll rise again in this town.
-
-No looking back, no turning 'round.
-The road is mine, I never stop.`}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Action buttons - removed border-t */}
-            <div className="flex p-4 space-x-4 justify-start">
-              {trackStatus === "processing" ? (
-                <>
-                  <button
-                    onClick={handleReject}
-                    className="flex items-center justify-center px-4 py-2 border border-red-700 text-red-500 rounded-md hover:bg-red-900 hover:bg-opacity-30 transition-colors"
-                  >
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    Reject
-                  </button>
-
-                  <button
-                    onClick={handleApprove}
-                    className="flex items-center justify-center px-4 py-2 border border-green-700 text-green-500 rounded-md hover:bg-green-900 hover:bg-opacity-30 transition-colors"
-                    disabled={
-                      copyrightStatus === "checking" ||
-                      copyrightStatus === "found"
-                    }
-                  >
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    Approve
-                  </button>
-                </>
-              ) : (
+          {/* Action buttons */}
+          <div className="flex p-4 space-x-3 justify-center sm:justify-start flex-wrap gap-2">
+            {/* Admin/SuperAdmin actions for processing/submitted releases */}
+            {(userRole === 'admin' || userRole === 'superadmin') && 
+             (track.status === "processing" || track.status === "submitted") && (
+              <>
                 <button
-                  onClick={handleResetStatus}
-                  className="flex items-center justify-center px-4 py-2 border border-gray-700 text-gray-300 rounded-md hover:bg-gray-800 hover:bg-opacity-50 transition-colors"
+                  onClick={handleReject}
+                  className="flex items-center justify-center px-3 sm:px-4 py-2 border border-red-700 text-red-500 rounded-md hover:bg-red-900 hover:bg-opacity-30 transition-colors text-sm"
                 >
                   <svg
                     className="w-4 h-4 mr-1"
@@ -993,266 +417,87 @@ The road is mine, I never stop.`}
                   >
                     <path
                       fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                       clipRule="evenodd"
                     />
                   </svg>
-                  Remove
+                  Reject
                 </button>
-              )}
-            </div>
-          </div>
-        )}
 
-        {currentAction === "play" && (
-          <div className="flex flex-col p-6 flex-1 overflow-auto">
-            <div className="bg-[#1A1E24] rounded-lg p-5">
-              <div className="flex items-center mb-6">
-                <button className="w-14 h-14 flex items-center justify-center rounded-full bg-[#A365FF] text-white mr-4">
-                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                <button
+                  onClick={handleApprove}
+                  className="flex items-center justify-center px-3 sm:px-4 py-2 border border-green-700 text-green-500 rounded-md hover:bg-green-900 hover:bg-opacity-30 transition-colors text-sm"
+                >
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
                   </svg>
+                  Approve
                 </button>
-                <div className="flex-1">
-                  <h3 className="text-white font-medium">{track.title}</h3>
-                  <p className="text-gray-400 text-sm">{track.primaryArtist}</p>
-                </div>
-                <div className="text-gray-400 text-sm">
-                  {track.duration}
-                </div>
-              </div>
-
-              {/* Audio progress bar */}
-              <div className="mb-4">
-                <div className="h-16 relative mb-2">
-                  {/* Waveform visualization */}
-                  <div className="absolute inset-0 flex items-center justify-between">
-                    {Array.from({ length: 100 }).map((_, i) => {
-                      // Generate random height for each bar to simulate a waveform
-                      const height = 20 + Math.random() * 60;
-                      // Make the "played" part of the waveform a different color
-                      const isPlayed = i < 30;
-                      return (
-                        <div 
-                          key={i} 
-                          className={`w-0.5 rounded-full ${isPlayed ? 'bg-[#A365FF]' : 'bg-gray-600'}`}
-                          style={{ height: `${height}%` }}
-                        ></div>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Current playhead */}
-                  <div className="absolute top-0 bottom-0 left-[30%] w-0.5 bg-white"></div>
-                  
-                  {/* Current time marker */}
-                  <div className="absolute top-0 left-[30%] -ml-4 -mt-6 bg-[#252A33] px-2 py-1 rounded text-xs text-white">
-                    1:14
-                  </div>
-                </div>
-                
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>0:00</span>
-                  <span>{track.duration}</span>
-                </div>
-              </div>
-
-              {/* Audio controls */}
-              <div className="flex items-center justify-center space-x-6">
-                <button className="text-gray-400 hover:text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8z" />
-                    <path d="M12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z" />
-                  </svg>
-                </button>
-                <button className="text-gray-400 hover:text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <button className="w-12 h-12 flex items-center justify-center rounded-full bg-[#A365FF] text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <button className="text-gray-400 hover:text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <button className="text-gray-400 hover:text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16a1 1 0 11-2 0V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Volume control */}
-              <div className="flex items-center mt-6">
-                <svg className="w-5 h-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071a1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243a1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828a1 1 0 010-1.415z" clipRule="evenodd" />
-                </svg>
-                <div className="w-full bg-gray-700 h-1 rounded-full overflow-hidden">
-                  <div className="bg-[#A365FF] h-full rounded-full" style={{ width: '70%' }}></div>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
             
-            {/* Track details */}
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-[#1A1E24] p-4 rounded-lg">
-                <h4 className="text-gray-400 text-sm mb-2">Track Information</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Genre</span>
-                    <span className="text-white">{track.genre}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">ISRC</span>
-                    <span className="text-white">{track.isrc || "Not Available"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Release Date</span>
-                    <span className="text-white">{track.releaseDate}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-[#1A1E24] p-4 rounded-lg">
-                <h4 className="text-gray-400 text-sm mb-2">Audio Quality</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Format</span>
-                    <span className="text-white">FLAC</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Bit Rate</span>
-                    <span className="text-white">1,411 kbps</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Sample Rate</span>
-                    <span className="text-white">44.1 kHz</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Distribution button - only for approved tracks */}
+            {track.status === 'approved' && (
+              <button
+                onClick={() => window.location.href = `/dashboard/distribution?trackId=${track._id}`}
+                className="flex items-center justify-center px-3 sm:px-4 py-2 border border-blue-700 text-blue-500 rounded-md hover:bg-blue-900 hover:bg-opacity-30 transition-colors text-sm"
+              >
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Send to Distribution
+              </button>
+            )}
+            
+            {/* Delete button for admin/superadmin */}
+            {(userRole === 'admin' || userRole === 'superadmin') && (
+              <button
+                onClick={handleDelete}
+                className="flex items-center justify-center px-3 sm:px-4 py-2 border border-red-700 text-red-500 rounded-md hover:bg-red-900 hover:bg-opacity-30 transition-colors text-sm"
+              >
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Delete
+              </button>
+            )}
+            
+            {/* Close button for all users */}
+            <button
+              onClick={onClose}
+              className="flex items-center justify-center px-3 sm:px-4 py-2 border border-gray-700 text-gray-400 rounded-md hover:bg-gray-800 transition-colors text-sm"
+            >
+              Close
+            </button>
           </div>
-        )}
-
-        {currentAction === "edit" && (
-          <div className="flex flex-col p-8 flex-1 overflow-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-medium text-white">Edit Track Details</h3>
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleCancelChanges}
-                  className="px-4 py-2 border border-gray-600 text-gray-300 rounded-md hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveChanges}
-                  className="px-4 py-2 bg-[#A365FF] text-white rounded-md hover:bg-opacity-90 transition-colors"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Artist */}
-              <div className="space-y-2">
-                <label className="text-gray-400 text-sm">Artist</label>
-                <input
-                  type="text"
-                  value={editedTrack.primaryArtist || ""}
-                  onChange={(e) => handleFieldChange("primaryArtist", e.target.value)}
-                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
-                />
-              </div>
-
-              {/* Title */}
-              <div className="space-y-2">
-                <label className="text-gray-400 text-sm">Title</label>
-                <input
-                  type="text"
-                  value={editedTrack.title || ""}
-                  onChange={(e) => handleFieldChange("title", e.target.value)}
-                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
-                />
-              </div>
-
-              {/* Content Rating */}
-              <div className="space-y-2">
-                <label className="text-gray-400 text-sm">Content Rating</label>
-                <select
-                  value={editedTrack.contentRating || ""}
-                  onChange={(e) => handleFieldChange("contentRating", e.target.value)}
-                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
-                >
-                  <option value="G">G</option>
-                  <option value="PG">PG</option>
-                  <option value="PG-13">PG-13</option>
-                  <option value="R">R</option>
-                </select>
-              </div>
-
-              {/* ISRC */}
-              <div className="space-y-2">
-                <label className="text-gray-400 text-sm">ISRC</label>
-                <input
-                  type="text"
-                  value={editedTrack.isrc || ""}
-                  onChange={(e) => handleFieldChange("isrc", e.target.value)}
-                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
-                />
-              </div>
-
-              {/* Release Date */}
-              <div className="space-y-2">
-                <label className="text-gray-400 text-sm">Release Date</label>
-                <input
-                  type="text"
-                  value={editedTrack.releaseDate || ""}
-                  onChange={(e) => handleFieldChange("releaseDate", e.target.value)}
-                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
-                />
-              </div>
-
-              {/* Genre */}
-              <div className="space-y-2">
-                <label className="text-gray-400 text-sm">Genre</label>
-                <input
-                  type="text"
-                  value={editedTrack.genre || ""}
-                  onChange={(e) => handleFieldChange("genre", e.target.value)}
-                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
-                />
-              </div>
-
-              {/* Duration */}
-              <div className="space-y-2">
-                <label className="text-gray-400 text-sm">Duration</label>
-                <input
-                  type="text"
-                  value={editedTrack.duration || ""}
-                  onChange={(e) => handleFieldChange("duration", e.target.value)}
-                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white"
-                />
-              </div>
-
-              {/* Lyrics */}
-              <div className="space-y-2 col-span-2">
-                <label className="text-gray-400 text-sm">Lyrics</label>
-                <textarea
-                  value={editedTrack.lyrics || ""}
-                  onChange={(e) => handleFieldChange("lyrics", e.target.value)}
-                  className="w-full bg-[#252A33] border border-gray-700 rounded-md px-3 py-2 text-white h-40"
-                ></textarea>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

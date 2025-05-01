@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { register } from '@/services/authService';
+import Image from "next/image";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -132,10 +133,21 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-16">
-      <div className="w-full max-w-[1400px] h-auto lg:h-[750px] mx-4 lg:mx-auto flex flex-col lg:flex-row shadow-2xl overflow-hidden rounded-xl">
-        {/* Left Section - Purple background with message - 40% width */}
-        <div className="w-full lg:w-2/5 bg-[#683BAB] text-white p-10 lg:p-[60px] flex flex-col justify-between relative overflow-hidden">
+    <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-10">
+      <div className="w-full max-w-[1400px] h-auto lg:h-[700px] mx-4 lg:mx-auto flex flex-col lg:flex-row shadow-2xl overflow-hidden rounded-xl">
+        {/* Left Section - Purple background with message - 40% width - Hidden on mobile */}
+        <div className="hidden lg:flex w-full lg:w-2/5 bg-[#683BAB] text-white p-8 lg:p-[50px] flex-col justify-between relative overflow-hidden">
+          {/* Logo at the top left */}
+          <div className="flex justify-start mb-6">
+            <Image 
+              src="/images/logo.svg" 
+              alt="Logo" 
+              width={180} 
+              height={70} 
+              className="w-[180px]"
+            />
+          </div>
+          
           <div className="max-w-md">
             <h1 className="text-4xl lg:text-5xl font-normal -tracking-[0.05em] mb-6">Join our Music <br /> Distribution & Marketing Platform</h1>
             <p className="text-lg opacity-80 mb-10">
@@ -184,6 +196,17 @@ export default function SignupPage() {
         <div className="w-full lg:w-3/5 bg-[#161A1F] flex flex-col lg:p-[60px] p-10">
           {/* Fixed title and description */}
           <div className="mb-8">
+            {/* Logo only visible on mobile */}
+            <div className="flex justify-center mb-6 lg:hidden">
+              <Image 
+                src="/images/logo.svg" 
+                alt="Logo" 
+                width={180} 
+                height={70} 
+                className="w-[180px]"
+              />
+            </div>
+            
             <h2 className="text-3xl lg:text-4xl font-semibold mb-3 text-white">
               Join Streamo Digital
             </h2>
@@ -193,7 +216,7 @@ export default function SignupPage() {
           </div>
           
           {/* Scrollable form container */}
-          <div className="flex-1 overflow-y-auto pr-4 h-[430px] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800">
+          <div className="flex-1 overflow-y-auto pr-4 h-[400px] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800">
             {formStep === 1 ? (
               /* Step 1: Basic Info Form */
               <form onSubmit={handleNextStep} className="space-y-6 max-w-md">
@@ -829,8 +852,20 @@ export default function SignupPage() {
             )}
           </div>
             
+          {/* Step indicators - just above login link - left aligned */}
+          <div className="flex items-center justify-start mt-6 space-x-3">
+            {[1, 2, 3, 4, 5].map((step) => (
+              <div 
+                key={step}
+                className={`h-2.5 w-2.5 rounded-full transition-colors 
+                  ${step === formStep ? 'bg-purple-500' : 
+                    step < formStep ? 'bg-green-500' : 'bg-gray-600'}`}
+              ></div>
+            ))}
+          </div>
+            
           {/* Login link at the bottom */}
-          <div className="mt-6 text-left">
+          <div className="mt-2 text-left">
             <p className="text-gray-400 text-sm">
               Already have an account?{" "}
               <Link href="/auth/login" className="font-medium text-purple-500 hover:text-purple-400">

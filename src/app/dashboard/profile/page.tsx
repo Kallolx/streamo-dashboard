@@ -357,12 +357,12 @@ export default function ProfilePage() {
         />
       )}
       
-      <div>
+      <div className="px-4 sm:px-0">
         {/* Profile Header */}
-        <div className="flex flex-col md:flex-row items-center md:items-start mb-6">
+        <div className="flex flex-col md:flex-row items-center md:items-start gap-4 mb-6">
           {/* User Image */}
-          <div className="relative mb-4 md:mb-0 md:mr-6">
-            <div className="h-24 w-24 rounded-full overflow-hidden">
+          <div className="relative">
+            <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden">
               <img 
                 src={userData?.profileImage || "/placeholder.png"} 
                 alt={userData?.name ? `${userData.name}'s Avatar` : 'User Avatar'}
@@ -377,19 +377,19 @@ export default function ProfilePage() {
 
           {/* User Info */}
           <div className="flex flex-col items-center md:items-start">
-            <h1 className="text-2xl font-bold text-white mb-2">{userData?.name || 'User'}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">{userData?.name || 'User'}</h1>
             
             {/* Tags */}
-            <div className="flex gap-3 mb-6">
-              <span className="bg-purple-900 text-white px-3 py-1 rounded-md text-sm flex items-center">
+            <div className="flex flex-wrap gap-2 sm:gap-3 justify-center md:justify-start mb-4 sm:mb-6">
+              <span className="bg-purple-900 text-white px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm flex items-center">
                 <span className="mr-1">★</span> {getRoleDisplay(userData?.role || '')}
               </span>
               {userData?.lastPasswordChanged && (
-                <span className="bg-gray-800 text-gray-300 px-3 py-1 rounded-md text-sm flex items-center">
+                <span className="bg-gray-800 text-gray-300 px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm flex items-center">
                   <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
-                  Password changed: {formatCompactDate(userData.lastPasswordChanged)}
+                  <span className="hidden xs:inline">Password changed:</span> {formatCompactDate(userData.lastPasswordChanged)}
                 </span>
               )}
             </div>
@@ -397,12 +397,12 @@ export default function ProfilePage() {
         </div>
 
         {/* Tabs Navigation */}
-        <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
+        <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-1">
           {profileTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id as TabType)}
-              className={`px-5 py-2 rounded-full whitespace-nowrap ${
+              className={`px-3 sm:px-5 py-2 rounded-full whitespace-nowrap text-sm ${
                 activeTab === tab.id ? 'bg-[#A365FF] text-white' : 'bg-[#1A1E24] text-gray-300 hover:bg-[#252A33]'
               }`}
             >
@@ -413,10 +413,10 @@ export default function ProfilePage() {
 
         {/* Tab Content */}
         {activeTab === "basic" && (
-          <div className="bg-[#161A1F] rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-6">Basic Information</h3>
+          <div className="bg-[#161A1F] rounded-lg p-4 sm:p-6">
+            <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6">Basic Information</h3>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <div className="mb-4">
                   <h4 className="text-sm text-gray-400 mb-1">Full Name</h4>
@@ -482,11 +482,11 @@ export default function ProfilePage() {
         )}
 
         {activeTab === "edit" && (
-          <div className="rounded-lg p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="rounded-lg p-4 sm:p-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               <div>
-                <h3 className="text-white text-md mb-4">Personal Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h3 className="text-white text-md mb-3 sm:mb-4">Personal Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Full Name</label>
                     <input
@@ -652,7 +652,7 @@ export default function ProfilePage() {
               <button 
                 type="submit"
                 disabled={isSubmitting}
-                className={`bg-[#A365FF] hover:bg-purple-700 text-white px-6 py-3 rounded-md transition-colors ${
+                className={`w-full sm:w-auto bg-[#A365FF] hover:bg-purple-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-md transition-colors ${
                   isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >
@@ -663,9 +663,9 @@ export default function ProfilePage() {
         )}
 
         {activeTab === "password" && (
-          <div className="bg-[#1A1E24] rounded-lg p-6">
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <h3 className="text-white text-md mb-4">Change Password</h3>
+          <div className="bg-[#1A1E24] rounded-lg p-4 sm:p-6">
+            <form onSubmit={handlePasswordSubmit} className="space-y-3 sm:space-y-4">
+              <h3 className="text-white text-md mb-3 sm:mb-4">Change Password</h3>
               
               {/* General error message */}
               {passwordErrors.general && (
@@ -795,7 +795,7 @@ export default function ProfilePage() {
               <button 
                 type="submit"
                 disabled={isChangingPassword}
-                className={`bg-[#A365FF] hover:bg-purple-700 text-white px-6 py-3 rounded-md transition-colors mt-4 ${
+                className={`w-full sm:w-auto bg-[#A365FF] hover:bg-purple-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-md transition-colors mt-3 sm:mt-4 ${
                   isChangingPassword ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >

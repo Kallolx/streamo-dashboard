@@ -414,12 +414,12 @@ export default function AnalyticsPage() {
 
   return (
     <DashboardLayout title="Analytics" subtitle="Track your music performance">
-      <div className="p-8 rounded-lg">
+      <div className="p-4 sm:p-8 rounded-lg">
         {/* CSV Selector */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h3 className="text-white font-medium">Select CSV to Analyze</h3>
-            <div className="relative w-64">
+            <div className="relative w-full sm:w-64">
               <select
                 className="bg-[#232830] text-gray-300 px-3 py-2 rounded text-sm w-full focus:outline-none focus:ring-2 focus:ring-purple-500"
                 value={selectedCsvId}
@@ -449,7 +449,7 @@ export default function AnalyticsPage() {
         ) : (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8">
               {/* Total Users (Artists) */}
               <div className="bg-[#1A1E24] p-5 rounded-lg">
                 <div className="flex flex-col">
@@ -516,7 +516,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Performance Analytics */}
               <div className="p-5 rounded-lg">
                 <div className="flex justify-between items-center mb-6">
@@ -524,7 +524,7 @@ export default function AnalyticsPage() {
                   <div className="relative">
                     <button 
                       id="performance-dropdown-button"
-                      className="bg-[#232830] text-gray-300 px-3 py-1.5 rounded text-sm flex items-center"
+                      className="bg-[#232830] text-gray-300 px-3 py-2 rounded text-sm flex items-center"
                       onClick={togglePerformanceDropdown}
                     >
                       <span>{getTimeframeText(performanceTimeframe)}</span>
@@ -625,9 +625,9 @@ export default function AnalyticsPage() {
                   </div>
                   
                   {/* X-axis labels */}
-                  <div className="flex justify-between text-xs text-gray-400 mt-2 px-10">
+                  <div className="flex justify-between text-xs text-gray-400 mt-2 px-8 sm:px-10 overflow-x-auto">
                     {performanceData.slice(0, 10).map((data, index) => (
-                      <span key={index}>{data.month}</span>
+                      <span key={index} className="mx-1 sm:mx-0">{data.month}</span>
                     ))}
                   </div>
                 </div>
@@ -640,7 +640,7 @@ export default function AnalyticsPage() {
                   <div className="relative">
                     <button 
                       id="countries-dropdown-button"
-                      className="bg-[#232830] text-gray-300 px-3 py-1.5 rounded text-sm flex items-center"
+                      className="bg-[#232830] text-gray-300 px-3 py-2 rounded text-sm flex items-center"
                       onClick={toggleCountriesDropdown}
                     >
                       <span>{getTimeframeText(countriesTimeframe)}</span>
@@ -673,7 +673,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Countries list */}
-                <div className="space-y-5 bg-[#161A1F] p-5 rounded-lg">
+                <div className="space-y-4 sm:space-y-5 bg-[#161A1F] p-3 sm:p-5 rounded-lg">
                   {countryData.slice(0, 6).map((country, index) => (
                     <div key={index}>
                       <div className="flex justify-between text-white mb-1.5">
@@ -692,7 +692,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Top Platform Pie Chart */}
               <div className="p-4 rounded-md bg-[#161A1F]">
                 <div className="px-4 py-2 rounded-md flex justify-between items-center mb-4">
@@ -717,44 +717,56 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Pie Chart */}
-                <div className="flex items-center justify-center p-4 rounded-md overflow-hidden">
-                  {/* Donut chart */}
-                  <div className="relative w-44 h-44">
-                    {/* Dynamic conic gradient from real platform data */}
-                    <div
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        background: generateConicGradient(),
-                        clipPath: "circle(50% at center)",
-                      }}
-                    >
-                      {/* Center hollow */}
-                      <div className="absolute inset-[25%] rounded-full bg-[#1A1E25]"></div>
-                    </div>
-
-                    {/* Percentages */}
-                    {platformData.slice(0, 4).map((platform, index) => {
-                      // Position the labels around the circle
-                      const positions = [
-                        { top: '16px', right: '-30px' },
-                        { bottom: '2px', left: '-36px' },
-                        { top: '16px', left: '-42px' },
-                        { top: '1px', right: '-32px' }
-                      ];
-                      const colors = ['#8A85FF', '#6AE398', '#FFB963', '#00C2FF'];
-
-                      return (
-                        <div 
-                          key={index} 
-                          className="absolute text-md"
-                          style={positions[index] as React.CSSProperties}
-                        >
-                          <div className="font-medium" style={{ color: colors[index] }}>
-                            {platform.platform} {platform.percentage.toFixed(0)}%
+                <div className="flex items-center justify-center p-2 sm:p-4 rounded-md overflow-hidden">
+                  <div className="flex items-center justify-center w-full">
+                    {/* Left column labels */}
+                    <div className="flex flex-col space-y-3 pr-2 sm:pr-4 text-right w-1/3">
+                      {platformData.slice(0, 2).map((platform, index) => {
+                        const colors = ['#8A85FF', '#6AE398'];
+                        
+                        return (
+                          <div key={index} className="flex items-center justify-end">
+                            <span className="text-white text-xs sm:text-sm mr-2">{platform.platform} <span className="font-medium">{platform.percentage.toFixed(0)}%</span></span>
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: colors[index] }}
+                            ></div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Donut chart */}
+                    <div className="relative w-32 h-32 sm:w-44 sm:h-44 mx-1 sm:mx-2">
+                      {/* Dynamic conic gradient from real platform data */}
+                      <div
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          background: generateConicGradient(),
+                          clipPath: "circle(50% at center)",
+                        }}
+                      >
+                        {/* Center hollow */}
+                        <div className="absolute inset-[25%] rounded-full bg-[#1A1E25]"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Right column labels */}
+                    <div className="flex flex-col space-y-3 pl-2 sm:pl-4 w-1/3">
+                      {platformData.slice(2, 4).map((platform, index) => {
+                        const colors = ['#FFB963', '#00C2FF'];
+                        
+                        return (
+                          <div key={index} className="flex items-center">
+                            <div 
+                              className="w-3 h-3 rounded-full mr-2" 
+                              style={{ backgroundColor: colors[index] }}
+                            ></div>
+                            <span className="text-white text-xs sm:text-sm"><span className="font-medium">{platform.percentage.toFixed(0)}%</span> {platform.platform}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -766,8 +778,8 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Bar Chart */}
-                <div className="h-72 p-4">
-                  <div className="flex h-full w-full justify-between items-end px-6">
+                <div className="h-60 sm:h-72 p-2 sm:p-4">
+                  <div className="flex h-full w-full justify-between items-end px-2 sm:px-6">
                     {yearlyRevenueData.slice(0, 6).map((yearData, index) => {
                       // Calculate height percentage (max 90%)
                       const maxRevenue = Math.max(...yearlyRevenueData.map(d => d.revenue));
@@ -777,15 +789,15 @@ export default function AnalyticsPage() {
                       
                       return (
                         <div key={index} className="flex flex-col items-center justify-end h-full">
-                          <div className="text-white text-xs mb-2">
+                          <div className="text-white text-xs mb-1 sm:mb-2">
                             {formatCurrency(yearData.revenue).replace('$', '')}
                           </div>
                           <div 
-                            className="w-12 bg-[#A365FF] rounded-t-md relative"
+                            className="w-6 sm:w-12 bg-[#A365FF] rounded-t-md relative"
                             style={{ height: `${heightPercentage || 5}%` }}
                           >
                           </div>
-                          <div className="text-gray-400 text-xs mt-2">{yearData.year}</div>
+                          <div className="text-gray-400 text-xs mt-1 sm:mt-2">{yearData.year}</div>
                         </div>
                       );
                     })}
@@ -795,14 +807,14 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Top Earning Tracks and Top Artists */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
               {/* Top Earning Tracks */}
               <div className="p-4 rounded-md bg-[#161A1F]">
                 <div className="px-4 py-2 mb-4">
                   <h3 className="text-white font-medium">Top Earning Tracks</h3>
                 </div>
                 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                   <table className="min-w-full divide-y divide-gray-700">
                     <thead>
                       <tr>
@@ -827,11 +839,11 @@ export default function AnalyticsPage() {
                                 alt="Album cover" 
                                 className="h-8 w-8 rounded-md object-cover flex-shrink-0"
                               />
-                              <span className="text-white">{track.title}</span>
+                              <span className="text-white truncate max-w-[100px] sm:max-w-none">{track.title}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-white">
-                            {track.artist}
+                            <span className="truncate max-w-[80px] sm:max-w-none block">{track.artist}</span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-white text-right">
                             {formatCurrency(track.revenue)}
@@ -849,7 +861,7 @@ export default function AnalyticsPage() {
                   <h3 className="text-white font-medium">Top Artists</h3>
                 </div>
                 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                   <table className="min-w-full divide-y divide-gray-700">
                     <thead>
                       <tr>
@@ -871,7 +883,7 @@ export default function AnalyticsPage() {
                                 alt={artist.name} 
                                 className="h-8 w-8 rounded-full object-cover flex-shrink-0"
                               />
-                              <span className="text-white">{artist.name}</span>
+                              <span className="text-white truncate max-w-[120px] sm:max-w-none">{artist.name}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-white text-right">
