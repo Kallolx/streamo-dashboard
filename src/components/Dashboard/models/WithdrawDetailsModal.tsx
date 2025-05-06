@@ -15,11 +15,16 @@ interface WithdrawRequest {
   status: "Completed" | "Pending" | "Rejected";
   paymentMethod?: 'Bank' | 'BKash' | 'Nagad';
   bankDetails?: {
-    accountNumber: string;
+    country?: string;
+    routingNumber?: string;
     bankName: string;
-    branch: string;
+    accountName: string;
+    swiftCode: string;
+    accountNumber: string;
+    branch?: string;
   };
   mobileNumber?: string;
+  notes?: string;
 }
 
 interface WithdrawDetailsModalProps {
@@ -238,23 +243,55 @@ export default function WithdrawDetailsModal({
                 <div className="text-gray-400 text-sm mb-2">Bank Details</div>
                 <div className="grid grid-cols-1 gap-2">
                   <div className="text-white">
+                    <span className="text-gray-400 text-xs">Country:</span> {request.bankDetails.country || 'Bangladesh'}
+                  </div>
+                  <div className="text-white">
                     <span className="text-gray-400 text-xs">Bank Name:</span> {request.bankDetails.bankName}
+                  </div>
+                  <div className="text-white">
+                    <span className="text-gray-400 text-xs">Account Name:</span> {request.bankDetails.accountName}
                   </div>
                   <div className="text-white">
                     <span className="text-gray-400 text-xs">Account Number:</span> {request.bankDetails.accountNumber}
                   </div>
-                  <div className="text-white">
-                    <span className="text-gray-400 text-xs">Branch:</span> {request.bankDetails.branch}
-                  </div>
+                  {request.bankDetails.routingNumber && (
+                    <div className="text-white">
+                      <span className="text-gray-400 text-xs">Routing Number:</span> {request.bankDetails.routingNumber}
+                    </div>
+                  )}
+                  {request.bankDetails.swiftCode && (
+                    <div className="text-white">
+                      <span className="text-gray-400 text-xs">Swift Code:</span> {request.bankDetails.swiftCode}
+                    </div>
+                  )}
+                  {request.bankDetails.branch && (
+                    <div className="text-white">
+                      <span className="text-gray-400 text-xs">Branch:</span> {request.bankDetails.branch}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
             
             {/* Mobile Number (if available) */}
-            {(request.paymentMethod === 'BKash' || request.paymentMethod === 'Nagad') && request.mobileNumber && (
+            {request.paymentMethod && ['BKash', 'Nagad'].includes(request.paymentMethod) && request.mobileNumber && (
               <div className="bg-[#1A1E24] p-4 rounded col-span-2">
-                <div className="text-gray-400 text-sm mb-1">Mobile Number</div>
-                <div className="text-white font-medium">{request.mobileNumber}</div>
+                <div className="text-gray-400 text-sm mb-2">{request.paymentMethod} Details</div>
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="text-white">
+                    <span className="text-gray-400 text-xs">Mobile Number:</span> {request.mobileNumber}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rejection Notes (if status is Rejected and notes exist) */}
+            {request.status === "Rejected" && request.notes && (
+              <div className="bg-[#1A1E24] p-4 rounded col-span-2 border border-red-800/30">
+                <div className="text-red-400 text-sm mb-2">Rejection Reason</div>
+                <div className="text-white text-sm">
+                  {request.notes}
+                </div>
               </div>
             )}
           </div>

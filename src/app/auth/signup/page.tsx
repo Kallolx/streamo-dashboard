@@ -1,14 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { register } from '@/services/authService';
+import { validateInvitation } from "@/services/invitationService";
 import Image from "next/image";
 
-export default function SignupPage() {
+// Client component with all the existing functionality
+function SignupContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formStep, setFormStep] = useState(1); // Track form step
+  
+  // Add registration success state
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  
+  // Invitation/referral related states
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [inviterName, setInviterName] = useState<string | null>(null);
+  const [isValidatingReferral, setIsValidatingReferral] = useState(false);
+  const [referralError, setReferralError] = useState<string | null>(null);
   
   // Basic Info Form State
   const [fullName, setFullName] = useState("");
@@ -43,6 +55,34 @@ export default function SignupPage() {
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
   
   const [isLoading, setIsLoading] = useState(false);
+
+  // Check for referral code in URL 
+  useEffect(() => {
+    if (searchParams) {
+      const code = searchParams.get('referral');
+      if (code) {
+        setReferralCode(code);
+        validateReferralCode(code);
+      }
+    }
+  }, [searchParams]);
+  
+  // Validate referral code
+  const validateReferralCode = async (code: string) => {
+    try {
+      setIsValidatingReferral(true);
+      const result = await validateInvitation(code);
+      if (result && result.inviter) {
+        setInviterName(result.inviter.name);
+        setReferralError(null);
+      }
+    } catch (error: any) {
+      console.error('Error validating referral code:', error);
+      setReferralError(error.response?.data?.message || 'Invalid referral code');
+    } finally {
+      setIsValidatingReferral(false);
+    }
+  };
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +132,9 @@ export default function SignupPage() {
         documentType,
         documentId,
         
+        // Add referral code if present
+        referralCode: referralCode || undefined,
+        
         // Default role will be 'artist'
       };
       
@@ -99,8 +142,9 @@ export default function SignupPage() {
       const response = await register(userData);
       
       if (response.success) {
-        // Registration successful, redirect to dashboard
-        router.push("/dashboard");
+        // Registration successful, show success message instead of redirecting
+        setRegistrationSuccess(true);
+        setIsLoading(false);
       } else {
         // Handle error (you may want to display an error message)
         console.error("Registration failed:", response.message);
@@ -131,6 +175,64 @@ export default function SignupPage() {
     
     setBirthDate(formattedDate);
   };
+
+  // If registration is successful, show the success message
+  if (registrationSuccess) {
+    return (
+      <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-10">
+        <div className="w-full max-w-md bg-[#161A1F] rounded-xl shadow-lg overflow-hidden">
+          <div className="bg-[#683BAB] p-6 flex justify-center">
+            <Image 
+              src="/images/logo.svg" 
+              alt="Logo" 
+              width={180} 
+              height={70} 
+              className="w-[180px]"
+            />
+          </div>
+          
+          <div className="p-8 text-center">
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 rounded-full bg-green-600/20 flex items-center justify-center">
+                <svg 
+                  className="w-10 h-10 text-green-500" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M5 13l4 4L19 7" 
+                  />
+                </svg>
+              </div>
+            </div>
+            
+            <h2 className="text-2xl font-bold text-white mb-4">Registration Successful!</h2>
+            
+            <div className="bg-amber-600/10 border border-amber-600/20 rounded-md p-4 mb-6">
+              <p className="text-amber-400 text-sm">
+                Your account has been created successfully but is pending approval from an administrator. You'll be able to log in once your account is approved.
+              </p>
+            </div>
+            
+            <p className="text-gray-400 mb-8">
+              We'll notify you via email once your account has been approved. This usually takes less than 24 hours.
+            </p>
+            
+            <button 
+              onClick={() => router.push('/auth/login')}
+              className="w-full flex justify-center h-[56px] items-center rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors"
+            >
+              Go to Login Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-10">
@@ -214,6 +316,28 @@ export default function SignupPage() {
               Create your account and unlock a world of music distribution opportunities
             </p>
           </div>
+          
+          {/* Add referral info if present */}
+          {referralCode && (
+            <div className={`mb-6 p-4 rounded-lg ${
+              referralError 
+                ? 'bg-red-900/20 border border-red-700' 
+                : 'bg-purple-900/20 border border-purple-700'
+            }`}>
+              {isValidatingReferral ? (
+                <div className="flex items-center">
+                  <div className="animate-spin mr-2 h-4 w-4 border-t-2 border-b-2 border-purple-500 rounded-full"></div>
+                  <p className="text-gray-300">Validating referral code...</p>
+                </div>
+              ) : referralError ? (
+                <p className="text-red-400 text-sm">{referralError}</p>
+              ) : inviterName ? (
+                <p className="text-purple-400 text-sm">
+                  You have been invited by <span className="font-medium">{inviterName}</span> to join as an artist.
+                </p>
+              ) : null}
+            </div>
+          )}
           
           {/* Scrollable form container */}
           <div className="flex-1 overflow-y-auto pr-4 h-[400px] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800">
@@ -876,5 +1000,21 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins">
+        <div className="p-8 text-center text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignupContent />
+    </Suspense>
   );
 } 

@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
 import { 
@@ -11,7 +10,9 @@ import {
   Info, 
   CaretLeft as ChevronLeft, 
   CaretRight as ChevronRight,
-  MagnifyingGlass as SearchIcon
+  MagnifyingGlass as SearchIcon,
+  CurrencyDollar,
+  SpeakerSimpleHigh
 } from "@phosphor-icons/react";
 import TransactionDetailsModal from "@/components/Dashboard/models/TransactionDetailsModal";
 import { getUserRole, isAuthenticated } from "@/services/authService";
@@ -2228,50 +2229,23 @@ export default function TransactionsPage() {
             </div>
 
             {/* Total Music */}
-            <div className="bg-[#1A1E24] p-5 rounded-lg">
+            <div className="bg-[#1A1E24] p-4 rounded-lg shadow">
               <div className="flex flex-col">
                 <span className="text-gray-400 text-sm mb-2">Total Music</span>
-                <div className="flex items-center justify-between">
-                  {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
-                  ) : (
-                    <span className="text-white text-2xl font-bold">{csvSummary?.totalMusic?.toLocaleString() || 0}</span>
-                  )}
-                  <div className="h-8 w-8 bg-[#232830] rounded-full flex items-center justify-center text-[#A365FF]">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M9 18V5l12-2v13"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <circle
-                        cx="6"
-                        cy="18"
-                        r="3"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <circle
-                        cx="18"
-                        cy="16"
-                        r="3"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
+                <div className="flex items-end">
+                  <SpeakerSimpleHigh size={22} className="text-purple-500 mr-2" />
+                  <span className="text-white text-2xl font-bold">{csvSummary?.totalMusic?.toLocaleString() || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Revenue */}
+            <div className="bg-[#1A1E24] p-4 rounded-lg shadow">
+              <div className="flex flex-col">
+                <span className="text-gray-400 text-sm mb-2">Total Royalty</span>
+                <div className="flex items-end">
+                  <CurrencyDollar size={22} className="text-purple-500 mr-2" />
+                  <span className="text-white text-2xl font-bold">${csvSummary?.totalRoyalty?.toLocaleString() || 0}</span>
                 </div>
               </div>
             </div>
@@ -2285,48 +2259,6 @@ export default function TransactionsPage() {
                     <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
                   ) : (
                     <span className="text-white text-2xl font-bold">{csvSummary?.totalVideos?.toLocaleString() || 0}</span>
-                  )}
-                  <div className="h-8 w-8 bg-[#232830] rounded-full flex items-center justify-center text-[#A365FF]">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <rect
-                        x="2"
-                        y="2"
-                        width="20"
-                        height="20"
-                        rx="2.18"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M10 9l5 3-5 3V9z"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Total Royalty */}
-            <div className="bg-[#1A1E24] p-5 rounded-lg">
-              <div className="flex flex-col">
-                <span className="text-gray-400 text-sm mb-2">Total Royalty</span>
-                <div className="flex items-center justify-between">
-                  {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
-                  ) : (
-                    <span className="text-white text-2xl font-bold">{formatCurrency(csvSummary?.totalRoyalty || 0)}</span>
                   )}
                   <div className="h-8 w-8 bg-[#232830] rounded-full flex items-center justify-center text-[#A365FF]">
                     <svg

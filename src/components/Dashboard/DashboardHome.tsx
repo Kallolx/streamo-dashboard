@@ -7,7 +7,7 @@ import api from '@/services/api';
 
 import { getUserData } from '@/services/authService';
 import { getEarningsData, EarningsData } from '@/services/royaltyService';
-import { createWithdrawalRequest, WithdrawalRequest } from '@/services/withdrawalService';
+import { createWithdrawalRequest, WithdrawalRequest, getUserBankInfo, BankInfo } from '@/services/withdrawalService';
 import ReleaseDetailsModal from './models/ReleaseDetailsModal';
 
 // Interface for release data
@@ -102,11 +102,42 @@ export default function DashboardHome() {
   // Payment method state
   const [paymentMethod, setPaymentMethod] = useState<"Bank" | "BKash" | "Nagad">("Bank");
   const [bankDetails, setBankDetails] = useState({
-    accountNumber: "",
+    country: "Bangladesh",
+    routingNumber: "",
     bankName: "",
+    accountName: "",
+    swiftCode: "",
+    accountNumber: "",
     branch: ""
   });
   const [mobileNumber, setMobileNumber] = useState("");
+  const [savedBankInfo, setSavedBankInfo] = useState(false);
+  const [loadingBankInfo, setLoadingBankInfo] = useState(false);
+  const [hasSavedBankInfo, setHasSavedBankInfo] = useState(false);
+  
+  // List of Bangladesh banks
+  const bangladeshBanks = [
+    "Al-Arafah Islami Bank PLC",
+    "Bangladesh Commerce Bank Limited",
+    "Bangladesh Development Bank PLC",
+    "Bangladesh Krishi Bank",
+    "Bank Al-Falah Limited",
+    "Bank Asia PLC.",
+    "BASIC Bank Limited",
+    "Bengal Commercial Bank PLC.",
+    "BRAC Bank PLC",
+    "Citibank N.A",
+    "Citizens Bank PLC",
+    "City Bank PLC",
+    "Commercial Bank of Ceylon Limited",
+    "Community Bank Bangladesh PLC.",
+    "Dhaka Bank PLC",
+    "Dutch-Bangla Bank PLC",
+    "Eastern Bank PLC",
+    "Export Import Bank of Bangladesh PLC",
+    "First Security Islami Bank PLC",
+    "Global Islami Bank PLC"
+  ];
   
   // Constants for withdrawal
   const MIN_WITHDRAWAL_AMOUNT = 500; // Minimum $500 withdrawal
@@ -216,18 +247,41 @@ export default function DashboardHome() {
     return value || defaultValue;
   };
   
-  // Handle withdraw button click
-  const handleWithdrawClick = () => {
+  // Handle withdraw button click - modified to load saved bank info
+  const handleWithdrawClick = async () => {
     setWithdrawError('');
     setWithdrawAmount('');
+    setSavedBankInfo(false);
+    
     // Reset payment fields
     setBankDetails({
-      accountNumber: "",
+      country: "Bangladesh",
+      routingNumber: "",
       bankName: "",
+      accountName: "",
+      swiftCode: "",
+      accountNumber: "",
       branch: ""
     });
     setMobileNumber("");
     setPaymentMethod("Bank");
+    
+    // Try to load the user's saved bank info
+    setLoadingBankInfo(true);
+    try {
+      const savedInfo = await getUserBankInfo();
+      if (savedInfo) {
+        setHasSavedBankInfo(true);
+      } else {
+        setHasSavedBankInfo(false);
+      }
+    } catch (error) {
+      console.error("Error loading saved bank info:", error);
+      setHasSavedBankInfo(false);
+    } finally {
+      setLoadingBankInfo(false);
+    }
+    
     setShowWithdrawModal(true);
   };
   
@@ -239,12 +293,36 @@ export default function DashboardHome() {
   };
   
   // Handle bank details change
-  const handleBankDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBankDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setBankDetails(prev => ({
       ...prev,
       [name]: value
     }));
+  };
+
+  // Load saved bank info
+  const handleLoadSavedBankInfo = async () => {
+    setLoadingBankInfo(true);
+    try {
+      const savedInfo = await getUserBankInfo();
+      if (savedInfo) {
+        setBankDetails({
+          country: savedInfo.country || "Bangladesh",
+          routingNumber: savedInfo.routingNumber || "",
+          bankName: savedInfo.bankName || "",
+          accountName: savedInfo.accountName || "",
+          swiftCode: savedInfo.swiftCode || "",
+          accountNumber: savedInfo.accountNumber || "",
+          branch: savedInfo.branch || ""
+        });
+      }
+    } catch (error) {
+      console.error("Error loading saved bank info:", error);
+      setWithdrawError("Failed to load saved bank information");
+    } finally {
+      setLoadingBankInfo(false);
+    }
   };
   
   // Handle withdraw confirmation
@@ -262,8 +340,8 @@ export default function DashboardHome() {
     
     // Validate payment method details
     if (paymentMethod === "Bank") {
-      if (!bankDetails.accountNumber || !bankDetails.bankName || !bankDetails.branch) {
-        setWithdrawError('Please fill in all bank details');
+      if (!bankDetails.bankName || !bankDetails.accountName || !bankDetails.swiftCode || !bankDetails.accountNumber) {
+        setWithdrawError('Please provide all required bank details');
         return;
       }
     } else if (paymentMethod === "BKash" || paymentMethod === "Nagad") {
@@ -280,7 +358,8 @@ export default function DashboardHome() {
       const requestData: WithdrawalRequest = {
         amount,
         paymentMethod,
-        ...(paymentMethod === "Bank" ? { bankDetails } : { mobileNumber })
+        ...(paymentMethod === "Bank" ? { bankDetails } : { mobileNumber }),
+        savedBankInfo
       };
       
       // Send API request using the service
@@ -623,34 +702,104 @@ export default function DashboardHome() {
               <div className="bg-[#161A1F] rounded-lg p-4 sm:p-5 border border-gray-800 mb-4">
                 {paymentMethod === "Bank" ? (
                   <>
-                    <h4 className="text-white text-xs sm:text-sm font-medium mb-4">Bank Account Details</h4>
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-white text-xs sm:text-sm font-medium">Bank Account Details</h4>
+                      
+                      {hasSavedBankInfo && (
+                        <button
+                          onClick={handleLoadSavedBankInfo}
+                          className="text-xs flex items-center text-purple-400 hover:text-purple-300 transition-colors focus:outline-none"
+                          disabled={loadingBankInfo}
+                        >
+                          {loadingBankInfo ? (
+                            <svg className="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                          )}
+                          Load saved info
+                        </button>
+                      )}
+                    </div>
+                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      {/* Country Field - Disabled and set to Bangladesh */}
                       <div>
-                        <label className="block text-gray-400 text-xs mb-1">Bank Name</label>
+                        <label className="block text-gray-400 text-xs mb-1">Country</label>
                         <input
                           type="text"
+                          name="country"
+                          value={bankDetails.country}
+                          disabled
+                          className="w-full py-2 sm:py-2.5 px-3 rounded-lg bg-gray-700/60 text-white text-sm border border-gray-700 focus:outline-none cursor-not-allowed"
+                          placeholder="Country"
+                        />
+                      </div>
+                      
+                      {/* Routing Number */}
+                      <div>
+                        <label className="block text-gray-400 text-xs mb-1">Routing Number</label>
+                        <input
+                          type="text"
+                          name="routingNumber"
+                          value={bankDetails.routingNumber}
+                          onChange={handleBankDetailsChange}
+                          className="w-full py-2 sm:py-2.5 px-3 rounded-lg bg-gray-800/60 text-white text-sm border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
+                          placeholder="Enter routing number"
+                        />
+                      </div>
+                      
+                      {/* Bank Name Dropdown */}
+                      <div>
+                        <label className="block text-gray-400 text-xs mb-1">Bank Name*</label>
+                        <select
                           name="bankName"
                           value={bankDetails.bankName}
                           onChange={handleBankDetailsChange}
                           className="w-full py-2 sm:py-2.5 px-3 rounded-lg bg-gray-800/60 text-white text-sm border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
-                          placeholder="Enter bank name"
-                        />
+                        >
+                          <option value="">Select a bank</option>
+                          {bangladeshBanks.map((bank) => (
+                            <option key={bank} value={bank}>
+                              {bank}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       
+                      {/* Account Name */}
                       <div>
-                        <label className="block text-gray-400 text-xs mb-1">Branch Name</label>
+                        <label className="block text-gray-400 text-xs mb-1">Account Name*</label>
                         <input
                           type="text"
-                          name="branch"
-                          value={bankDetails.branch}
+                          name="accountName"
+                          value={bankDetails.accountName}
                           onChange={handleBankDetailsChange}
                           className="w-full py-2 sm:py-2.5 px-3 rounded-lg bg-gray-800/60 text-white text-sm border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
-                          placeholder="Enter branch name"
+                          placeholder="Enter account name"
                         />
                       </div>
                       
-                      <div className="col-span-1 sm:col-span-2">
-                        <label className="block text-gray-400 text-xs mb-1">Account Number</label>
+                      {/* Swift Code */}
+                      <div>
+                        <label className="block text-gray-400 text-xs mb-1">Swift Code*</label>
+                        <input
+                          type="text"
+                          name="swiftCode"
+                          value={bankDetails.swiftCode}
+                          onChange={handleBankDetailsChange}
+                          className="w-full py-2 sm:py-2.5 px-3 rounded-lg bg-gray-800/60 text-white text-sm border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
+                          placeholder="Enter swift code"
+                        />
+                      </div>
+                      
+                      {/* Account Number */}
+                      <div>
+                        <label className="block text-gray-400 text-xs mb-1">Account Number*</label>
                         <input
                           type="text"
                           name="accountNumber"
@@ -660,6 +809,33 @@ export default function DashboardHome() {
                           placeholder="Enter account number"
                         />
                       </div>
+                      
+                      {/* Branch (optional) */}
+                      <div>
+                        <label className="block text-gray-400 text-xs mb-1">Branch Name (optional)</label>
+                        <input
+                          type="text"
+                          name="branch"
+                          value={bankDetails.branch}
+                          onChange={handleBankDetailsChange}
+                          className="w-full py-2 sm:py-2.5 px-3 rounded-lg bg-gray-800/60 text-white text-sm border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
+                          placeholder="Enter branch name"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Save Bank Info Checkbox */}
+                    <div className="mt-3 flex items-center">
+                      <input
+                        type="checkbox"
+                        id="saveBankInfo"
+                        checked={savedBankInfo}
+                        onChange={(e) => setSavedBankInfo(e.target.checked)}
+                        className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                      />
+                      <label htmlFor="saveBankInfo" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
+                        Save bank information for future withdrawals
+                      </label>
                     </div>
                   </>
                 ) : (

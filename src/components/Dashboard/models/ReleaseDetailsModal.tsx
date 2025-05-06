@@ -222,18 +222,43 @@ export default function ReleaseDetailsModal({
                 </div>
 
                 {/* Status Badge */}
-                <div className="mt-1">
-                  <span
-                    className={`inline-block px-2 py-0.5 text-xs rounded-full capitalize ${
+                <div className="mt-2 mb-1">
+                  <div
+                    className={`flex items-center px-3 py-1.5 rounded-md text-sm ${
                       release.status === "approved"
-                        ? "bg-green-900 text-green-200"
+                        ? "bg-green-900/50 text-green-200 border border-green-700"
                         : release.status === "rejected"
-                        ? "bg-red-900 text-red-200"
-                        : "bg-gray-800 text-gray-200"
+                        ? "bg-red-900/50 text-red-200 border border-red-700"
+                        : release.status === "processing" || release.status === "submitted"
+                        ? "bg-yellow-900/50 text-yellow-200 border border-yellow-700"
+                        : "bg-gray-800/50 text-gray-200 border border-gray-700"
                     }`}
                   >
-                    {release.status}
-                  </span>
+                    <span className="mr-1.5">
+                      {release.status === "approved" ? (
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+                        </svg>
+                      ) : release.status === "rejected" ? (
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"></path>
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"></path>
+                        </svg>
+                      )}
+                    </span>
+                    <span className="capitalize font-medium">
+                      {release.status === "approved" 
+                        ? "Approved - Ready for distribution" 
+                        : release.status === "rejected"
+                        ? "Rejected - Please check with admin"
+                        : release.status === "submitted" || release.status === "processing"
+                        ? "Pending approval - Please wait for admin review"
+                        : release.status}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -457,6 +482,11 @@ export default function ReleaseDetailsModal({
                               Duration
                             </div>
                           </th>
+                          <th className="pb-2">
+                            <div className="text-xs sm:text-sm text-indigo-400">
+                              Status
+                            </div>
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -470,6 +500,16 @@ export default function ReleaseDetailsModal({
                             </td>
                             <td className="py-2 sm:py-3 text-white text-xs sm:text-sm">
                               {track.duration || "-"}
+                            </td>
+                            <td className="py-2 sm:py-3">
+                              <span className={`text-xs sm:text-sm ${
+                                release.status === 'approved' ? 'text-green-400' :
+                                release.status === 'rejected' ? 'text-red-400' :
+                                release.status === 'processing' ? 'text-blue-400' :
+                                'text-yellow-400'
+                              }`}>
+                                {release.status.charAt(0).toUpperCase() + release.status.slice(1)}
+                              </span>
                             </td>
                           </tr>
                         ))}

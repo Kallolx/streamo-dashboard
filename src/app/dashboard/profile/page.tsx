@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
 import Image from "next/image";
 import { getUserData } from "@/services/authService";
 import { getCurrentUser, updateCurrentUser, changePassword } from "@/services/userService";
 import Toast from "@/components/Common/Toast";
+import { Copy, UserPlus } from "@phosphor-icons/react";
+import { createInvitation, getInvitedUsers } from "@/services/invitationService";
 
 // Remove custom toast animation
 type TabType = "basic" | "edit" | "password";
@@ -59,6 +61,13 @@ export default function ProfilePage() {
     newPassword: false,
     confirmPassword: false
   });
+
+  // Add these states for invitation functionality
+  const [inviteLink, setInviteLink] = useState<string>("");
+  const [invitedUsers, setInvitedUsers] = useState<any[]>([]);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isLoadingInvites, setIsLoadingInvites] = useState(false);
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -138,8 +147,11 @@ export default function ProfilePage() {
     setIsSubmitting(true);
     
     try {
-      // Update user profile
-      const updatedUser = await updateCurrentUser(formData);
+      // Create a copy of formData excluding name and email (which can't be changed)
+      const { name, email, ...updateData } = formData;
+      
+      // Update user profile with just the fields that can be changed
+      const updatedUser = await updateCurrentUser(updateData);
       
       // Update local state
       setUserData(updatedUser);
@@ -336,6 +348,52 @@ export default function ProfilePage() {
     }
   };
 
+  // Add these functions for invitation functionality
+  const generateInviteLink = async () => {
+    try {
+      setIsGeneratingLink(true);
+      // Call the real API to create an invitation
+      const invitation = await createInvitation();
+      const link = `${window.location.origin}/auth/signup?referral=${invitation.code}`;
+      setInviteLink(link);
+    } catch (error) {
+      console.error('Error generating invite link:', error);
+      setToastMessage('Failed to generate invitation link. Please try again.');
+      setToastType('error');
+      setShowToast(true);
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    setIsCopied(true);
+    setTimeout(() => {
+      setIsCopied(false);
+    }, 2000);
+  };
+
+  const fetchInvitedUsers = async () => {
+    try {
+      setIsLoadingInvites(true);
+      // Call the real API to get invited users
+      const users = await getInvitedUsers();
+      setInvitedUsers(users);
+    } catch (error) {
+      console.error('Error fetching invited users:', error);
+    } finally {
+      setIsLoadingInvites(false);
+    }
+  };
+
+  // Add to useEffect to fetch invited users if user is a label owner
+  useEffect(() => {
+    if (userData && userData.role === 'labelowner') {
+      fetchInvitedUsers();
+    }
+  }, [userData]);
+
   if (isLoading) {
     return (
       <DashboardLayout title="Profile" subtitle="Loading profile information...">
@@ -478,6 +536,121 @@ export default function ProfilePage() {
                 {userData?.introduction || 'No introduction provided.'}
               </p>
             </div>
+
+            {/* Add invitation box for label owners */}
+            {userData?.role === 'labelowner' && (
+              <div className="mt-8 border border-gray-700 rounded-lg p-4 bg-[#1A1E24]">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center">
+                    <UserPlus size={20} className="mr-2 text-[#A365FF]" />
+                    Artist Invitations
+                  </h3>
+                </div>
+                
+                <p className="text-gray-400 mb-4 text-sm">
+                  As a label owner, you can invite artists to join your label. When they register using your invitation link, they'll be connected to your label.
+                </p>
+                
+                <div className="mb-6">
+                  {!inviteLink ? (
+                    <button
+                      onClick={generateInviteLink}
+                      disabled={isGeneratingLink}
+                      className={`w-full sm:w-auto bg-[#A365FF] hover:bg-[#8A50E0] text-white px-4 py-2 rounded-md transition-colors flex items-center justify-center ${
+                        isGeneratingLink ? 'opacity-70 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      {isGeneratingLink ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Generating...
+                        </>
+                      ) : (
+                        <>Generate Invitation Link</>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="relative flex-grow">
+                        <input
+                          type="text"
+                          value={inviteLink}
+                          readOnly
+                          className="w-full p-2 bg-[#161A1F] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-[#A365FF]"
+                        />
+                      </div>
+                      <button
+                        onClick={copyInviteLink}
+                        className="bg-[#A365FF] hover:bg-[#8A50E0] text-white px-4 py-2 rounded-md transition-colors flex items-center"
+                      >
+                        {isCopied ? (
+                          <>
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={16} className="mr-1" />
+                            Copy Link
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <h4 className="text-md font-semibold text-white mb-2">Invited Artists</h4>
+                  {isLoadingInvites ? (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#A365FF]"></div>
+                    </div>
+                  ) : invitedUsers.length > 0 ? (
+                    <div className="bg-[#161A1F] rounded-md overflow-hidden border border-gray-700">
+                      <table className="min-w-full divide-y divide-gray-700">
+                        <thead className="bg-[#1D2229]">
+                          <tr>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                              Name
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden sm:table-cell">
+                              Email
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                              Joined
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-700">
+                          {invitedUsers.map((user) => (
+                            <tr key={user.id} className="hover:bg-[#1A1E24]">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-white">
+                                {user.name}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
+                                {user.email}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 hidden md:table-cell">
+                                {new Date(user.joinedAt).toLocaleDateString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-gray-400 bg-[#161A1F] rounded-md border border-gray-700">
+                      <p>No artists have used your invitation link yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -493,11 +666,11 @@ export default function ProfilePage() {
                       type="text"
                       name="name"
                       value={formData.name}
-                      onChange={handleInputChange}
-                      placeholder="Your full name"
-                      className="w-full p-3 bg-[#161A1F] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      required
+                      readOnly
+                      className="w-full p-3 bg-[#232830] border border-gray-700 rounded-md text-gray-400 cursor-not-allowed"
+                      disabled
                     />
+                    <p className="text-xs text-gray-500 mt-1">Name cannot be changed</p>
                   </div>
                   
                   <div>
@@ -506,11 +679,11 @@ export default function ProfilePage() {
                       type="email"
                       name="email"
                       value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="Your email address"
-                      className="w-full p-3 bg-[#161A1F] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      required
+                      readOnly
+                      className="w-full p-3 bg-[#232830] border border-gray-700 rounded-md text-gray-400 cursor-not-allowed"
+                      disabled
                     />
+                    <p className="text-xs text-gray-500 mt-1">Email address cannot be changed</p>
                   </div>
                   
                   <div>

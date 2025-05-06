@@ -8,16 +8,10 @@ import { useSearchParams } from 'next/navigation';
 // Import tab components
 import ReleaseCreate from './release-create';
 import TrackCreate from './track-create';
-import VideoCreate from './video-create';
-import ArtistCreate from './artist-create';
-import LabelCreate from './label-create';
 
 const catalogueTabs = [
   { id: 'releases', name: 'Releases', title: 'Create New Release', description: 'Add a new release to your catalogue' },
-  { id: 'tracks', name: 'Tracks', title: 'Create New Track', description: 'Add a new track to your catalogue' },
-  { id: 'videos', name: 'Videos', title: 'Create New Video', description: 'Add a new video to your catalogue' },
-  { id: 'artists', name: 'Artists', title: 'Create New Artist', description: 'Add a new artist to your catalogue' },
-  { id: 'labels', name: 'Labels', title: 'Create New Label', description: 'Add a new label to your catalogue' },
+  { id: 'tracks', name: 'Videos', title: 'Create New Video', description: 'Add a new video to your catalogue' },
 ];
 
 // Component to handle tabs with useSearchParams
@@ -39,12 +33,6 @@ function TabContent() {
         return <ReleaseCreate />;
       case 'tracks':
         return <TrackCreate />;
-      case 'videos':
-        return <VideoCreate />;
-      case 'artists':
-        return <ArtistCreate />;
-      case 'labels':
-        return <LabelCreate />;
       default:
         return <ReleaseCreate />;
     }

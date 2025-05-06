@@ -4,11 +4,16 @@ export interface WithdrawalRequest {
   amount: number;
   paymentMethod: 'Bank' | 'BKash' | 'Nagad';
   bankDetails?: {
-    accountNumber: string;
+    country?: string;
+    routingNumber?: string;
     bankName: string;
-    branch: string;
+    accountName: string;
+    swiftCode: string;
+    accountNumber: string;
+    branch?: string;
   };
   mobileNumber?: string;
+  savedBankInfo?: boolean;
 }
 
 export interface WithdrawalResponse {
@@ -18,13 +23,27 @@ export interface WithdrawalResponse {
   status: 'pending' | 'approved' | 'rejected' | 'completed';
   paymentMethod: 'Bank' | 'BKash' | 'Nagad';
   bankDetails?: {
-    accountNumber: string;
+    country?: string;
+    routingNumber?: string;
     bankName: string;
-    branch: string;
+    accountName: string;
+    swiftCode: string;
+    accountNumber: string;
+    branch?: string;
   };
   mobileNumber?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BankInfo {
+  country: string;
+  routingNumber?: string;
+  bankName: string;
+  accountName: string;
+  swiftCode: string;
+  accountNumber: string;
+  branch?: string;
 }
 
 /**
@@ -111,6 +130,39 @@ export const deleteWithdrawalRequest = async (id: string): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error(`Error deleting withdrawal request with ID ${id}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Save user bank information
+ * @param bankInfo - Bank information to save
+ */
+export const saveUserBankInfo = async (bankInfo: BankInfo): Promise<BankInfo> => {
+  try {
+    const response = await api.post('/bank-info', bankInfo);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error saving user bank info:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get user's saved bank information
+ */
+export const getUserBankInfo = async (): Promise<BankInfo | null> => {
+  try {
+    const response = await api.get('/bank-info');
+    return response.data.data;
+  } catch (error) {
+    // If no bank info is found, return null instead of throwing an error
+    if (error && typeof error === 'object' && 'response' in error && 
+        error.response && typeof error.response === 'object' && 
+        'status' in error.response && error.response.status === 404) {
+      return null;
+    }
+    console.error('Error getting user bank info:', error);
     throw error;
   }
 };

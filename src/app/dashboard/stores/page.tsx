@@ -459,143 +459,146 @@ export default function StoresPage() {
                 </h3>
               </div>
 
-              {/* Upload Logo Section */}
-              <div className="px-5 pt-5">
-                <p className="text-sm text-white mb-2">Upload Logo</p>
-                <div 
-                  className="border-2 border-dashed border-gray-600 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-purple-500"
-                  onClick={handleUploadClick}
-                >
-                  {uploadedLogo ? (
-                    <img
-                      src={uploadedLogo}
-                      alt="Logo preview"
-                      className="w-24 h-24 object-contain"
+              {/* Scrollable Content Section */}
+              <div className="overflow-y-auto flex-1" style={{ maxHeight: "calc(85vh - 120px)" }}>
+                {/* Upload Logo Section */}
+                <div className="px-5 pt-5">
+                  <p className="text-sm text-white mb-2">Upload Logo</p>
+                  <div 
+                    className="border-2 border-dashed border-gray-600 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-purple-500"
+                    onClick={handleUploadClick}
+                  >
+                    {uploadedLogo ? (
+                      <img
+                        src={uploadedLogo}
+                        alt="Logo preview"
+                        className="w-24 h-24 object-contain"
+                      />
+                    ) : editingStore?.icon ? (
+                      <img
+                        src={editingStore.icon}
+                        alt="Current logo"
+                        className="w-24 h-24 object-contain"
+                      />
+                    ) : (
+                      <>
+                        <div className="bg-gray-700 rounded-lg p-3 mb-3">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M9 10C10.1046 10 11 9.10457 11 8C11 6.89543 10.1046 6 9 6C7.89543 6 7 6.89543 7 8C7 9.10457 7.89543 10 9 10Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M2.67 18.95L7.6 15.64C8.39 15.11 9.53 15.17 10.24 15.78L10.57 16.07C11.35 16.74 12.61 16.74 13.39 16.07L17.55 12.5C18.33 11.83 19.59 11.83 20.37 12.5L22 13.9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <p className="text-sm text-gray-400 text-center">Browse or drag and drop image file</p>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      className="hidden"
+                      accept="image/*"
                     />
-                  ) : editingStore?.icon ? (
-                    <img
-                      src={editingStore.icon}
-                      alt="Current logo"
-                      className="w-24 h-24 object-contain"
+                  </div>
+                </div>
+
+                {/* Details Section */}
+                <div className="px-5 pt-5">
+                  <p className="text-sm text-white mb-2">Details</p>
+                  
+                  {/* Store Name */}
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      placeholder="Store Name"
+                      className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      value={editingStore?.name || ""}
+                      onChange={(e) => setEditingStore(prev => prev ? {...prev, name: e.target.value} : null)}
                     />
-                  ) : (
-                    <>
-                      <div className="bg-gray-700 rounded-lg p-3 mb-3">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M9 10C10.1046 10 11 9.10457 11 8C11 6.89543 10.1046 6 9 6C7.89543 6 7 6.89543 7 8C7 9.10457 7.89543 10 9 10Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M2.67 18.95L7.6 15.64C8.39 15.11 9.53 15.17 10.24 15.78L10.57 16.07C11.35 16.74 12.61 16.74 13.39 16.07L17.55 12.5C18.33 11.83 19.59 11.83 20.37 12.5L22 13.9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </div>
+
+                  {/* Category Dropdown */}
+                  <div className="mb-4">
+                    <div className="relative">
+                      <select
+                        className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none"
+                        value={editingStore?.category || ""}
+                        onChange={(e) => setEditingStore(prev => prev ? {...prev, category: e.target.value} : null)}
+                      >
+                        <option value="" disabled>Category</option>
+                        <option value="music">Music</option>
+                        <option value="video">Video</option>
+                        <option value="podcast">Podcast</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <p className="text-sm text-gray-400 text-center">Browse or drag and drop image file</p>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept="image/*"
-                  />
-                </div>
-              </div>
-
-              {/* Details Section */}
-              <div className="px-5 pt-5">
-                <p className="text-sm text-white mb-2">Details</p>
-                
-                {/* Store Name */}
-                <div className="mb-4">
-                  <input
-                    type="text"
-                    placeholder="Store Name"
-                    className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    value={editingStore?.name || ""}
-                    onChange={(e) => setEditingStore(prev => prev ? {...prev, name: e.target.value} : null)}
-                  />
-                </div>
-
-                {/* Category Dropdown */}
-                <div className="mb-4">
-                  <div className="relative">
-                    <select
-                      className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none"
-                      value={editingStore?.category || ""}
-                      onChange={(e) => setEditingStore(prev => prev ? {...prev, category: e.target.value} : null)}
-                    >
-                      <option value="" disabled>Category</option>
-                      <option value="music">Music</option>
-                      <option value="video">Video</option>
-                      <option value="podcast">Podcast</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                      <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
                     </div>
                   </div>
-                </div>
 
-                {/* Status Dropdown */}
-                <div className="mb-4">
-                  <div className="relative">
-                    <select
-                      className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none"
-                      value={editingStore?.status || "Active"}
-                      onChange={(e) => setEditingStore(prev => prev ? {...prev, status: e.target.value as "Active" | "Inactive"} : null)}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                      <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
+                  {/* Status Dropdown */}
+                  <div className="mb-4">
+                    <div className="relative">
+                      <select
+                        className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none"
+                        value={editingStore?.status || "Active"}
+                        onChange={(e) => setEditingStore(prev => prev ? {...prev, status: e.target.value as "Active" | "Inactive"} : null)}
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Store URL */}
-                <div className="mb-4">
-                  <input
-                    type="text"
-                    placeholder="https://www.youtube.com/"
-                    className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    value={editingStore?.url || ""}
-                    onChange={(e) => setEditingStore(prev => prev ? {...prev, url: e.target.value} : null)}
-                  />
-                </div>
-
-                {/* Color Picker */}
-                <div className="mb-4">
-                  <input
-                    type="text"
-                    placeholder="#D9342B"
-                    className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    value={editingStore?.color || ""}
-                    onChange={(e) => setEditingStore(prev => prev ? {...prev, color: e.target.value} : null)}
-                  />
-                </div>
-
-                {/* Videos Only Checkbox */}
-                <div className="mb-4">
-                  <div className="flex items-center">
+                  {/* Store URL */}
+                  <div className="mb-4">
                     <input
-                      id="videosOnly"
-                      type="checkbox"
-                      className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                      checked={editingStore?.videosOnly || false}
-                      onChange={(e) => setEditingStore(prev => prev ? {...prev, videosOnly: e.target.checked} : null)}
+                      type="text"
+                      placeholder="https://www.youtube.com/"
+                      className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      value={editingStore?.url || ""}
+                      onChange={(e) => setEditingStore(prev => prev ? {...prev, url: e.target.value} : null)}
                     />
-                    <label htmlFor="videosOnly" className="ml-3 text-white">
-                      Videos Only
-                    </label>
+                  </div>
+
+                  {/* Color Picker */}
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      placeholder="#D9342B"
+                      className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      value={editingStore?.color || ""}
+                      onChange={(e) => setEditingStore(prev => prev ? {...prev, color: e.target.value} : null)}
+                    />
+                  </div>
+
+                  {/* Videos Only Checkbox */}
+                  <div className="mb-4">
+                    <div className="flex items-center">
+                      <input
+                        id="videosOnly"
+                        type="checkbox"
+                        className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                        checked={editingStore?.videosOnly || false}
+                        onChange={(e) => setEditingStore(prev => prev ? {...prev, videosOnly: e.target.checked} : null)}
+                      />
+                      <label htmlFor="videosOnly" className="ml-3 text-white">
+                        Videos Only
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Action button */}
-              <div className="p-5 border-t border-gray-700">
+              {/* Action button - Fixed at bottom */}
+              <div className="p-5 border-t border-gray-700 bg-[#111417]">
                 <button 
                   onClick={handleSaveStore}
                   disabled={isSubmitting}

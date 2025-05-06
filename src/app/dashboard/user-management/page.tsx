@@ -2,10 +2,11 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
-import { X, PencilSimple, Trash } from "@phosphor-icons/react";
+import { X, PencilSimple, Trash, SignIn, Check, X as XIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
-import { getUsers, createUser, deleteUser, updateUser } from "@/services/userService";
+import { getUsers, createUser, deleteUser, updateUser, approveUser, rejectUser } from "@/services/userService";
+import { impersonateUser } from "@/services/authService";
 import type { User as ApiUser, CreateUserData } from "@/services/userService";
 import Toast from "@/components/Common/Toast";
 
@@ -18,6 +19,7 @@ interface User {
   userStatus: string;
   split: string;
   userType: string;
+  isApproved: boolean;
   createdAt?: string;
 }
 
@@ -40,7 +42,9 @@ interface UserCreateFormData {
   email: string;
   password: string;
   role: string;
+  artistLabelName: string;
   split: string;  // Keep as string for form input handling
+  isActive: boolean;
 }
 
 export default function UserManagementPage() {
@@ -59,7 +63,9 @@ export default function UserManagementPage() {
     email: "",
     password: "",
     role: "artist",
-    split: "0"
+    artistLabelName: "",
+    split: "0",
+    isActive: true
   });
   const [createUserError, setCreateUserError] = useState("");
   const [isCreatingUser, setIsCreatingUser] = useState(false);
@@ -67,12 +73,22 @@ export default function UserManagementPage() {
   
   // Edit user modal states
   const [showEditUserModal, setShowEditUserModal] = useState(false);
-  const [editUserData, setEditUserData] = useState<{id: string, name: string, email: string, role: string, split: string}>({
+  const [editUserData, setEditUserData] = useState<{
+    id: string, 
+    name: string, 
+    email: string, 
+    role: string, 
+    artistLabelName: string,
+    split: string,
+    isActive: boolean
+  }>({
     id: "",
     name: "",
     email: "",
     role: "",
-    split: "0"
+    artistLabelName: "",
+    split: "0",
+    isActive: true
   });
   const [editUserError, setEditUserError] = useState("");
   const [isEditingUser, setIsEditingUser] = useState(false);
@@ -90,6 +106,12 @@ export default function UserManagementPage() {
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Impersonation modal state
+  const [showImpersonateModal, setShowImpersonateModal] = useState(false);
+  const [userToImpersonate, setUserToImpersonate] = useState<User | null>(null);
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [impersonateError, setImpersonateError] = useState<string | null>(null);
+
   // Toast state
   const [toast, setToast] = useState<{
     message: string;
@@ -100,6 +122,11 @@ export default function UserManagementPage() {
     type: 'success',
     visible: false
   });
+
+  // Approval states
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
 
   // Fetch real users from API
   useEffect(() => {
@@ -140,6 +167,7 @@ export default function UserManagementPage() {
               : user.role === "labelowner"
                 ? "Label Owner"
                 : capitalizeFirstLetter(user.role || ''),
+            isApproved: user.isApproved,
             createdAt: user.createdAt ? user.createdAt.toString() : undefined
           };
         });
@@ -174,6 +202,17 @@ export default function UserManagementPage() {
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
+  // Utility function to extract real name (without the stage name in parentheses)
+  const extractRealName = (fullName: string): string => {
+    return fullName.split(' (')[0];
+  };
+
+  // Utility function to extract stage name from the full name
+  const extractStageName = (fullName: string): string => {
+    const match = fullName.match(/\((.*?)\)/);
+    return match ? match[1] : '';
+  };
+
   // Handle tab change
   const handleTabChange = (tab: UserRole) => {
     setActiveTab(tab);
@@ -201,11 +240,14 @@ export default function UserManagementPage() {
       
       // Create user data with split as a number
       const userData = {
-        name: newUserData.name,
+        name: newUserData.role === "artist" || newUserData.role === "labelowner"
+          ? `${newUserData.name} (${newUserData.artistLabelName})`
+          : newUserData.name,
         email: newUserData.email,
         password: newUserData.password,
         role: newUserData.role,
-        split: isNaN(splitNumber) ? 0 : splitNumber
+        split: isNaN(splitNumber) ? 0 : splitNumber,
+        isActive: newUserData.isActive
       };
       
       // Create the user
@@ -227,7 +269,9 @@ export default function UserManagementPage() {
         email: "",
         password: "",
         role: "artist",
-        split: "0"
+        artistLabelName: "",
+        split: "0",
+        isActive: true
       });
       
       // Fetch the users again by calling the useEffect
@@ -292,7 +336,7 @@ export default function UserManagementPage() {
       setShowDeleteModal(false);
       
       // Show success message
-      setSuccessMessage(`User ${userToDelete.name} has been deleted successfully!`);
+      setSuccessMessage(`User ${extractRealName(userToDelete.name)} has been deleted successfully!`);
       setCreatedUserInfo(userToDelete);
       setShowSuccessModal(true);
     } catch (error: any) {
@@ -354,25 +398,33 @@ export default function UserManagementPage() {
       
     // Extract split value without the % sign
     const splitValue = user.split ? user.split.replace('%', '') : '0';
+    
+    // Extract real name and stage name
+    const realName = extractRealName(user.name);
+    const stageName = extractStageName(user.name);
       
     setEditUserData({
       id: userId,
-      name: user.name || '',
+      name: realName,
       email: user.email || '',
       role: user.userType === "Super Admin" 
         ? "superadmin" 
         : user.userType === "Label Owner" 
           ? "labelowner" 
           : (user.userType?.toLowerCase() || 'artist'),
-      split: splitValue
+      artistLabelName: stageName,
+      split: splitValue,
+      isActive: user.accountStatus === "Active"
     });
     
     console.log("Edit user data set:", {
       id: userId,
-      name: user.name,
+      name: realName,
       email: user.email,
       role: user.userType,
-      split: splitValue
+      artistLabelName: stageName,
+      split: splitValue,
+      isActive: user.accountStatus === "Active"
     });
     
     setEditUserError("");
@@ -400,12 +452,20 @@ export default function UserManagementPage() {
       // Convert split from string to number
       const splitNumber = parseInt(editUserData.split, 10);
       
+      // Combine name and artist/label name if applicable
+      const combinedName = editUserData.role === "artist" || editUserData.role === "labelowner"
+        ? editUserData.artistLabelName 
+          ? `${editUserData.name} (${editUserData.artistLabelName})`
+          : editUserData.name
+        : editUserData.name;
+      
       // Update user via API
       const updatedUser = await updateUser(editUserData.id, {
-        name: editUserData.name,
+        name: combinedName,
         email: editUserData.email,
         role: editUserData.role,
-        split: isNaN(splitNumber) ? 0 : splitNumber
+        split: isNaN(splitNumber) ? 0 : splitNumber,
+        isActive: editUserData.isActive
       });
       
       // Update the user in the local state
@@ -421,6 +481,7 @@ export default function UserManagementPage() {
               name: updatedUser.name,
               email: updatedUser.email,
               split: (updatedUser.split !== undefined ? updatedUser.split : 0) + "%",
+              accountStatus: updatedUser.isActive ? "Active" : "Inactive",
               userType: updatedUser.role === "superadmin" 
                 ? "Super Admin" 
                 : updatedUser.role === "labelowner"
@@ -434,19 +495,20 @@ export default function UserManagementPage() {
       setShowEditUserModal(false);
       
       // Set success message and show success modal
-      setSuccessMessage(`User ${updatedUser.name} has been updated successfully!`);
+      setSuccessMessage(`User ${extractRealName(updatedUser.name)} has been updated successfully!`);
       setCreatedUserInfo({
         id: updatedUser.id || (updatedUser as any)._id,
         name: updatedUser.name,
         email: updatedUser.email,
-        accountStatus: "Active",
+        accountStatus: updatedUser.isActive ? "Active" : "Inactive",
         userStatus: "Verified",
         split: (updatedUser.split !== undefined ? updatedUser.split : 0) + "%",
         userType: updatedUser.role === "superadmin" 
           ? "Super Admin" 
           : updatedUser.role === "labelowner"
             ? "Label Owner"
-            : capitalizeFirstLetter(updatedUser.role)
+            : capitalizeFirstLetter(updatedUser.role),
+        isApproved: updatedUser.isApproved || false
       });
       setShowSuccessModal(true);
     } catch (error: any) {
@@ -465,6 +527,160 @@ export default function UserManagementPage() {
     const diffInHours = (now.getTime() - creationDate.getTime()) / (1000 * 60 * 60);
     
     return diffInHours <= 72; // 72 hours = 3 days
+  };
+
+  // Handle impersonation confirmation
+  const confirmImpersonateUser = (user: User, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent edit modal from opening
+    console.log("User to impersonate:", user);
+    setUserToImpersonate(user);
+    setShowImpersonateModal(true);
+    setImpersonateError(null);
+  };
+
+  // Handle actual user impersonation
+  const handleImpersonateUser = async () => {
+    if (!userToImpersonate) return;
+    
+    // Get user ID to impersonate
+    let userId = '';
+    if (userToImpersonate.id) {
+      userId = typeof userToImpersonate.id === 'object' && (userToImpersonate.id as any)._id 
+        ? (userToImpersonate.id as any)._id 
+        : userToImpersonate.id.toString();
+    } else if ((userToImpersonate as any)._id) {
+      userId = (userToImpersonate as any)._id;
+    }
+    
+    if (!userId) {
+      setImpersonateError("Cannot login as user: User ID is missing");
+      return;
+    }
+    
+    setIsImpersonating(true);
+    setImpersonateError(null);
+    
+    try {
+      // Call impersonation API
+      const success = await impersonateUser(userId);
+      
+      if (success) {
+        // Redirect to dashboard as the impersonated user
+        router.push('/dashboard');
+      } else {
+        throw new Error("Failed to login as selected user");
+      }
+    } catch (error: any) {
+      setImpersonateError(error.response?.data?.message || error.message || "Failed to login as user");
+      setIsImpersonating(false);
+    }
+  };
+
+  // Cancel impersonation
+  const cancelImpersonateUser = () => {
+    setShowImpersonateModal(false);
+    setUserToImpersonate(null);
+    setImpersonateError(null);
+  };
+
+  // Handle user approval
+  const handleApproveUser = async (user: User, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent edit modal from opening
+    setIsApproving(true);
+    setApprovalError(null);
+    
+    try {
+      // Get user ID to approve
+      let userId = '';
+      if (user.id) {
+        userId = typeof user.id === 'object' && (user.id as any)._id 
+          ? (user.id as any)._id 
+          : user.id.toString();
+      } else if ((user as any)._id) {
+        userId = (user as any)._id;
+      }
+      
+      if (!userId) {
+        setApprovalError("Cannot approve user: User ID is missing");
+        return;
+      }
+      
+      // Call approve API
+      const updatedUser = await approveUser(userId);
+      
+      // Update user in the local state
+      setUsers(prevUsers => prevUsers.map(u => 
+        u.id.toString() === userId ? { ...u, isApproved: true } : u
+      ));
+      
+      // Show success toast
+      setToast({
+        message: `User ${extractRealName(user.name)} has been approved`,
+        type: "success",
+        visible: true
+      });
+    } catch (error: any) {
+      setApprovalError(error.response?.data?.message || error.message || "Failed to approve user");
+      console.error("Error approving user:", error);
+      
+      // Show error toast
+      setToast({
+        message: `Failed to approve user: ${error.message}`,
+        type: "error",
+        visible: true
+      });
+    } finally {
+      setIsApproving(false);
+    }
+  };
+  
+  // Handle user rejection
+  const handleRejectUser = async (user: User, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent edit modal from opening
+    setIsRejecting(true);
+    setApprovalError(null);
+    
+    try {
+      // Get user ID to reject
+      let userId = '';
+      if (user.id) {
+        userId = typeof user.id === 'object' && (user.id as any)._id 
+          ? (user.id as any)._id 
+          : user.id.toString();
+      } else if ((user as any)._id) {
+        userId = (user as any)._id;
+      }
+      
+      if (!userId) {
+        setApprovalError("Cannot reject user: User ID is missing");
+        return;
+      }
+      
+      // Call reject API
+      await rejectUser(userId);
+      
+      // Remove user from the local state
+      setUsers(prevUsers => prevUsers.filter(u => u.id.toString() !== userId));
+      
+      // Show success toast
+      setToast({
+        message: `User ${extractRealName(user.name)} has been rejected`,
+        type: "success",
+        visible: true
+      });
+    } catch (error: any) {
+      setApprovalError(error.response?.data?.message || error.message || "Failed to reject user");
+      console.error("Error rejecting user:", error);
+      
+      // Show error toast
+      setToast({
+        message: `Failed to reject user: ${error.message}`,
+        type: "error",
+        visible: true
+      });
+    } finally {
+      setIsRejecting(false);
+    }
   };
 
   return (
@@ -586,7 +802,7 @@ export default function UserManagementPage() {
                         Account Status
                       </th>
                       <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                        User Status
+                        Approval Status
                       </th>
                       <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Split(%)
@@ -596,6 +812,9 @@ export default function UserManagementPage() {
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Action
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Login
                       </th>
                     </tr>
                   </thead>
@@ -611,7 +830,7 @@ export default function UserManagementPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-white">
                           <div className="flex items-center">
-                            <span className="truncate max-w-[100px] sm:max-w-none">{user.name}</span>
+                            <span className="truncate max-w-[100px] sm:max-w-none">{extractRealName(user.name)}</span>
                             {isNewUser(user.createdAt) && (
                               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-600 text-white">
                                 New
@@ -633,8 +852,32 @@ export default function UserManagementPage() {
                             {user.accountStatus}
                           </span>
                         </td>
-                        <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap text-white">
-                          {user.userStatus}
+                        <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap">
+                          {user.isApproved ? (
+                            <span className="text-green-400">Approved</span>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-amber-400">Pending</span>
+                              <div className="flex space-x-1">
+                                <button
+                                  onClick={(e) => handleApproveUser(user, e)}
+                                  className="h-5 w-5 rounded-full bg-green-600/20 hover:bg-green-600 text-green-400 hover:text-white flex items-center justify-center transition-colors"
+                                  title="Approve user"
+                                  disabled={isApproving}
+                                >
+                                  <Check size={12} weight="bold" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleRejectUser(user, e)}
+                                  className="h-5 w-5 rounded-full bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white flex items-center justify-center transition-colors"
+                                  title="Reject user"
+                                  disabled={isRejecting}
+                                >
+                                  <XIcon size={12} weight="bold" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </td>
                         <td className="hidden sm:table-cell px-4 py-3 whitespace-nowrap text-white">
                           {user.split}
@@ -645,18 +888,51 @@ export default function UserManagementPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center">
-                          <div className="flex items-center justify-center space-x-3">
+                          <div className="inline-flex items-center justify-center gap-2">
                             <button 
-                              className="text-purple-400 hover:text-purple-300 transition-colors p-1"
+                              className="h-8 w-8 rounded-full flex items-center justify-center text-purple-400 hover:text-white hover:bg-purple-600 transition-all"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openEditUserModal(user);
                               }}
                               aria-label="Edit User"
+                              title="Edit User"
                             >
-                              <PencilSimple size={20} weight="bold" />
+                              <PencilSimple size={18} weight="bold" />
+                            </button>
+                            
+                            {/* Delete User button */}
+                            <button 
+                              className="h-8 w-8 rounded-full flex items-center justify-center text-red-400 hover:text-white hover:bg-red-600 transition-all"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                confirmDeleteUser(user);
+                              }}
+                              aria-label="Delete User"
+                              title="Delete User"
+                            >
+                              <Trash size={18} weight="bold" />
                             </button>
                           </div>
+                        </td>
+                        
+                        {/* Login as User button in separate column */}
+                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                          {user.userType !== "Super Admin" && user.userType !== "Admin" && user.isApproved ? (
+                            <button 
+                              className="h-8 w-8 rounded-full flex items-center justify-center mx-auto text-blue-400 hover:text-white hover:bg-blue-600 transition-all"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                confirmImpersonateUser(user, e);
+                              }}
+                              aria-label="Login as User"
+                              title="Login as User"
+                            >
+                              <SignIn size={18} weight="bold" />
+                            </button>
+                          ) : (
+                            <span className="text-gray-500 text-sm">N/A</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -735,7 +1011,7 @@ export default function UserManagementPage() {
         {showNewUserModal && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={() => setShowNewUserModal(false)}></div>
-            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full transform transition-all">
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full max-h-[90vh] flex flex-col transform transition-all">
               {/* Close button */}
               <button
                 className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
@@ -744,7 +1020,7 @@ export default function UserManagementPage() {
                 <X size={24} />
               </button>
               
-              <div className="bg-[#161A1F] p-5 border-b border-gray-700">
+              <div className="bg-[#161A1F] p-5 border-b border-gray-700 flex-shrink-0">
                 <div className="flex items-center">
                   <div className="w-10 h-10 rounded-full bg-[#683BAB] flex items-center justify-center mr-4">
                     <svg 
@@ -766,8 +1042,8 @@ export default function UserManagementPage() {
                 </div>
               </div>
               
-              <form onSubmit={handleCreateUser}>
-                <div className="p-6 space-y-4">
+              <form onSubmit={handleCreateUser} className="flex flex-col h-full overflow-hidden">
+                <div className="p-6 space-y-4 overflow-y-auto flex-grow">
                   {createUserError && (
                     <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded">
                       {createUserError}
@@ -842,6 +1118,25 @@ export default function UserManagementPage() {
                     </select>
                   </div>
                   
+                  {/* Conditional Artist/Label Name field */}
+                  {(newUserData.role === "artist" || newUserData.role === "labelowner") && (
+                    <div>
+                      <label htmlFor="artistLabelName" className="block text-sm font-medium text-gray-300 mb-2">
+                        {newUserData.role === "artist" ? "Artist Name" : "Label Name"}
+                      </label>
+                      <input
+                        type="text"
+                        id="artistLabelName"
+                        name="artistLabelName"
+                        value={newUserData.artistLabelName}
+                        onChange={handleNewUserChange}
+                        className="w-full px-4 py-2 bg-[#1D2229] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#683BAB]"
+                        placeholder={`Enter ${newUserData.role === "artist" ? "artist" : "label"} name`}
+                        required
+                      />
+                    </div>
+                  )}
+                  
                   <div>
                     <label htmlFor="split" className="block text-sm font-medium text-gray-300 mb-2">
                       Revenue Split (%)
@@ -861,9 +1156,34 @@ export default function UserManagementPage() {
                       Set the revenue percentage this user will receive. Value must be between 0 and 100.
                     </p>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Account Status
+                    </label>
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#1D2229] border border-gray-700 rounded-md">
+                      <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full mr-2 ${newUserData.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                        <span className="text-white">{newUserData.isActive ? 'Active' : 'Inactive'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNewUserData({...newUserData, isActive: !newUserData.isActive})}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full p-1 transition-colors duration-300 ${newUserData.isActive ? 'bg-purple-600' : 'bg-gray-600'}`}
+                      >
+                        <span 
+                          className={`inline-block h-4 w-4 rounded-full bg-white transition-transform duration-300 ${newUserData.isActive ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Toggle account status between active and inactive.
+                    </p>
+                  </div>
+                  
                 </div>
                 
-                <div className="px-6 py-4 border-t border-gray-700 flex justify-end">
+                <div className="px-6 py-4 border-t border-gray-700 flex justify-end flex-shrink-0 mt-auto">
                   <button
                     type="button"
                     onClick={() => setShowNewUserModal(false)}
@@ -897,9 +1217,9 @@ export default function UserManagementPage() {
         
         {/* Success Modal */}
         {showSuccessModal && createdUserInfo && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={() => setShowSuccessModal(false)}></div>
-            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full transform transition-all">
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full max-h-[90vh] flex flex-col transform transition-all">
               {/* Close button */}
               <button
                 className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
@@ -909,7 +1229,7 @@ export default function UserManagementPage() {
               </button>
               
               {/* Success header */}
-              <div className="bg-[#161A1F] p-5 border-b border-gray-700">
+              <div className="bg-[#161A1F] p-5 border-b border-gray-700 flex-shrink-0">
                 <div className="flex items-center">
                   <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center mr-4">
                     <svg 
@@ -933,12 +1253,12 @@ export default function UserManagementPage() {
               </div>
               
               {/* User details */}
-              <div className="p-5 overflow-y-auto">
+              <div className="p-5 overflow-y-auto flex-grow">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-[#1A1E24] p-4 rounded">
                     <div className="text-gray-400 text-sm mb-1">Name</div>
                     <div className="text-white font-medium truncate">
-                      {createdUserInfo.name}
+                      {extractRealName(createdUserInfo.name)}
                       {isNewUser(createdUserInfo.createdAt) && (
                         <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-600 text-white">
                           New
@@ -965,7 +1285,7 @@ export default function UserManagementPage() {
               </div>
               
               {/* Action buttons */}
-              <div className="p-5 border-t border-gray-700 flex justify-end">
+              <div className="p-5 border-t border-gray-700 flex justify-end flex-shrink-0 mt-auto">
                 <button
                   onClick={() => setShowSuccessModal(false)}
                   className="px-4 py-2 bg-[#683BAB] text-white rounded-md hover:bg-[#7948C7] transition-colors"
@@ -979,9 +1299,9 @@ export default function UserManagementPage() {
 
         {/* Delete Confirmation Modal */}
         {showDeleteModal && userToDelete && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={cancelDeleteUser}></div>
-            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full transform transition-all">
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full max-h-[90vh] flex flex-col transform transition-all">
               {/* Close button */}
               <button
                 className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
@@ -991,7 +1311,7 @@ export default function UserManagementPage() {
               </button>
               
               {/* Header */}
-              <div className="bg-[#161A1F] p-5 border-b border-gray-700">
+              <div className="bg-[#161A1F] p-5 border-b border-gray-700 flex-shrink-0">
                 <div className="flex items-center">
                   <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center mr-4">
                     <svg 
@@ -1016,7 +1336,7 @@ export default function UserManagementPage() {
               </div>
               
               {/* User details */}
-              <div className="p-5">
+              <div className="p-5 overflow-y-auto flex-grow">
                 {deleteError && (
                   <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded mb-4">
                     {deleteError}
@@ -1026,7 +1346,7 @@ export default function UserManagementPage() {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div className="bg-[#1A1E24] p-4 rounded">
                     <div className="text-gray-400 text-sm mb-1">Name</div>
-                    <div className="text-white font-medium truncate">{userToDelete.name}</div>
+                    <div className="text-white font-medium truncate">{extractRealName(userToDelete.name)}</div>
                   </div>
                   
                   <div className="bg-[#1A1E24] p-4 rounded">
@@ -1037,7 +1357,7 @@ export default function UserManagementPage() {
               </div>
               
               {/* Action buttons */}
-              <div className="p-5 border-t border-gray-700 flex justify-end">
+              <div className="p-5 border-t border-gray-700 flex justify-end flex-shrink-0 mt-auto">
                 <button
                   onClick={cancelDeleteUser}
                   className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors mr-2"
@@ -1071,7 +1391,7 @@ export default function UserManagementPage() {
         {showEditUserModal && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={() => setShowEditUserModal(false)}></div>
-            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full transform transition-all">
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full max-h-[90vh] flex flex-col transform transition-all">
               {/* Close button */}
               <button
                 className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
@@ -1080,7 +1400,7 @@ export default function UserManagementPage() {
                 <X size={24} />
               </button>
               
-              <div className="bg-[#161A1F] p-5 border-b border-gray-700">
+              <div className="bg-[#161A1F] p-5 border-b border-gray-700 flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <div className="w-10 h-10 rounded-full bg-[#683BAB] flex items-center justify-center mr-4">
@@ -1091,8 +1411,8 @@ export default function UserManagementPage() {
                 </div>
               </div>
               
-              <form onSubmit={handleEditUser}>
-                <div className="p-6 space-y-4">
+              <form onSubmit={handleEditUser} className="flex flex-col h-full overflow-hidden">
+                <div className="p-6 space-y-4 overflow-y-auto flex-grow">
                   {editUserError && (
                     <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded">
                       {editUserError}
@@ -1151,6 +1471,24 @@ export default function UserManagementPage() {
                     </select>
                   </div>
                   
+                  {/* Conditional Artist/Label Name field for edit form */}
+                  {(editUserData.role === "artist" || editUserData.role === "labelowner") && (
+                    <div>
+                      <label htmlFor="edit-artistLabelName" className="block text-sm font-medium text-gray-300 mb-2">
+                        {editUserData.role === "artist" ? "Artist Name" : "Label Name"}
+                      </label>
+                      <input
+                        type="text"
+                        id="edit-artistLabelName"
+                        name="artistLabelName"
+                        value={editUserData.artistLabelName}
+                        onChange={handleEditUserChange}
+                        className="w-full px-4 py-2 bg-[#1D2229] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#683BAB]"
+                        placeholder={`Enter ${editUserData.role === "artist" ? "artist" : "label"} name`}
+                      />
+                    </div>
+                  )}
+                  
                   <div>
                     <label htmlFor="edit-split" className="block text-sm font-medium text-gray-300 mb-2">
                       Revenue Split (%)
@@ -1170,9 +1508,34 @@ export default function UserManagementPage() {
                       Set the revenue percentage this user will receive. Value must be between 0 and 100.
                     </p>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Account Status
+                    </label>
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#1D2229] border border-gray-700 rounded-md">
+                      <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full mr-2 ${editUserData.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                        <span className="text-white">{editUserData.isActive ? 'Active' : 'Inactive'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditUserData({...editUserData, isActive: !editUserData.isActive})}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full p-1 transition-colors duration-300 ${editUserData.isActive ? 'bg-purple-600' : 'bg-gray-600'}`}
+                      >
+                        <span 
+                          className={`inline-block h-4 w-4 rounded-full bg-white transition-transform duration-300 ${editUserData.isActive ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Toggle account status between active and inactive.
+                    </p>
+                  </div>
+                  
                 </div>
                 
-                <div className="px-6 py-4 border-t border-gray-700 flex justify-end">
+                <div className="px-6 py-4 border-t border-gray-700 flex justify-end flex-shrink-0 mt-auto">
                   <button
                     type="button"
                     onClick={() => {
@@ -1210,6 +1573,96 @@ export default function UserManagementPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Impersonation Confirmation Modal */}
+        {showImpersonateModal && userToImpersonate && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={cancelImpersonateUser}></div>
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-[95%] sm:w-full max-h-[90vh] flex flex-col transform transition-all">
+              {/* Close button */}
+              <button
+                className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
+                onClick={cancelImpersonateUser}
+              >
+                <X size={24} />
+              </button>
+              
+              {/* Header */}
+              <div className="bg-[#161A1F] p-5 border-b border-gray-700 flex-shrink-0">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center mr-4">
+                    <SignIn size={24} weight="bold" className="text-white" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white">Login as User</h3>
+                </div>
+                <p className="text-gray-300 mt-2">
+                  You are about to login as this user. This will log you out from your admin account.
+                </p>
+              </div>
+              
+              {/* User details */}
+              <div className="p-5 overflow-y-auto flex-grow">
+                {impersonateError && (
+                  <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded mb-4">
+                    {impersonateError}
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="bg-[#1A1E24] p-4 rounded">
+                    <div className="text-gray-400 text-sm mb-1">Name</div>
+                    <div className="text-white font-medium truncate">{extractRealName(userToImpersonate.name)}</div>
+                  </div>
+                  
+                  <div className="bg-[#1A1E24] p-4 rounded">
+                    <div className="text-gray-400 text-sm mb-1">Email</div>
+                    <div className="text-white font-medium break-all text-sm">{userToImpersonate.email}</div>
+                  </div>
+                  
+                  <div className="bg-[#1A1E24] p-4 rounded">
+                    <div className="text-gray-400 text-sm mb-1">Role</div>
+                    <div className="text-white font-medium">{userToImpersonate.userType}</div>
+                  </div>
+                  
+                  <div className="bg-[#1A1E24] p-4 rounded">
+                    <div className="text-gray-400 text-sm mb-1">Account Status</div>
+                    <div className={`font-medium ${userToImpersonate.accountStatus === "Active" ? "text-green-400" : "text-red-400"}`}>
+                      {userToImpersonate.accountStatus}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Action buttons */}
+              <div className="p-5 border-t border-gray-700 flex justify-end flex-shrink-0 mt-auto">
+                <button
+                  onClick={cancelImpersonateUser}
+                  className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors mr-2"
+                  disabled={isImpersonating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImpersonateUser}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center"
+                  disabled={isImpersonating}
+                >
+                  {isImpersonating ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    "Login as User"
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -6,8 +6,8 @@ import TracksTable from "@/components/Dashboard/Tables/TracksTable";
 export default function TracksPage() {
   return (
     <DashboardLayout 
-      title="Tracks" 
-      subtitle="Manage your music tracks"
+      title="Videos" 
+      subtitle="Manage your videos"
     >
       <TracksTable />
     </DashboardLayout>

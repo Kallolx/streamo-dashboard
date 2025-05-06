@@ -5,17 +5,12 @@ import { useState, useEffect } from 'react';
 import Search from './Search';
 import Link from 'next/link';
 import { getUserData, logout } from '@/services/authService';
+import NotificationDropdown from './NotificationDropdown';
 
 // Icons
 const MenuIcon = () => (
   <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-  </svg>
-);
-
-const BellIcon = () => (
-  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
   </svg>
 );
 
@@ -72,10 +67,8 @@ export default function Header({
       if (pathname === '/dashboard/catalogue') return 'Catalogue';
       if (pathname === '/dashboard/catalogue/releases') return 'Releases';
       if (pathname?.includes('/dashboard/catalogue/releases/new')) return 'Add New Release';
-      if (pathname === '/dashboard/catalogue/tracks') return 'Tracks';
-      if (pathname?.includes('/dashboard/catalogue/tracks/new')) return 'Add New Track';
-      if (pathname === '/dashboard/catalogue/videos') return 'Videos';
-      if (pathname?.includes('/dashboard/catalogue/videos/new')) return 'Add New Video';
+      if (pathname === '/dashboard/catalogue/tracks') return 'Videos';
+      if (pathname?.includes('/dashboard/catalogue/tracks/new')) return 'Add New Video';
       if (pathname === '/dashboard/catalogue/artists') return 'Artists';
       if (pathname?.includes('/dashboard/catalogue/artists/new')) return 'Add New Artist';
       if (pathname === '/dashboard/catalogue/labels') return 'Labels';
@@ -92,7 +85,6 @@ export default function Header({
     
     if (pathname?.includes('/dashboard/catalogue/releases')) return 'Catalogue';
     if (pathname?.includes('/dashboard/catalogue/tracks')) return 'Catalogue';
-    if (pathname?.includes('/dashboard/catalogue/videos')) return 'Catalogue';
     if (pathname?.includes('/dashboard/catalogue/contributions')) return 'Catalogue';
     if (pathname?.includes('/dashboard/catalogue/artists')) return 'Catalogue';
     if (pathname?.includes('/dashboard/catalogue/labels')) return 'Catalogue';
@@ -106,7 +98,6 @@ export default function Header({
     
     if (pathname?.includes('/dashboard/catalogue/releases')) return '/dashboard/catalogue';
     if (pathname?.includes('/dashboard/catalogue/tracks')) return '/dashboard/catalogue';
-    if (pathname?.includes('/dashboard/catalogue/videos')) return '/dashboard/catalogue';
     if (pathname?.includes('/dashboard/catalogue/contributions')) return '/dashboard/catalogue';
     if (pathname?.includes('/dashboard/catalogue/artists')) return '/dashboard/catalogue';
     if (pathname?.includes('/dashboard/catalogue/labels')) return '/dashboard/catalogue';
@@ -179,7 +170,7 @@ export default function Header({
         {/* Search field - Hidden on mobile, visible on larger screens */}
         <div className="hidden md:block flex-1 mx-2 sm:mx-4 max-w-md">
           <Search 
-            placeholder="Search for tracks, artists, releases..." 
+            placeholder="Search for videos, artists, releases..." 
             onSearch={handleSearch}
           />
         </div>
@@ -195,11 +186,10 @@ export default function Header({
             <SearchIcon />
           </button>
           
-          <button className="mr-2 sm:mr-4 p-1 rounded-full text-gray-400 hover:text-white focus:outline-none">
-            <BellIcon />
-          </button>
+          {/* Notification dropdown instead of bell button */}
+          <NotificationDropdown />
           
-          <div className="flex items-center">
+          <div className="flex items-center ml-2 sm:ml-4">
             <Link href="/dashboard/profile" className="flex items-center">
               <div className="relative">
                 <img

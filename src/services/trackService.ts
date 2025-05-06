@@ -6,7 +6,7 @@ export interface Track {
   title: string;
   artist: string;
   coverArt?: string;
-  audioFile?: string;
+  videoFile?: string;
   releaseType?: string;
   format?: string;
   genre?: string;
@@ -36,33 +36,33 @@ export interface Track {
 }
 
 /**
- * Get all tracks with optional filtering
+ * Get all videos with optional filtering
  */
 export const getAllTracks = async (filters = {}) => {
   try {
     const response = await api.get('/tracks', { params: filters });
     return response.data;
   } catch (error) {
-    console.error('Error fetching tracks:', error);
+    console.error('Error fetching videos:', error);
     throw error;
   }
 };
 
 /**
- * Get track by ID
+ * Get video by ID
  */
 export const getTrackById = async (trackId: string) => {
   try {
     const response = await api.get(`/tracks/${trackId}`);
     return response.data;
   } catch (error) {
-    console.error(`Error fetching track with ID ${trackId}:`, error);
+    console.error(`Error fetching video with ID ${trackId}:`, error);
     throw error;
   }
 };
 
 /**
- * Create a new track
+ * Create a new video
  * Uses FormData to handle file uploads
  */
 export const createTrack = async (trackData: FormData) => {
@@ -74,13 +74,13 @@ export const createTrack = async (trackData: FormData) => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error creating track:', error);
+    console.error('Error creating video:', error);
     throw error;
   }
 };
 
 /**
- * Update an existing track
+ * Update an existing video
  * Uses FormData to handle file uploads
  */
 export const updateTrack = async (trackId: string, trackData: FormData) => {
@@ -92,33 +92,33 @@ export const updateTrack = async (trackId: string, trackData: FormData) => {
     });
     return response.data;
   } catch (error) {
-    console.error(`Error updating track with ID ${trackId}:`, error);
+    console.error(`Error updating video with ID ${trackId}:`, error);
     throw error;
   }
 };
 
 /**
- * Delete a track
+ * Delete a video
  */
 export const deleteTrack = async (trackId: string) => {
   try {
     const response = await api.delete(`/tracks/${trackId}`);
     return response.data;
   } catch (error) {
-    console.error(`Error deleting track with ID ${trackId}:`, error);
+    console.error(`Error deleting video with ID ${trackId}:`, error);
     throw error;
   }
 };
 
 /**
- * Update track status
+ * Update video status
  */
 export const updateTrackStatus = async (trackId: string, status: string) => {
   try {
     const response = await api.patch(`/tracks/${trackId}/status`, { status });
     return response.data;
   } catch (error) {
-    console.error(`Error updating status for track with ID ${trackId}:`, error);
+    console.error(`Error updating status for video with ID ${trackId}:`, error);
     throw error;
   }
 }; 

@@ -55,7 +55,7 @@ const TableHeader = ({ label, sortKey, currentSort, onSort }: TableHeaderProps) 
   );
 };
 
-export default function TracksTable({ onTrackSelect, tracks = [] }: TracksTableProps) {
+export default function VideosTable({ onTrackSelect, tracks = [] }: TracksTableProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -183,7 +183,7 @@ export default function TracksTable({ onTrackSelect, tracks = [] }: TracksTableP
               <TableHeader label="Title" sortKey="title" currentSort={currentSort} onSort={handleSort} />
               <TableHeader label="Artist" sortKey="artist" currentSort={currentSort} onSort={handleSort} />
               <TableHeader label="Type" sortKey="type" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="ISRC" sortKey="isrc" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Video ID" sortKey="isrc" currentSort={currentSort} onSort={handleSort} />
               <TableHeader label="Status" sortKey="status" currentSort={currentSort} onSort={handleSort} />
               <TableHeader label="Date" sortKey="createdAt" currentSort={currentSort} onSort={handleSort} />
             </tr>
@@ -216,7 +216,7 @@ export default function TracksTable({ onTrackSelect, tracks = [] }: TracksTableP
                 <td className="px-4 py-3 whitespace-nowrap">{track.artist}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{track.type || 'Single'}</td>
                 <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{track.isrc || '-'}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <span className={`${
                     track.status === 'approved' ? 'text-green-400' :
                     track.status === 'rejected' ? 'text-red-400' :
@@ -237,7 +237,7 @@ export default function TracksTable({ onTrackSelect, tracks = [] }: TracksTableP
       {/* Empty state */}
       {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-400">
-          No tracks found. Try adjusting your search or create a new track.
+          No videos found. Try adjusting your search or create a new video.
         </div>
       )}
       
@@ -248,67 +248,64 @@ export default function TracksTable({ onTrackSelect, tracks = [] }: TracksTableP
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium rounded-md ${
-                currentPage === 1 ? 'text-gray-500' : 'text-gray-300 hover:bg-gray-700'
-              }`}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium rounded-md text-gray-300 bg-[#1A1E24] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium rounded-md ${
-                currentPage === totalPages ? 'text-gray-500' : 'text-gray-300 hover:bg-gray-700'
-              }`}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium rounded-md text-gray-300 bg-[#1A1E24] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
           </div>
+          
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-gray-400">
-                Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(startIndex + itemsPerPage, filteredData.length)}
-                </span>{' '}
-                of <span className="font-medium">{filteredData.length}</span> tracks
+                Showing <span className="font-medium">{Math.min(startIndex + 1, filteredData.length)}</span> to <span className="font-medium">{Math.min(startIndex + itemsPerPage, filteredData.length)}</span> of{' '}
+                <span className="font-medium">{filteredData.length}</span> results
               </p>
             </div>
+            
             <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+              <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 bg-[#161A1F] text-sm font-medium text-gray-400 hover:bg-gray-700"
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 bg-[#1A1E24] text-sm font-medium text-gray-300 hover:bg-[#252A33] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="sr-only">Previous</span>
-                  &larr;
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
                 </button>
                 
-                {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                  const pageNumber = i + 1;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setCurrentPage(pageNumber)}
-                      className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium ${
-                        currentPage === pageNumber
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-[#161A1F] text-gray-400 hover:bg-gray-700'
-                      }`}
-                    >
-                      {pageNumber}
-                    </button>
-                  );
-                })}
+                {/* Page numbers */}
+                {[...Array(totalPages)].map((_, i) => (
+                  <button
+                    key={i + 1}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                      currentPage === i + 1
+                        ? 'z-10 bg-purple-600 border-purple-500 text-white'
+                        : 'border-gray-700 bg-[#1A1E24] text-gray-300 hover:bg-[#252A33]'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
                 
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 bg-[#161A1F] text-sm font-medium text-gray-400 hover:bg-gray-700"
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 bg-[#1A1E24] text-sm font-medium text-gray-300 hover:bg-[#252A33] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="sr-only">Next</span>
-                  &rarr;
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
                 </button>
               </nav>
             </div>

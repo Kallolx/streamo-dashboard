@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
   const [showTestAccounts, setShowTestAccounts] = useState(false);
 
   useEffect(() => {
@@ -33,14 +34,17 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setIsPendingApproval(false);
 
     try {
       const response = await login({ email, password });
       
       if (response.success) {
         router.push('/dashboard');
+      } else if (response.isPendingApproval) {
+        setIsPendingApproval(true);
       } else {
-        throw new Error(response.success ? "" : 'Login failed');
+        throw new Error(response.message || 'Login failed');
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -154,9 +158,18 @@ export default function LoginPage() {
               Log in to access your dashboard and continue managing your music catalog
             </p>
 
+            {/* Error Message */}
             {error && (
-              <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-2 rounded mb-4">
-                {error}
+              <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500">
+                <p>{error}</p>
+              </div>
+            )}
+            
+            {/* Pending Approval Message */}
+            {isPendingApproval && (
+              <div className="mb-6 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-500">
+                <h4 className="font-semibold mb-1">Account Pending Approval</h4>
+                <p>Your account has been created but is waiting for administrator approval. You'll be able to log in once approved.</p>
               </div>
             )}
 

@@ -303,12 +303,12 @@ export default function ReleasesTable({
                   />
                 </div>
               </th>
-              <TableHeader label="Title" sortKey="title" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Artist" sortKey="artist" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Genre" sortKey="genre" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Format" sortKey="format" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="UPC" sortKey="upc" currentSort={currentSort} onSort={handleSort} />
-              <TableHeader label="Release Date" sortKey="releaseDate" currentSort={currentSort} onSort={handleSort} />
+              <TableHeader label="Track Title" />
+              <TableHeader label="Track Artist" />
+              <TableHeader label="Duration" />
+              <TableHeader label="ISRC" />
+              <TableHeader label="Version" />
+              <TableHeader label="Content Rating" />
               <TableHeader label="Status" sortKey="status" currentSort={currentSort} onSort={handleSort} />
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                 Actions
@@ -318,105 +318,64 @@ export default function ReleasesTable({
           <tbody className="bg-[#161A1F] divide-y divide-gray-700">
             {!Array.isArray(releases) || releases.length === 0 ? (
               <tr className="bg-[#161A1F] border-b border-gray-700">
-                <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={10} className="px-4 py-12 text-center text-gray-400">
                   No releases found. Create your first release!
                 </td>
               </tr>
             ) : !Array.isArray(filteredReleases) || filteredReleases.length === 0 ? (
               <tr className="bg-[#161A1F] border-b border-gray-700">
-                <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={10} className="px-4 py-12 text-center text-gray-400">
                   {searchTerm || selectedFormat !== "all" || selectedGenre !== "all"
                     ? "No releases match your search criteria."
                     : "No releases found. Create your first release!"}
                 </td>
               </tr>
             ) : (
-              filteredReleases.map((release) => (
-                <tr
-                  key={release._id}
-                  className="hover:bg-[#1A1E24] transition-colors cursor-pointer"
-                  onClick={(e) => handleRowClick(release._id, e)}
-                >
-                  <td className="sticky left-0 z-10 bg-[#161A1F] hover:bg-[#1A1E24] px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <input 
-                        type="checkbox"
-                        className="w-4 h-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                        checked={selectedReleases.includes(release._id)}
-                        onChange={() => handleSelectRelease(release._id)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <Link 
-                      href={`/dashboard/catalogue/releases/${release._id}`} 
-                      className="text-white hover:text-purple-400"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <span className="truncate max-w-[250px] inline-block">{release.title}</span>
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap truncate max-w-[150px]">{release.artist}</td>
-                  <td className="px-4 py-3 whitespace-nowrap capitalize">{release.genre || "-"}</td>
-                  <td className="px-4 py-3 whitespace-nowrap capitalize">{release.format || "-"}</td>
-                  <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{release.upc || "-"}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{formatDate(release.releaseDate)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`${
-                      release.status === "approved" 
-                        ? "text-green-400" 
-                        : release.status === "rejected"
-                        ? "text-red-400"
-                        : "text-gray-400"
-                    }`}>
-                      {release.status.charAt(0).toUpperCase() + release.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex space-x-2">
-                      {/* View button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onReleaseSelect(release._id);
-                        }}
-                        className="text-blue-500 hover:text-blue-400"
-                        title="View Details"
-                      >
-                        <svg 
-                          className="w-5 h-5" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24" 
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth="2" 
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          ></path>
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth="2" 
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          ></path>
-                        </svg>
-                      </button>
-
-                      {/* Admin/SuperAdmin: Approve button */}
-                      {(userRole === 'admin' || userRole === 'superadmin') && 
-                        (release.status === 'processing' || release.status === 'submitted') && (
+              filteredReleases.map((release) => {
+                const track = Array.isArray(release.tracks) && release.tracks.length > 0 ? release.tracks[0] : null;
+                return (
+                  <tr
+                    key={release._id}
+                    className="hover:bg-[#1A1E24] transition-colors cursor-pointer"
+                    onClick={(e) => handleRowClick(release._id, e)}
+                  >
+                    <td className="sticky left-0 z-10 bg-[#161A1F] hover:bg-[#1A1E24] px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <input 
+                          type="checkbox"
+                          className="w-4 h-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                          checked={selectedReleases.includes(release._id)}
+                          onChange={() => handleSelectRelease(release._id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">{track?.title || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{track?.artistName || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{track?.duration || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{track?.isrc || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{track?.version || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{track?.contentRating || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`${
+                        release.status === 'approved' ? 'text-green-400' :
+                        release.status === 'rejected' ? 'text-red-400' :
+                        release.status === 'processing' ? 'text-blue-400' :
+                        'text-yellow-400'
+                      }`}>
+                        {release.status.charAt(0).toUpperCase() + release.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex space-x-2">
+                        {/* View button */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             onReleaseSelect(release._id);
-                            // This will open the modal where they can approve
                           }}
-                          className="text-green-500 hover:text-green-400"
-                          title="Approve Release"
+                          className="text-blue-500 hover:text-blue-400"
+                          title="View Details"
                         >
                           <svg 
                             className="w-5 h-5" 
@@ -429,44 +388,22 @@ export default function ReleasesTable({
                               strokeLinecap="round" 
                               strokeLinejoin="round" 
                               strokeWidth="2" 
-                              d="M5 13l4 4L19 7"
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                             ></path>
-                          </svg>
-                        </button>
-                      )}
-
-                      {/* Admin/SuperAdmin: Reject button */}
-                      {(userRole === 'admin' || userRole === 'superadmin') && 
-                        (release.status === 'processing' || release.status === 'submitted') && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onReleaseSelect(release._id);
-                            // This will open the modal where they can reject
-                          }}
-                          className="text-red-500 hover:text-red-400"
-                          title="Reject Release"
-                        >
-                          <svg 
-                            className="w-5 h-5" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24" 
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
                             <path 
                               strokeLinecap="round" 
                               strokeLinejoin="round" 
                               strokeWidth="2" 
-                              d="M6 18L18 6M6 6l12 12"
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                             ></path>
                           </svg>
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                        {/* Admin/SuperAdmin: Approve/Reject buttons (if needed) */}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

@@ -51,10 +51,12 @@ export default function TrackCreate() {
   const [coverArtPreview, setCoverArtPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Add audio file state
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioFileName, setAudioFileName] = useState<string | null>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
+  // Add video file state
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoFileName, setVideoFileName] = useState<string | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const videoPlayerRef = useRef<HTMLVideoElement>(null);
   
   // Track list state
   const [tracks, setTracks] = useState([
@@ -111,8 +113,10 @@ export default function TrackCreate() {
         setLoadingStores(true);
         const response = await getAllStores({ status: 'Active' });
         if (response && response.success) {
-          setStores(response.data);
-          console.log('Stores loaded:', response.data);
+          // Filter to only include video-compatible stores
+          const videoStores = response.data.filter((store: Store) => !store.hasOwnProperty('videosOnly') || store.videosOnly);
+          setStores(videoStores);
+          console.log('Video stores loaded:', videoStores);
         } else {
           console.error('Invalid response format:', response);
           setStores([]);
@@ -148,12 +152,27 @@ export default function TrackCreate() {
     }
   };
   
-  // Handle audio file upload
-  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle video file upload
+  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setAudioFile(file);
-      setAudioFileName(file.name);
+      setVideoFile(file);
+      setVideoFileName(file.name);
+      
+      // Create video preview URL
+      const videoURL = URL.createObjectURL(file);
+      setVideoPreview(videoURL);
+    }
+  };
+  
+  // Function to play/pause video preview
+  const toggleVideoPlay = () => {
+    if (videoPlayerRef.current) {
+      if (videoPlayerRef.current.paused) {
+        videoPlayerRef.current.play();
+      } else {
+        videoPlayerRef.current.pause();
+      }
     }
   };
   
@@ -188,14 +207,14 @@ export default function TrackCreate() {
 
   // Success messages
   const successMessages = [
-    "Track created successfully!",
-    "Track created and ready for distribution."
+    "Video created successfully!",
+    "Video created and ready for distribution."
   ];
 
   // Error messages
   const errorMessages = [
-    "Failed to add track. Please try again.",
-    "Server error. Your track couldn't be added.",
+    "Failed to add video. Please try again.",
+    "Server error. Your video couldn't be added.",
   ];
 
   // Handle form submission
@@ -215,12 +234,12 @@ export default function TrackCreate() {
       return;
     }
     
-    if (audioFile) {
-      formData.append('audioFile', audioFile);
+    if (videoFile) {
+      formData.append('videoFile', videoFile);
     } else {
       setToast({
         show: true,
-        message: "Audio file is required",
+        message: "Video file is required",
         type: "error"
       });
       return;
@@ -240,7 +259,7 @@ export default function TrackCreate() {
     if (!title) {
       setToast({
         show: true,
-        message: "Please enter a track title",
+        message: "Please enter a video title",
         type: "error"
       });
       return;
@@ -293,15 +312,22 @@ export default function TrackCreate() {
       
       setToast({
         show: true,
-        message: "Track created successfully!",
+        message: "Video created successfully!",
         type: "success"
       });
       
       // Clear the form data
       setCoverArt(null);
       setCoverArtPreview(null);
-      setAudioFile(null);
-      setAudioFileName(null);
+      setVideoFile(null);
+      setVideoFileName(null);
+      
+      // Clean up the video preview URL
+      if (videoPreview) {
+        URL.revokeObjectURL(videoPreview);
+        setVideoPreview(null);
+      }
+      
       setSelectedStores([]);
       
       // Reset form fields
@@ -340,16 +366,16 @@ export default function TrackCreate() {
         }
       });
       
-      // Redirect to the dedicated tracks page
+      // Redirect to the dedicated videos page
       setTimeout(() => {
-        router.push('/dashboard/catalogue?tab=tracks');
+        router.push('/dashboard/catalogue?tab=videos');
       }, 2000);
       
     } catch (error) {
-      console.error('Error creating track:', error);
+      console.error('Error creating video:', error);
       setToast({
         show: true,
-        message: "Failed to create track. Please try again.",
+        message: "Failed to create video. Please try again.",
         type: "error"
       });
     } finally {
@@ -433,48 +459,93 @@ export default function TrackCreate() {
         </div>
       </div>
 
-      {/* Upload Audio File Section */}
+      {/* Upload Video File Section */}
       <div className="rounded-lg p-3 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Upload Audio File</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Upload Video File</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Left side - Upload */}
           <div className="flex justify-center md:justify-start">
             <div 
-              onClick={() => audioInputRef.current?.click()} 
-              className="w-full max-w-[250px] md:max-w-sm h-[100px] md:h-[120px] bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
+              onClick={() => videoInputRef.current?.click()} 
+              className="w-full max-w-[250px] md:max-w-sm h-[150px] md:h-[180px] bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors overflow-hidden"
             >
-              {audioFileName ? (
+              {videoPreview ? (
+                <div className="w-full h-full relative">
+                  <video 
+                    ref={videoPlayerRef}
+                    src={videoPreview} 
+                    className="w-full h-full object-contain"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleVideoPlay();
+                    }}
+                    controls={false}
+                  />
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center hover:bg-black hover:bg-opacity-30 transition-all"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleVideoPlay();
+                    }}
+                  >
+                    <div className="bg-black bg-opacity-50 rounded-full p-2">
+                      <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 px-2 py-1 text-white text-xs">
+                    {videoFileName}
+                    <button 
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 text-white hover:text-red-500"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (videoPreview) {
+                          URL.revokeObjectURL(videoPreview);
+                        }
+                        setVideoFile(null);
+                        setVideoFileName(null);
+                        setVideoPreview(null);
+                      }}
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ) : videoFileName ? (
                 <div className="flex items-center px-3 md:px-4">
                   <svg className="w-6 h-6 md:w-8 md:h-8 text-purple-500 mr-2 md:mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                   <div className="overflow-hidden">
-                    <p className="text-xs md:text-sm text-white font-medium truncate max-w-[150px] md:max-w-[200px]">{audioFileName}</p>
+                    <p className="text-xs md:text-sm text-white font-medium truncate max-w-[150px] md:max-w-[200px]">{videoFileName}</p>
                     <p className="text-xs text-gray-400">Click to replace</p>
                   </div>
                 </div>
               ) : (
                 <div className="text-center p-3 md:p-4">
-                  <svg className="w-8 h-8 md:w-10 md:h-10 text-gray-500 mx-auto mb-1 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  <svg className="w-10 h-10 md:w-14 md:h-14 text-gray-500 mx-auto mb-2 md:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-xs md:text-sm text-gray-400">Click to browse or drag and drop audio file</p>
+                  <p className="text-xs md:text-sm text-gray-400">Click to browse or drag and drop video file</p>
                 </div>
               )}
             </div>
             <input 
               type="file" 
-              ref={audioInputRef}
-              accept="audio/*"
-              onChange={handleAudioUpload}
+              ref={videoInputRef}
+              accept="video/*"
+              onChange={handleVideoUpload}
               className="hidden"
             />
           </div>
           
           {/* Right side - Tips */}
           <div className="mt-2 md:mt-0">
-            <h3 className="text-base md:text-lg font-medium mb-2 md:mb-3">Audio Tips</h3>
-            <p className="text-xs md:text-sm text-gray-300 mb-2 md:mb-3">Please ensure your audio file is in a high-quality format (WAV or FLAC preferred for masters, MP3 at least 320kbps).</p>
+            <h3 className="text-base md:text-lg font-medium mb-2 md:mb-3">Video Tips</h3>
+            <p className="text-xs md:text-sm text-gray-300 mb-2 md:mb-3">Please ensure your video file is in a high-quality format (MP4 preferred for streaming, MOV for editing).</p>
             <p className="text-xs md:text-sm text-gray-300 mb-1">Requirements:</p>
             <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-gray-300">
               <li className="flex items-start">
@@ -487,13 +558,19 @@ export default function TrackCreate() {
                 <svg className="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span>Accepted formats: WAV, FLAC, MP3, AAC, AIFF</span>
+                <span>Accepted formats: MP4, MOV</span>
               </li>
               <li className="flex items-start">
                 <svg className="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span>No silence at beginning or end</span>
+                <span>Resolution: 1280×720 (HD) or higher</span>
+              </li>
+              <li className="flex items-start">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span>Aspect ratio: 16:9 recommended</span>
               </li>
             </ul>
           </div>
@@ -512,7 +589,7 @@ export default function TrackCreate() {
                 type="text"
                 id="releaseTitle"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Track Title"
+                placeholder="Video Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
@@ -636,10 +713,7 @@ export default function TrackCreate() {
                 value={releaseType}
                 onChange={(e) => setReleaseType(e.target.value)}
               >
-                <option value="">Release Type</option>
-                <option value="single">Single</option>
-                <option value="album">Album</option>
-                <option value="ep">EP</option>
+                <option value="">Video</option>
               </select>
             </div>
             
@@ -818,7 +892,7 @@ export default function TrackCreate() {
       <div className="rounded-lg p-3 md:p-6 bg-[#161A1F]">
         <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Distribution Platforms</h2>
         <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-6">
-          Select where you want your music to be available. You can choose multiple platforms.
+          Select where you want your video to be available. You can choose multiple platforms.
         </p>
 
         {loadingStores ? (
@@ -826,176 +900,95 @@ export default function TrackCreate() {
             <div className="animate-spin rounded-full h-6 w-6 md:h-8 md:w-8 border-t-2 border-b-2 border-purple-500"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-4">
-            {/* Dynamic store rendering from API */}
-            {stores.length > 0 ? (
-              stores.map((store) => (
-                <div 
-                  key={store._id}
-                  onClick={() => handleStoreSelection(store._id || "")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes(store._id || "") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes(store._id || "") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    {store.icon && (
-                      <div 
-                        className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2 rounded bg-cover bg-center"
-                        style={{ 
-                          backgroundImage: `url(${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${store.icon})` 
-                        }}
-                      />
-                    )}
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium line-clamp-1">{store.name}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              // Fallback to hardcoded platforms if API fails or returns empty
-              <div className="col-span-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-4">
-                <div 
-                  onClick={() => handleStoreSelection("spotify")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes("spotify") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes("spotify") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    <img src="/icons/sp.svg" alt="Spotify" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">Spotify</span>
-                  </div>
-                </div>
-                
-                <div 
-                  onClick={() => handleStoreSelection("apple")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes("apple") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes("apple") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    <img src="/icons/ap.svg" alt="Apple Music" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">Apple Music</span>
-                  </div>
-                </div>
-                
-                <div 
-                  onClick={() => handleStoreSelection("youtube")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes("youtube") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes("youtube") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    <img src="/icons/yt.svg" alt="YouTube Music" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">YouTube Music</span>
-                  </div>
-                </div>
-                
-                <div 
-                  onClick={() => handleStoreSelection("soundcloud")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes("soundcloud") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes("soundcloud") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    <img src="/icons/sc.svg" alt="SoundCloud" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">SoundCloud</span>
-                  </div>
+          <>
+            {/* Selected Platforms Summary */}
+            {selectedStores.length > 0 && (
+              <div className="mb-4 p-3 bg-[#1D2229] rounded-md">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-300">Selected Platforms: {selectedStores.length}</span>
+                  <button 
+                    onClick={() => setSelectedStores([])}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    Clear All
+                  </button>
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Selected platforms summary */}
-        {selectedStores.length > 0 && (
-          <div className="mt-4 md:mt-6 bg-[#1A1D24] border border-[#2A2F36] rounded-lg p-3 md:p-4">
-            <div className="flex items-center mb-2 md:mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 md:h-5 md:w-5 text-purple-500 mr-1 md:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h3 className="text-xs md:text-sm font-medium text-gray-300">Selected platforms ({selectedStores.length})</h3>
-            </div>
-            <div className="flex flex-wrap gap-1 md:gap-2">
-              {selectedStores.map(storeId => {
-                // Try to find store name if it's an ID
-                const store = stores.find(s => s._id === storeId);
-                const storeName = store?.name || storeId;
-                const storeColor = store?.color || '#6b46c1';
-                
-                return (
+            
+            {/* Compact Grid View of Stores */}
+            <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+              {/* Dynamic store rendering from API */}
+              {stores.length > 0 ? (
+                stores.map((store) => (
                   <div 
-                    key={storeId}
-                    className="px-2 py-1 rounded-full text-xs flex items-center"
-                    style={{ backgroundColor: storeColor + '33', color: storeColor }}
+                    key={store._id}
+                    onClick={() => handleStoreSelection(store._id || "")}
+                    className={`relative rounded-md p-1.5 transition-all cursor-pointer ${
+                      selectedStores.includes(store._id || "") 
+                        ? "bg-purple-800 border border-purple-500 shadow-md" 
+                        : "bg-[#1D2229] border border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                    }`}
                   >
-                    {storeName}
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStoreSelection(storeId);
-                      }}
-                      className="ml-1 rounded-full hover:bg-white hover:bg-opacity-20 p-0.5"
-                    >
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
-                      </svg>
-                    </button>
+                    {selectedStores.includes(store._id || "") && (
+                      <div className="absolute -top-1 -right-1 bg-purple-500 rounded-full p-0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex flex-col items-center">
+                      {store.icon && (
+                        <div 
+                          className="w-6 h-6 mb-1 rounded bg-contain bg-center bg-no-repeat"
+                          style={{ 
+                            backgroundImage: `url(${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${store.icon})` 
+                          }}
+                        />
+                      )}
+                      <span className="text-center text-xs text-gray-300 line-clamp-1 w-full">{store.name}</span>
+                    </div>
                   </div>
-                );
-              })}
+                ))
+              ) : (
+                // Fallback to hardcoded platforms if API fails or returns empty
+                <div className="col-span-full text-center text-gray-400 py-4">
+                  No distribution platforms available. Please check back later.
+                </div>
+              )}
+              
+              {/* Fallback to YouTube if API returns empty */}
+              {stores.length === 0 && !loadingStores && (
+                <div 
+                  onClick={() => handleStoreSelection("youtube")}
+                  className={`relative rounded-md p-1.5 transition-all cursor-pointer ${
+                    selectedStores.includes("youtube") 
+                      ? "bg-purple-800 border border-purple-500 shadow-md" 
+                      : "bg-[#1D2229] border border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                  }`}
+                >
+                  {selectedStores.includes("youtube") && (
+                    <div className="absolute -top-1 -right-1 bg-purple-500 rounded-full p-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center">
+                    <img src="/icons/yt.svg" alt="YouTube" className="w-6 h-6 mb-1" />
+                    <span className="text-center text-xs text-gray-300 line-clamp-1">YouTube</span>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          </>
         )}
       </div>
 
       {/* Track Pricing Section */}
       <div className="rounded-lg p-3 md:p-6">
         <h2 className="text-lg md:text-xl font-semibold mb-2">Track Pricing</h2>
-        <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-4">How much would you like to charge for each track?</p>
+        <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-4">How much would you like to charge for each video?</p>
         
         <div className="mb-3 md:mb-4">
           <select
@@ -1083,7 +1076,7 @@ export default function TrackCreate() {
               <span>Creating...</span>
             </>
           ) : (
-            "Create Track"
+            "Create Video"
           )}
         </button>
       </div>

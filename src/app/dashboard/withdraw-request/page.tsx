@@ -29,9 +29,13 @@ interface WithdrawRequest {
   status: StatusType;
   paymentMethod: 'Bank' | 'BKash' | 'Nagad';
   bankDetails?: {
-    accountNumber: string;
+    country?: string;
+    routingNumber?: string;
     bankName: string;
-    branch: string;
+    accountName: string;
+    swiftCode: string;
+    accountNumber: string;
+    branch?: string;
   };
   mobileNumber?: string;
   createdAt: string;
@@ -63,6 +67,10 @@ export default function WithdrawRequestPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<WithdrawRequest | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [requestToReject, setRequestToReject] = useState<WithdrawRequest | null>(null);
+  const [rejectionNote, setRejectionNote] = useState("");
+  const [isRejecting, setIsRejecting] = useState(false);
   const itemsPerPage = 10;
 
   // Check user role and set states
@@ -138,7 +146,7 @@ export default function WithdrawRequestPage() {
   }, [userRole]);
 
   // Update status function
-  const updateRequestStatus = async (id: string, newStatus: StatusType) => {
+  const updateRequestStatus = async (id: string, newStatus: StatusType, notes?: string) => {
     try {
       // Only allow admin/superadmin to update status
       if (!isAdmin()) {
@@ -146,12 +154,16 @@ export default function WithdrawRequestPage() {
         return;
       }
       
-      await updateWithdrawalRequestStatus(id, newStatus);
+      await updateWithdrawalRequestStatus(id, newStatus, notes);
       
       // Update local state after successful API call
       setWithdrawRequestsData(
         withdrawRequestsData.map((request) => 
-          (request.id === id || request._id === id) ? { ...request, status: newStatus } : request
+          (request.id === id || request._id === id) ? { 
+            ...request, 
+            status: newStatus,
+            notes: notes || request.notes
+          } : request
         )
       );
     } catch (err) {
@@ -312,6 +324,50 @@ export default function WithdrawRequestPage() {
     setTimeout(() => {
       setCopiedId(null);
     }, 2000);
+  };
+
+  // Handle reject request
+  const handleRejectRequest = (request: WithdrawRequest) => {
+    // Show rejection modal
+    setRequestToReject(request);
+    setRejectionNote("");
+    setShowRejectionModal(true);
+  };
+
+  // Confirm reject request
+  const confirmRejectRequest = async () => {
+    if (!requestToReject) return;
+    
+    try {
+      setIsRejecting(true);
+      const requestId = getRequestId(requestToReject);
+      
+      // Only allow admin/superadmin to reject
+      if (!isAdmin()) {
+        setError("You don't have permission to perform this action");
+        setIsRejecting(false);
+        return;
+      }
+      
+      await updateRequestStatus(requestId, "rejected", rejectionNote);
+      
+      // Close the modal and reset state
+      setShowRejectionModal(false);
+      setRequestToReject(null);
+      setRejectionNote("");
+      setIsRejecting(false);
+    } catch (err) {
+      console.error("Error rejecting withdrawal request:", err);
+      setError("Failed to reject withdrawal request. Please try again.");
+      setIsRejecting(false);
+    }
+  };
+
+  // Cancel rejection
+  const cancelRejection = () => {
+    setShowRejectionModal(false);
+    setRequestToReject(null);
+    setRejectionNote("");
   };
 
   return (
@@ -480,7 +536,7 @@ export default function WithdrawRequestPage() {
                                       className="text-red-400 hover:text-red-300 transition-colors"
                                       onClick={() => {
                                         if (requestId) {
-                                          updateRequestStatus(requestId, "rejected");
+                                          handleRejectRequest(request);
                                         }
                                       }}
                                     >
@@ -716,7 +772,8 @@ export default function WithdrawRequestPage() {
               status: selectedRequest.status.charAt(0).toUpperCase() + selectedRequest.status.slice(1) as "Completed" | "Pending" | "Rejected",
               paymentMethod: selectedRequest.paymentMethod,
               bankDetails: selectedRequest.bankDetails,
-              mobileNumber: selectedRequest.mobileNumber
+              mobileNumber: selectedRequest.mobileNumber,
+              notes: selectedRequest.notes
             }}
             isOpen={!!selectedRequest}
             onClose={handleCloseModal}
@@ -738,10 +795,7 @@ export default function WithdrawRequestPage() {
                 return;
               }
               
-              const requestId = getRequestId(selectedRequest);
-              if (requestId) {
-                updateRequestStatus(requestId, "rejected");
-              }
+              handleRejectRequest(selectedRequest);
               handleCloseModal();
             }}
             onDelete={() => {
@@ -749,6 +803,73 @@ export default function WithdrawRequestPage() {
               handleCloseModal();
             }}
           />
+        )}
+
+        {/* Rejection Confirmation Modal */}
+        {showRejectionModal && requestToReject && (
+          <div className="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-70 flex items-center justify-center p-4">
+            <div className="bg-[#1A1E24] rounded-lg shadow-xl w-full max-w-md mx-auto">
+              <div className="flex justify-between items-center p-4 border-b border-gray-700">
+                <h3 className="text-xl font-medium text-white">
+                  Reject Withdrawal Request
+                </h3>
+                <button
+                  onClick={cancelRejection}
+                  className="text-gray-400 hover:text-white focus:outline-none"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-300 mb-4">
+                  Please provide a reason for rejecting this withdrawal request.
+                </p>
+                
+                <div className="mb-4">
+                  <label htmlFor="rejection-note" className="block text-sm font-medium text-gray-400 mb-2">
+                    Rejection Reason
+                  </label>
+                  <textarea
+                    id="rejection-note"
+                    rows={4}
+                    className="w-full p-3 bg-[#161A1F] border border-gray-700 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    placeholder="Enter reason for rejection..."
+                    value={rejectionNote}
+                    onChange={(e) => setRejectionNote(e.target.value)}
+                  ></textarea>
+                </div>
+                
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={cancelRejection}
+                    className="px-4 py-2 bg-gray-600 text-gray-300 rounded-md hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmRejectRequest}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center"
+                    disabled={isRejecting}
+                  >
+                    {isRejecting ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Rejecting...
+                      </>
+                    ) : (
+                      <>
+                        <X size={20} className="mr-2" />
+                        Reject
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Delete Confirmation Modal */}

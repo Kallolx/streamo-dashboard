@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: string;
   isActive: boolean;
+  isApproved: boolean;
   profileImage?: string;
   split?: number;
   
@@ -46,6 +47,7 @@ export interface CreateUserData {
   password: string;
   role: string;
   split?: number;
+  isAdminCreated?: boolean;
 }
 
 /**
@@ -79,8 +81,14 @@ export const getUserById = async (id: string): Promise<User> => {
  */
 export const createUser = async (userData: CreateUserData): Promise<User> => {
   try {
+    // Set flag to indicate this user is being created by an admin
+    const dataWithFlag = {
+      ...userData,
+      isAdminCreated: true
+    };
+    
     // Use the register endpoint to create a new user
-    const response = await api.post('/auth/register', userData);
+    const response = await api.post('/auth/register', dataWithFlag);
     return response.data.user;
   } catch (error) {
     console.error('Error creating user:', error);
@@ -164,6 +172,31 @@ export const getCurrentUser = async (): Promise<User> => {
     return response.data.data;
   } catch (error) {
     console.error('Error fetching current user:', error);
+    throw error;
+  }
+};
+
+/**
+ * Approve a pending user
+ */
+export const approveUser = async (id: string): Promise<User> => {
+  try {
+    const response = await api.put(`/users/${id}/approve`);
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error approving user ${id}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Reject a pending user
+ */
+export const rejectUser = async (id: string): Promise<void> => {
+  try {
+    await api.delete(`/users/${id}/reject`);
+  } catch (error) {
+    console.error(`Error rejecting user ${id}:`, error);
     throw error;
   }
 }; 

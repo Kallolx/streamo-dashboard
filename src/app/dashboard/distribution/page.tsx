@@ -168,6 +168,14 @@ export default function DistributionPage() {
         
         // Combine and set the distribution data
         const combinedData = [...trackItems, ...releaseItems];
+        
+        // Sort by creation date (newest first)
+        combinedData.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA; // Descending order (newest first)
+        });
+        
         setDistributionData(combinedData);
         
         // Extract unique labels and artists for filters
@@ -469,7 +477,7 @@ export default function DistributionPage() {
                           {item.label || '-'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-white capitalize">
-                          {item.itemType}
+                          {item.itemType === 'track' ? 'Video' : item.itemType}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`${

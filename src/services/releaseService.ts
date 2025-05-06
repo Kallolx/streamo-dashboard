@@ -5,6 +5,7 @@ export interface Release {
   id?: string;
   title: string;
   artist: string;
+  label?: string;
   coverArt: string; // URL to stored image
   releaseType: string; // Single, Album, EP
   format: string; // Digital, CD, Vinyl, Cassette
@@ -49,6 +50,7 @@ export interface Track {
 export interface CreateReleaseData {
   title: string;
   artist: string;
+  label?: string;
   coverArt?: File; // Make coverArt optional
   releaseType: string;
   format: string;

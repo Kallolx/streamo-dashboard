@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createRelease, createReleaseWithoutFile } from "@/services/releaseService";
 import { getAllStores, Store } from "@/services/storeService";
+import { getUserData } from "@/services/authService";
 import axios from "axios"; // Import axios directly
 
 // Toast component for notifications
@@ -76,11 +77,35 @@ const Toast = ({
   );
 };
 
+// Add these utility functions for generating ISRC and UPC codes
+// Place right before the ReleaseCreate component definition
+
+// Generate a random ISRC code in format QZ[letter][letter][8 digits]
+const generateRandomISRC = (): string => {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const letter1 = letters[Math.floor(Math.random() * letters.length)];
+  const letter2 = letters[Math.floor(Math.random() * letters.length)];
+  const digits = Math.floor(10000000 + Math.random() * 90000000); // 8-digit number
+  return `QZ${letter1}${letter2}${digits}`;
+};
+
+// Generate a random UPC code (12 digits)
+const generateRandomUPC = (): string => {
+  return Math.floor(100000000000 + Math.random() * 900000000000).toString();
+};
+
 export default function ReleaseCreate() {
   // State for form data
   const [coverArt, setCoverArt] = useState<File | null>(null);
   const [coverArtPreview, setCoverArtPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Add state for user label name
+  const [userLabelName, setUserLabelName] = useState<string>("");
+  
+  // Add state for UPC management
+  const [currentUPC, setCurrentUPC] = useState<string>(generateRandomUPC());
+  const [isrcCount, setIsrcCount] = useState<number>(0);
 
   // Define track type
   interface Track {
@@ -103,13 +128,13 @@ export default function ReleaseCreate() {
     title: "",
     artistName: "",
     duration: "",
-    isrc: "",
+    isrc: generateRandomISRC(), // Set initial random ISRC
     version: "original",
     contentRating: "",
     lyrics: ""
   });
   
-  // Add or edit track
+  // Add or edit track with ISRC management
   const handleAddOrEditTrack = () => {
     if (!currentTrack.title || !currentTrack.artistName) {
       setToast({
@@ -121,15 +146,25 @@ export default function ReleaseCreate() {
     }
     
     if (currentTrack.id) {
-      // Edit existing track
+      // Edit existing track - maintain the same ISRC
       setTracks(
         tracks.map(track => 
           track.id === currentTrack.id ? { ...track, ...currentTrack } : track
         )
       );
     } else {
-      // Add new track
+      // Add new track - add a new ISRC and update count
       const newId = Math.max(0, ...tracks.map(t => t.id || 0)) + 1;
+      
+      // Update ISRC count and potentially generate new UPC
+      const newIsrcCount = isrcCount + 1;
+      setIsrcCount(newIsrcCount);
+      
+      // Generate new UPC for every 5 ISRCs
+      if (newIsrcCount % 5 === 0) {
+        setCurrentUPC(generateRandomUPC());
+      }
+      
       setTracks([...tracks, { ...currentTrack, id: newId }]);
     }
     
@@ -138,20 +173,20 @@ export default function ReleaseCreate() {
     resetTrackForm();
   };
   
-  // Reset track form
+  // Reset track form with new ISRC
   const resetTrackForm = () => {
     setCurrentTrack({
       title: "",
       artistName: "",
       duration: "",
-      isrc: "",
+      isrc: generateRandomISRC(), // Generate new ISRC for each new track
       version: "original",
       contentRating: "",
       lyrics: ""
     });
   };
   
-  // Edit track
+  // Edit track - preserve existing ISRC
   const handleEditTrack = (id: number) => {
     const track = tracks.find(t => t.id === id);
     if (track) {
@@ -160,7 +195,7 @@ export default function ReleaseCreate() {
         title: track.title,
         artistName: track.artistName,
         duration: track.duration || "",
-        isrc: track.isrc || "",
+        isrc: track.isrc || generateRandomISRC(), // Preserve the existing ISRC or generate if none
         version: track.version || "original",
         contentRating: track.contentRating || "",
         lyrics: track.lyrics || ""
@@ -223,6 +258,29 @@ export default function ReleaseCreate() {
     };
 
     fetchStores();
+  }, []);
+
+  // Fetch user data and extract label name on component mount
+  useEffect(() => {
+    const getUserLabel = () => {
+      const userData = getUserData();
+      if (userData && userData.name) {
+        // Extract stage name from the full name (format: "Full Name (Stage Name)")
+        const match = userData.name.match(/\((.*?)\)/);
+        const stageName = match ? match[1] : "";
+        setUserLabelName(stageName);
+        
+        // Pre-populate the label field if it exists
+        setTimeout(() => {
+          const labelInput = document.getElementById('label') as HTMLInputElement;
+          if (labelInput) {
+            labelInput.value = stageName;
+          }
+        }, 100);
+      }
+    };
+
+    getUserLabel();
   }, []);
 
   // Handle store selection
@@ -330,8 +388,9 @@ export default function ReleaseCreate() {
         
         // Metadata
         language: (document.getElementById('selectLanguage') as HTMLSelectElement)?.value || "",
-        upc: (document.getElementById('upc') as HTMLInputElement)?.value || "",
+        upc: currentUPC,
         releaseDate: (document.getElementById('releaseDate') as HTMLInputElement)?.value || new Date().toISOString().split('T')[0],
+        label: userLabelName, // Use the label from user profile
         
         // Stores selection - ensure it's explicitly an array
         stores: Array.isArray(selectedStores) ? [...selectedStores] : [],
@@ -733,8 +792,10 @@ export default function ReleaseCreate() {
               <input
                 type="text"
                 id="label"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Label"
+                defaultValue={userLabelName}
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-not-allowed opacity-75"
+                placeholder="Your label name will appear here"
+                readOnly
               />
             </div>
 
@@ -773,13 +834,28 @@ export default function ReleaseCreate() {
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">Select Genre</option>
+                {/* International Genres */}
                 <option value="pop">Pop</option>
                 <option value="rock">Rock</option>
-                <option value="hiphop">Hip Hop</option>
-                <option value="electronic">Electronic</option>
-                <option value="rnb">R&B</option>
-                <option value="jazz">Jazz</option>
+                <option value="hiphop">Hip Hop / Rap</option>
+                <option value="randb">R&B / Soul</option>
+                <option value="electronic">Electronic / Dance</option>
                 <option value="classical">Classical</option>
+                <option value="jazz">Jazz</option>
+                <option value="country">Country</option>
+                <option value="reggae">Reggae</option>
+                <option value="folk">Folk</option>
+                {/* Regional/Cultural Genres */}
+                <option value="banglafolk" className="font-medium pt-2">Bangla Folk</option>
+                <option value="banglamodern">Bangla Modern</option>
+                <option value="banglaclassical">Bangla Classical</option>
+                <option value="baul">Baul</option>
+                <option value="nazrulsangeet">Nazrul Sangeet</option>
+                <option value="rabindrasangeet">Rabindra Sangeet</option>
+                <option value="islamic">Islamic / Hamd / Naat</option>
+                <option value="qawwali">Qawwali</option>
+                <option value="bhatiali">Bhatiali</option>
+                <option value="bhandari">Bhandari</option>
               </select>
             </div>
           </div>
@@ -792,10 +868,9 @@ export default function ReleaseCreate() {
                 id="releaseType"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
-                <option value="">Release Type</option>
+                <option value="">Select Release Type</option>
                 <option value="single">Single</option>
                 <option value="album">Album</option>
-                <option value="ep">EP</option>
               </select>
             </div>
 
@@ -820,23 +895,47 @@ export default function ReleaseCreate() {
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">Select Language</option>
+                {/* Common Languages */}
+                <option value="bengali">Bengali / Bangla</option>
                 <option value="english">English</option>
+                <option value="hindi">Hindi</option>
+                <option value="urdu">Urdu</option>
+                <option value="arabic">Arabic</option>
                 <option value="spanish">Spanish</option>
                 <option value="french">French</option>
-                <option value="german">German</option>
+                <option value="chinese">Chinese (Mandarin)</option>
                 <option value="japanese">Japanese</option>
                 <option value="korean">Korean</option>
-                <option value="chinese">Chinese</option>
+                {/* Regional Languages */}
+                <option value="sylheti">Sylheti</option>
+                <option value="chittagonian">Chittagonian</option>
+                <option value="chakma">Chakma</option>
+                <option value="marma">Marma</option>
+                <option value="manipuri">Manipuri</option>
+                <option value="garo">Garo</option>
+                {/* Other Languages */}
+                <option value="german">German</option>
+                <option value="russian">Russian</option>
+                <option value="portuguese">Portuguese</option>
+                <option value="italian">Italian</option>
+                <option value="turkish">Turkish</option>
+                <option value="tamil">Tamil</option>
+                <option value="telugu">Telugu</option>
+                <option value="punjabi">Punjabi</option>
+                <option value="malay">Malay</option>
+                <option value="thai">Thai</option>
+                <option value="other">Other</option>
               </select>
             </div>
 
             <div>
-              <label htmlFor="upc" className="block text-sm text-gray-400 mb-1">UPC</label>
+              <label htmlFor="upc" className="block text-sm text-gray-400 mb-1">UPC (Unique Release Identifier)</label>
               <input
                 type="text"
                 id="upc"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="UPC"
+                value={currentUPC}
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500 opacity-75 cursor-not-allowed"
+                readOnly
               />
             </div>
           </div>
@@ -946,183 +1045,112 @@ export default function ReleaseCreate() {
             <div className="animate-spin rounded-full h-6 w-6 md:h-8 md:w-8 border-t-2 border-b-2 border-purple-500"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-4">
-            {/* Dynamic store rendering from API */}
-            {stores.length > 0 ? (
-              stores.map((store) => (
-                <div 
-                  key={store._id}
-                  onClick={() => handleStoreSelection(store._id || "")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes(store._id || "") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes(store._id || "") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    {store.icon && (
-                      <div 
-                        className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2 rounded bg-cover bg-center"
-                        style={{ 
-                          backgroundImage: `url(${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${store.icon})` 
-                        }}
-                      />
-                    )}
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium line-clamp-1">{store.name}</span>
-                  </div>
+          <>
+            {/* Selected Platforms Summary */}
+            {selectedStores.length > 0 && (
+              <div className="mb-4 p-3 bg-[#1D2229] rounded-md">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-300">Selected Platforms: {selectedStores.length}</span>
+                  <button 
+                    onClick={() => setSelectedStores([])}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    Clear All
+                  </button>
                 </div>
-              ))
-            ) : (
-              <div className="col-span-full text-center text-gray-400 py-4">
-                No distribution platforms available. Please check back later.
               </div>
             )}
             
-            {/* Fallback to hardcoded platforms if API fails or returns empty */}
-            {stores.length === 0 && !loadingStores && (
-              <>
-                <div 
-                  onClick={() => handleStoreSelection("spotify")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes("spotify") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes("spotify") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    <img src="/icons/sp.svg" alt="Spotify" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">Spotify</span>
-                  </div>
-                </div>
-                
-                <div 
-                  onClick={() => handleStoreSelection("apple")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes("apple") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes("apple") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    <img src="/icons/ap.svg" alt="Apple Music" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">Apple Music</span>
-                  </div>
-                </div>
-                
-                <div 
-                  onClick={() => handleStoreSelection("youtube")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes("youtube") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes("youtube") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    <img src="/icons/yt.svg" alt="YouTube Music" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">YouTube Music</span>
-                  </div>
-                </div>
-                
-                <div 
-                  onClick={() => handleStoreSelection("soundcloud")}
-                  className={`relative rounded-lg md:rounded-xl p-2 md:p-3 transition-all cursor-pointer ${
-                    selectedStores.includes("soundcloud") 
-                      ? "bg-purple-800 border-2 border-purple-500 shadow-lg transform scale-[1.02]" 
-                      : "bg-[#1D2229] border-2 border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes("soundcloud") && (
-                    <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-purple-500 rounded-full p-0.5 md:p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    <img src="/icons/sc.svg" alt="SoundCloud" className="w-8 h-8 md:w-12 md:h-12 mb-1 md:mb-2" />
-                    <span className="text-center text-xs md:text-sm text-gray-300 font-medium">SoundCloud</span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-        
-        {/* Selected platforms summary */}
-        {selectedStores.length > 0 && (
-          <div className="mt-4 md:mt-6 bg-[#1A1D24] border border-[#2A2F36] rounded-lg p-3 md:p-4">
-            <div className="flex items-center mb-2 md:mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 text-purple-500 mr-1 md:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h3 className="text-xs md:text-sm font-medium text-gray-300">Selected platforms ({selectedStores.length})</h3>
-            </div>
-            <div className="flex flex-wrap gap-1 md:gap-2">
-              {selectedStores.map(storeId => {
-                // Try to find store name if it's an ID
-                const store = stores.find(s => s._id === storeId);
-                const storeName = store?.name || storeId;
-                const storeColor = store?.color || '#6b46c1'; // Default purple if no color
-                
-                return (
+            {/* Compact Grid View of Stores */}
+            <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+              {/* Dynamic store rendering from API */}
+              {stores.length > 0 ? (
+                stores.map((store) => (
                   <div 
-                    key={storeId} 
-                    className="inline-flex items-center px-2 py-1 md:px-3 md:py-1.5 rounded-full text-xs md:text-sm"
-                    style={{ backgroundColor: `${storeColor}30` }} // Using color with 30% opacity
+                    key={store._id}
+                    onClick={() => handleStoreSelection(store._id || "")}
+                    className={`relative rounded-md p-1.5 transition-all cursor-pointer ${
+                      selectedStores.includes(store._id || "") 
+                        ? "bg-purple-800 border border-purple-500 shadow-md" 
+                        : "bg-[#1D2229] border border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                    }`}
                   >
-                    {store?.icon && (
-                      <div 
-                        className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2 rounded-full bg-cover bg-center"
-                        style={{ 
-                          backgroundImage: `url(${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${store.icon})` 
-                        }}
-                      />
+                    {selectedStores.includes(store._id || "") && (
+                      <div className="absolute -top-1 -right-1 bg-purple-500 rounded-full p-0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
                     )}
-                    <span className="text-white">{storeName}</span>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent card selection
-                        handleStoreSelection(storeId);
-                      }}
-                      className="ml-1 md:ml-2 text-gray-300 hover:text-white"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                    <div className="flex flex-col items-center">
+                      {store.icon && (
+                        <div 
+                          className="w-6 h-6 mb-1 rounded bg-contain bg-center bg-no-repeat"
+                          style={{ 
+                            backgroundImage: `url(${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${store.icon})` 
+                          }}
+                        />
+                      )}
+                      <span className="text-center text-xs text-gray-300 line-clamp-1 w-full">{store.name}</span>
+                    </div>
                   </div>
-                );
-              })}
+                ))
+              ) : (
+                <div className="col-span-full text-center text-gray-400 py-4">
+                  No distribution platforms available. Please check back later.
+                </div>
+              )}
+              
+              {/* Fallback to hardcoded platforms if API fails or returns empty */}
+              {stores.length === 0 && !loadingStores && (
+                <>
+                  <div 
+                    onClick={() => handleStoreSelection("spotify")}
+                    className={`relative rounded-md p-1.5 transition-all cursor-pointer ${
+                      selectedStores.includes("spotify") 
+                        ? "bg-purple-800 border border-purple-500 shadow-md" 
+                        : "bg-[#1D2229] border border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                    }`}
+                  >
+                    {selectedStores.includes("spotify") && (
+                      <div className="absolute -top-1 -right-1 bg-purple-500 rounded-full p-0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex flex-col items-center">
+                      <img src="/icons/sp.svg" alt="Spotify" className="w-6 h-6 mb-1" />
+                      <span className="text-center text-xs text-gray-300 line-clamp-1">Spotify</span>
+                    </div>
+                  </div>
+                  
+                  <div 
+                    onClick={() => handleStoreSelection("apple")}
+                    className={`relative rounded-md p-1.5 transition-all cursor-pointer ${
+                      selectedStores.includes("apple") 
+                        ? "bg-purple-800 border border-purple-500 shadow-md" 
+                        : "bg-[#1D2229] border border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
+                    }`}
+                  >
+                    {selectedStores.includes("apple") && (
+                      <div className="absolute -top-1 -right-1 bg-purple-500 rounded-full p-0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex flex-col items-center">
+                      <img src="/icons/ap.svg" alt="Apple Music" className="w-6 h-6 mb-1" />
+                      <span className="text-center text-xs text-gray-300 line-clamp-1">Apple Music</span>
+                    </div>
+                  </div>
+                  
+                  {/* Other platforms... */}
+                </>
+              )}
             </div>
-          </div>
+          </>
         )}
       </div>
 
@@ -1290,18 +1318,17 @@ export default function ReleaseCreate() {
                   />
                 </div>
                 
-                {/* ISRC */}
+                {/* ISRC - Make read-only with generated code */}
                 <div>
                   <label htmlFor="trackIsrc" className="block text-xs md:text-sm font-medium text-gray-400 mb-1">
-                    ISRC
+                    ISRC (Unique Track Identifier)
                   </label>
                   <input
                     type="text"
                     id="trackIsrc"
                     value={currentTrack.isrc}
-                    onChange={(e) => setCurrentTrack({...currentTrack, isrc: e.target.value})}
-                    className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="e.g. USXXX2000000"
+                    className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500 opacity-75 cursor-not-allowed"
+                    readOnly
                   />
                 </div>
                 
