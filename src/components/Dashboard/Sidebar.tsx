@@ -91,7 +91,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
         <div className="flex items-center justify-center h-16">
           <div className={`transition-all duration-300 mt-6 ${isOpen ? 'w-30' : 'w-10'}`}>
             <img 
-              src="/images/logo.svg" 
+              src="/images/logo.png" 
               alt="Music Dashboard Logo" 
               className="w-full h-auto"
             />

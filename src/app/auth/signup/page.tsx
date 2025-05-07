@@ -183,7 +183,7 @@ function SignupContent() {
         <div className="w-full max-w-md bg-[#161A1F] rounded-xl shadow-lg overflow-hidden">
           <div className="bg-[#683BAB] p-6 flex justify-center">
             <Image 
-              src="/images/logo.svg" 
+              src="/images/logo.png" 
               alt="Logo" 
               width={180} 
               height={70} 

@@ -74,7 +74,7 @@ export default function LoginPage() {
           {/* Logo at the top left */}
           <div className="flex justify-start">
             <Image 
-              src="/images/logo.svg" 
+              src="/images/logo.png" 
               alt="Logo" 
               width={180} 
               height={70} 
