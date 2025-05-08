@@ -67,14 +67,24 @@ export const getTrackById = async (trackId: string) => {
  */
 export const createTrack = async (trackData: FormData) => {
   try {
+    console.log('Track service: Creating track...');
+    
+    // Debug: Log FormData entries
+    console.log('Track service: FormData contents:');
+    for (const pair of trackData.entries()) {
+      console.log(`${pair[0]}: ${typeof pair[1] === 'string' ? pair[1] : 'File'}`);
+    }
+    
     const response = await api.post('/tracks', trackData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+    
+    console.log('Track service: Track created successfully', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error creating video:', error);
+    console.error('Track service: Error creating video:', error);
     throw error;
   }
 };

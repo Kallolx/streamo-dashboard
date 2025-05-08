@@ -143,7 +143,7 @@ export default function LoginPage() {
             {/* Logo only visible on mobile */}
             <div className="flex justify-center mb-6 lg:hidden">
               <Image 
-                src="/images/logo.svg" 
+                src="/images/logo.png" 
                 alt="Logo" 
                 width={180} 
                 height={70} 

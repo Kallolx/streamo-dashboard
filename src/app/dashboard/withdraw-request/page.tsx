@@ -6,6 +6,7 @@ import { MagnifyingGlass, Eye, Check, X, CalendarBlank, CaretDown, X as XIcon, C
 import WithdrawDetailsModal from "@/components/Dashboard/models/WithdrawDetailsModal";
 import { getAllWithdrawalRequests, getUserWithdrawalRequests, updateWithdrawalRequestStatus, deleteWithdrawalRequest } from "@/services/withdrawalService";
 import { getUserData, getUserRole, hasRole } from "@/services/authService";
+import { updateEarningsForWithdrawal } from "@/services/earningsManager";
 import { format } from "date-fns";
 
 // Define transaction status type
@@ -166,6 +167,63 @@ export default function WithdrawRequestPage() {
           } : request
         )
       );
+
+      // Notify dashboard to refresh earnings data when status changes to completed
+      if (newStatus === 'completed' || newStatus === 'approved' || newStatus === 'rejected') {
+        // Find the request to get the userId
+        const request = withdrawRequestsData.find((req) => req.id === id || req._id === id);
+        if (request && request.user) {
+          // The user ID to notify about the status change
+          const userId = typeof request.user === 'object' ? (request.user._id || request.user.id) : request.user;
+          // Ensure amount is a number
+          const amountValue = typeof request.amount === 'number' ? request.amount : parseFloat(String(request.amount));
+          
+          // Update the earnings manager to track this withdrawal status change
+          updateEarningsForWithdrawal(id, amountValue, 
+            newStatus === 'completed' || newStatus === 'approved' ? 'approve' : 
+            newStatus === 'rejected' ? 'reject' : 'create',
+            userId
+          );
+          
+          // Set localStorage to trigger update in DashboardHome
+          localStorage.setItem('withdrawalStatusChanged', JSON.stringify({
+            userId,
+            status: newStatus,
+            amount: amountValue,
+            id,
+            timestamp: Date.now()
+          }));
+          
+          // Add BroadcastChannel communication
+          try {
+            const bc = new BroadcastChannel('withdrawal_updates');
+            bc.postMessage({
+              userId,
+              status: newStatus,
+              amount: amountValue,
+              id,
+              timestamp: Date.now()
+            });
+            bc.close();
+          } catch (err) {
+            console.error('BroadcastChannel not supported', err);
+            // Fallback already implemented with localStorage and custom event
+          }
+          
+          // Dispatch custom event
+          const event = new CustomEvent('withdrawalStatusChanged', { 
+            detail: { 
+              userId, 
+              status: newStatus,
+              amount: amountValue,
+              id
+            }
+          });
+          window.dispatchEvent(event);
+          
+          console.log(`Triggered withdrawal status update for user ${userId} with status ${newStatus} and amount ${amountValue}`);
+        }
+      }
     } catch (err) {
       console.error(`Error updating withdrawal status for ID ${id}:`, err);
       // Show error message to user
@@ -766,6 +824,7 @@ export default function WithdrawRequestPage() {
             request={{
               id: getRequestId(selectedRequest),
               userName: selectedRequest.userName || `User ID: ${getUserId(selectedRequest)}`,
+              userId: getUserId(selectedRequest),
               date: formatDate(selectedRequest.createdAt),
               transactionId: getRequestId(selectedRequest),
               amount: formatAmount(selectedRequest.amount),

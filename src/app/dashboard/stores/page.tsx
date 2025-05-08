@@ -2,11 +2,11 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
-import { MagnifyingGlass, PencilSimple } from "@phosphor-icons/react";
+import { MagnifyingGlass, PencilSimple, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Toast from "@/components/Common/Toast";
-import { getAllStores, updateStore, toggleStoreStatus, Store } from "@/services/storeService";
+import { getAllStores, updateStore, toggleStoreStatus, deleteStore, Store } from "@/services/storeService";
 
 // Access control
 const checkAccess = () => {
@@ -27,6 +27,8 @@ export default function StoresPage() {
   const [editingStore, setEditingStore] = useState<Store | null>(null);
   const [uploadedLogo, setUploadedLogo] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
   
   // Toast state
   const [toast, setToast] = useState<{
@@ -229,6 +231,52 @@ export default function StoresPage() {
     }
   };
 
+  // Handle delete store
+  const handleDeleteStore = (store: Store, e?: React.MouseEvent) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    setStoreToDelete(store);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Confirm delete store
+  const confirmDeleteStore = async () => {
+    if (!storeToDelete || !storeToDelete._id) return;
+    
+    try {
+      const response = await deleteStore(storeToDelete._id);
+      
+      if (response.success) {
+        // Remove store from local state
+        setStores(stores.filter(store => store._id !== storeToDelete._id));
+        
+        setToast({
+          show: true,
+          message: "Store deleted successfully",
+          type: "success",
+        });
+        
+        // Close modal
+        setIsDeleteModalOpen(false);
+        setStoreToDelete(null);
+      } else {
+        setToast({
+          show: true,
+          message: "Failed to delete store",
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting store:", error);
+      setToast({
+        show: true,
+        message: "Failed to delete store",
+        type: "error",
+      });
+    }
+  };
+
   return (
     <DashboardLayout title="Stores Management" subtitle="Manage distribution stores">
       <div className="relative">
@@ -334,13 +382,20 @@ export default function StoresPage() {
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-center">
-                          <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
+                          <div onClick={(e) => e.stopPropagation()} className="flex justify-center space-x-4">
                             <button 
                               className="text-gray-400 hover:text-white transition-colors"
                               onClick={(e) => handleEditStore(store, e)}
                               title="Edit"
                             >
                               <PencilSimple size={20} />
+                            </button>
+                            <button 
+                              className="text-gray-400 hover:text-red-500 transition-colors"
+                              onClick={(e) => handleDeleteStore(store, e)}
+                              title="Delete"
+                            >
+                              <Trash size={20} />
                             </button>
                           </div>
                         </td>
@@ -607,6 +662,65 @@ export default function StoresPage() {
                   }`}
                 >
                   {isSubmitting ? "Updating..." : (editingStore ? "Update" : "Add Store")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && storeToDelete && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center">
+            {/* Backdrop with blur */}
+            <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={() => setIsDeleteModalOpen(false)}></div>
+
+            {/* Modal */}
+            <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-full mt-16 transform transition-all">
+              {/* Close button */}
+              <button
+                className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+
+              {/* Header */}
+              <div className="p-5 border-b border-gray-700">
+                <h3 className="text-lg font-semibold text-white">Confirm Delete</h3>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                <p className="text-gray-300">
+                  Are you sure you want to delete the store <span className="font-semibold text-white">{storeToDelete.name}</span>? This action cannot be undone.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="p-5 border-t border-gray-700 flex justify-end space-x-3">
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="px-4 py-2 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteStore}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Delete
                 </button>
               </div>
             </div>

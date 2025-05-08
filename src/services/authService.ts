@@ -116,6 +116,14 @@ export const getUserRole = (): string | null => {
 };
 
 /**
+ * Check if the current user has admin or superadmin role
+ */
+export const isAdmin = (): boolean => {
+  const role = getUserRole();
+  return role === 'admin' || role === 'superadmin';
+};
+
+/**
  * Get the current user's data
  */
 export const getUserData = (): any => {

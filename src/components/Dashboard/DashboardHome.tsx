@@ -6,8 +6,9 @@ import axios from 'axios';
 import api from '@/services/api';
 
 import { getUserData } from '@/services/authService';
-import { getEarningsData, EarningsData } from '@/services/royaltyService';
+import { getTotalEarnings, getLastPayout, getPendingPayments } from '@/services/earningsService';
 import { createWithdrawalRequest, WithdrawalRequest, getUserBankInfo, BankInfo } from '@/services/withdrawalService';
+import { getEarningsManager, updateEarningsForWithdrawal } from '@/services/earningsManager';
 import ReleaseDetailsModal from './models/ReleaseDetailsModal';
 
 // Interface for release data
@@ -80,7 +81,7 @@ export default function DashboardHome() {
   const router = useRouter();
   const [userData, setUserData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [earningsData, setEarningsData] = useState<EarningsData>({
+  const [earningsData, setEarningsData] = useState({
     totalEarnings: '$0',
     lastStatement: '$0',
     pendingPayments: '$0',
@@ -141,7 +142,7 @@ export default function DashboardHome() {
   
   // Constants for withdrawal
   const MIN_WITHDRAWAL_AMOUNT = 500; // Minimum $500 withdrawal
-  const userBalance = 0; // Setting balance to $0 as requested
+  const [userBalance, setUserBalance] = useState(0);
 
   // Add toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -151,6 +152,298 @@ export default function DashboardHome() {
   const handleToastClose = () => {
     setToastMessage(null);
   };
+
+  // Function to refresh earnings data
+  const refreshEarningsData = async () => {
+    try {
+      const earningsManager = getEarningsManager();
+      
+      // First refresh from API to get latest data
+      await earningsManager.refreshFromAPI();
+      
+      // Then get the data from the manager which includes any pending withdrawals
+      setEarningsData({
+        totalEarnings: earningsManager.getFormattedTotalEarnings(),
+        lastStatement: earningsManager.getFormattedLastPayout(),
+        pendingPayments: earningsManager.getFormattedPendingPayments(),
+        statementHistory: []
+      });
+      
+      // Update user balance with the value from the manager
+      setUserBalance(earningsManager.getTotalEarnings());
+      
+      console.log('Earnings data refreshed, new balance:', earningsManager.getTotalEarnings());
+    } catch (err) {
+      console.error('Error refreshing earnings data:', err);
+    }
+  };
+
+  // Real-time notification polling to check for withdrawal status changes
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    const startPolling = () => {
+      // Check every 10 seconds for updates
+      intervalId = setInterval(() => {
+        refreshEarningsData();
+      }, 10000);
+    };
+
+    startPolling();
+
+    // Clean up on unmount
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, []);
+
+  // Handle storage events to listen for withdrawal status changes
+  useEffect(() => {
+    // Custom event listener for withdrawal status changes
+    const handleWithdrawalStatusChange = (event: Event) => {
+      console.log('Withdrawal status changed event received');
+      
+      // Check if there's event detail data
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail) {
+        const { status, amount, id, userId: eventUserId } = customEvent.detail;
+        const userData = getUserData();
+        const currentUserId = userData?.id || userData?._id;
+        
+        // Only process events for the current user
+        if (eventUserId && eventUserId !== currentUserId) {
+          console.log(`Ignoring event for different user: ${eventUserId}, current user: ${currentUserId}`);
+          return;
+        }
+        
+        if (status === 'rejected') {
+          // If rejected, add the amount back to the balance
+          console.log(`Withdrawal ${id} rejected, adding ${amount} back to balance`);
+          const amountValue = typeof amount === 'number' ? amount : parseFloat(String(amount));
+          
+          if (isNaN(amountValue)) {
+            console.error(`Invalid amount value: ${amount}`);
+            refreshEarningsData();
+            return;
+          }
+          
+          // Update user balance
+          setUserBalance(prevBalance => {
+            const newBalance = prevBalance + amountValue;
+            console.log(`Updated balance: ${prevBalance} + ${amountValue} = ${newBalance}`);
+            return newBalance;
+          });
+          
+          // Update earnings display
+          setEarningsData(prev => {
+            const currentTotal = parseFloat(prev.totalEarnings.replace(/[$,]/g, '')) || 0;
+            return {
+              ...prev,
+              totalEarnings: formatCurrency(currentTotal + amountValue)
+            };
+          });
+        } else {
+          // Immediately refresh data when a withdrawal is approved or completed
+          console.log('Withdrawal approved or completed, refreshing data');
+          refreshEarningsData();
+        }
+      } else {
+        // Fallback to just refreshing all data
+        refreshEarningsData();
+      }
+    };
+
+    // Listen for the custom event
+    window.addEventListener('withdrawalStatusChanged', handleWithdrawalStatusChange);
+    
+    // Also check localStorage for changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'withdrawalStatusChanged') {
+        console.log('Withdrawal status change detected via localStorage');
+        
+        try {
+          // Parse the JSON data from localStorage
+          const data = e.newValue ? JSON.parse(e.newValue) : null;
+          
+          if (!data) {
+            console.log('No data in localStorage event');
+            return;
+          }
+          
+          // Check if this event is for the current user
+          const userData = getUserData();
+          const currentUserId = userData?.id || userData?._id;
+          
+          if (data.userId && data.userId !== currentUserId) {
+            console.log(`Ignoring localStorage event for different user: ${data.userId}, current user: ${currentUserId}`);
+            return;
+          }
+          
+          if (data.status === 'rejected') {
+            // If rejected, add the amount back to the balance
+            console.log(`Withdrawal ${data.id} rejected via localStorage, adding ${data.amount} back to balance`);
+            const amountValue = typeof data.amount === 'number' ? data.amount : parseFloat(String(data.amount));
+            
+            if (isNaN(amountValue)) {
+              console.error(`Invalid amount value in localStorage: ${data.amount}`);
+              refreshEarningsData();
+              return;
+            }
+            
+            // Update user balance
+            setUserBalance(prevBalance => {
+              const newBalance = prevBalance + amountValue;
+              console.log(`Updated balance via localStorage: ${prevBalance} + ${amountValue} = ${newBalance}`);
+              return newBalance;
+            });
+            
+            // Update earnings display
+            setEarningsData(prev => {
+              const currentTotal = parseFloat(prev.totalEarnings.replace(/[$,]/g, '')) || 0;
+              return {
+                ...prev,
+                totalEarnings: formatCurrency(currentTotal + amountValue)
+              };
+            });
+          } else {
+            // For other statuses, refresh from API
+            refreshEarningsData();
+          }
+        } catch (error) {
+          console.error('Error parsing withdrawal status data:', error);
+          refreshEarningsData();
+        }
+      }
+    };
+    
+    // Listen for visibility changes to refresh data when user returns to the page
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Page became visible, refreshing data');
+        refreshEarningsData();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Setup a MutationObserver to watch for new notifications being added to the DOM
+    // This is a backup mechanism to ensure we catch withdrawal status changes
+    const observeNotifications = () => {
+      const notificationContainer = document.querySelector('.notification-container');
+      if (notificationContainer) {
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+              // Check if any new notification is related to withdrawals
+              Array.from(mutation.addedNodes).forEach((node) => {
+                if (node instanceof HTMLElement) {
+                  const notificationText = node.textContent?.toLowerCase() || '';
+                  if (notificationText.includes('withdrawal') && 
+                     (notificationText.includes('approved') || 
+                      notificationText.includes('processed') || 
+                      notificationText.includes('rejected'))) {
+                    console.log('Withdrawal notification detected, refreshing data');
+                    refreshEarningsData();
+                  }
+                }
+              });
+            }
+          });
+        });
+        
+        observer.observe(notificationContainer, { childList: true, subtree: true });
+        return observer;
+      }
+      return null;
+    };
+    
+    // Try to setup the observer, but it's ok if it fails (element might not exist yet)
+    const observer = observeNotifications();
+    
+    // Cleanup listeners on unmount
+    return () => {
+      window.removeEventListener('withdrawalStatusChanged', handleWithdrawalStatusChange);
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (observer) {
+        observer.disconnect();
+      }
+    };
+  }, []);
+
+  // Listen for BroadcastChannel messages (for cross-tab communication)
+  useEffect(() => {
+    let broadcastChannel: BroadcastChannel | null = null;
+    
+    try {
+      broadcastChannel = new BroadcastChannel('withdrawal_updates');
+      
+      broadcastChannel.onmessage = (event) => {
+        console.log('BroadcastChannel message received:', event.data);
+        
+        if (!event.data) {
+          console.log('No data in BroadcastChannel event');
+          return;
+        }
+        
+        const { status, amount, id, userId } = event.data;
+        
+        // Check if this event is for the current user
+        const userData = getUserData();
+        const currentUserId = userData?.id || userData?._id;
+        
+        if (userId && userId !== currentUserId) {
+          console.log(`Ignoring BroadcastChannel event for different user: ${userId}, current user: ${currentUserId}`);
+          return;
+        }
+        
+        if (status === 'rejected') {
+          // If rejected, add the amount back to the balance
+          console.log(`Withdrawal ${id} rejected via BroadcastChannel, adding ${amount} back to balance`);
+          const amountValue = typeof amount === 'number' ? amount : parseFloat(String(amount));
+          
+          if (isNaN(amountValue)) {
+            console.error(`Invalid amount value in BroadcastChannel: ${amount}`);
+            refreshEarningsData();
+            return;
+          }
+          
+          // Update user balance
+          setUserBalance(prevBalance => {
+            const newBalance = prevBalance + amountValue;
+            console.log(`Updated balance via BroadcastChannel: ${prevBalance} + ${amountValue} = ${newBalance}`);
+            return newBalance;
+          });
+          
+          // Update earnings display
+          setEarningsData(prev => {
+            const currentTotal = parseFloat(prev.totalEarnings.replace(/[$,]/g, '')) || 0;
+            return {
+              ...prev,
+              totalEarnings: formatCurrency(currentTotal + amountValue)
+            };
+          });
+        } else if (status === 'completed' || status === 'approved') {
+          // If approved or completed, refresh from API
+          console.log('Withdrawal approved or completed via BroadcastChannel, refreshing data');
+          refreshEarningsData();
+        }
+      };
+    } catch (error) {
+      console.error('BroadcastChannel not supported:', error);
+      // Fallback to other methods which are already implemented
+    }
+    
+    // Cleanup function
+    return () => {
+      if (broadcastChannel) {
+        broadcastChannel.close();
+      }
+    };
+  }, []);
 
   // Fetch user data and earnings on component mount
   useEffect(() => {
@@ -166,13 +459,8 @@ export default function DashboardHome() {
         
         setUserData(user);
         
-        // Always set $0 balance data as requested
-        setEarningsData({
-          totalEarnings: '$0',
-          lastStatement: '$0',
-          pendingPayments: '$0',
-          statementHistory: []
-        });
+        // Get earnings data from API
+        await refreshEarningsData();
         
         // Fetch releases data
         await fetchReleases();
@@ -338,6 +626,12 @@ export default function DashboardHome() {
     
     const amount = parseFloat(withdrawAmount);
     
+    // Validate amount against user balance
+    if (amount > userBalance) {
+      setWithdrawError(`Insufficient balance. Your available balance is ${formatCurrency(userBalance)}`);
+      return;
+    }
+    
     // Validate payment method details
     if (paymentMethod === "Bank") {
       if (!bankDetails.bankName || !bankDetails.accountName || !bankDetails.swiftCode || !bankDetails.accountNumber) {
@@ -367,9 +661,28 @@ export default function DashboardHome() {
       
       console.log('Withdrawal request submitted successfully:', response);
       
+      // Get the withdrawal ID from the response
+      const withdrawalId = response.id;
+
+      // Get current user's ID
+      const userId = userData?.id || userData?._id;
+
+      // Use the earnings manager to track this withdrawal
+      updateEarningsForWithdrawal(withdrawalId, amount, 'create', userId);
+
       // Show success message using our custom Toast
       setToastType('success');
-      setToastMessage(`Withdrawal request for $${amount} submitted successfully!`);
+      setToastMessage(`Withdrawal request for ${formatCurrency(amount)} submitted successfully!`);
+
+      // Update user balance (using the new balance from earnings manager)
+      const earningsManager = getEarningsManager();
+      setUserBalance(earningsManager.getTotalEarnings());
+
+      // Update earnings display with the new balance
+      setEarningsData(prev => ({
+        ...prev,
+        totalEarnings: earningsManager.getFormattedTotalEarnings()
+      }));
       
       setWithdrawLoading(false);
       handleCloseModal();
@@ -426,6 +739,35 @@ export default function DashboardHome() {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Add a helper function to format currency consistently
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  // Update the withdraw modal UI to show available balance and validate input on change
+  const handleWithdrawAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setWithdrawAmount(value);
+    
+    // Clear previous error if user is typing
+    if (withdrawError) {
+      setWithdrawError('');
+    }
+    
+    // Real-time validation
+    if (value && !isNaN(parseFloat(value))) {
+      const amount = parseFloat(value);
+      if (amount > userBalance) {
+        setWithdrawError(`Insufficient balance. Your available balance is ${formatCurrency(userBalance)}`);
+      }
+    }
   };
 
   if (isLoading) {
@@ -641,17 +983,30 @@ export default function DashboardHome() {
                   <input
                     type="text"
                     placeholder="0.00"
-                    className="w-full py-3 sm:py-4 pl-10 pr-3 rounded-lg bg-gray-800/60 text-white text-lg sm:text-xl font-medium border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#A365FF] focus:border-[#A365FF]"
+                    className={`w-full py-3 sm:py-4 pl-10 pr-3 rounded-lg bg-gray-800/60 text-white text-lg sm:text-xl font-medium border ${
+                      withdrawError && withdrawError.includes('Insufficient balance') 
+                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+                        : 'border-gray-700 focus:ring-[#A365FF] focus:border-[#A365FF]'
+                    } focus:outline-none focus:ring-1`}
                     value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    onChange={handleWithdrawAmountChange}
                   />
                 </div>
-                <p className="mt-2 text-xs sm:text-sm text-gray-400 flex items-center">
-                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1.5 text-[#A365FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  You can request any amount including $0
-                </p>
+                <div className="mt-2 flex justify-between items-center">
+                  <p className="text-xs sm:text-sm text-gray-400 flex items-center">
+                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1.5 text-[#A365FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Available Balance: {formatCurrency(userBalance)}
+                  </p>
+                  <button 
+                    type="button"
+                    onClick={() => setWithdrawAmount(userBalance.toString())}
+                    className="text-[#A365FF] hover:text-purple-400 text-xs"
+                  >
+                    Max
+                  </button>
+                </div>
               </div>
               
               {/* Payment Method Tabs */}

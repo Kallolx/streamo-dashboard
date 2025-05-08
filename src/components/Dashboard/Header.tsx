@@ -172,6 +172,7 @@ export default function Header({
           <Search 
             placeholder="Search for videos, artists, releases..." 
             onSearch={handleSearch}
+            liveSearch={true}
           />
         </div>
 
@@ -219,6 +220,7 @@ export default function Header({
           <Search 
             placeholder="Search..." 
             onSearch={handleSearch}
+            liveSearch={true}
           />
         </div>
       )}

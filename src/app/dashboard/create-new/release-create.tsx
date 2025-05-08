@@ -99,6 +99,7 @@ export default function ReleaseCreate() {
   const [coverArt, setCoverArt] = useState<File | null>(null);
   const [coverArtPreview, setCoverArtPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const trackAudioInputRef = useRef<HTMLInputElement>(null);
   
   // Add state for user label name
   const [userLabelName, setUserLabelName] = useState<string>("");
@@ -117,6 +118,7 @@ export default function ReleaseCreate() {
     version?: string;
     contentRating?: string;
     lyrics?: string;
+    audioFile?: File;
   }
 
   // Track list state
@@ -133,6 +135,19 @@ export default function ReleaseCreate() {
     contentRating: "",
     lyrics: ""
   });
+  
+  // Handle track audio file upload
+  const handleTrackAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setCurrentTrack({
+        ...currentTrack,
+        audioFile: file,
+      });
+      
+      console.log('Track audio file selected:', file.name, file.type, `${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+    }
+  };
   
   // Add or edit track with ISRC management
   const handleAddOrEditTrack = () => {
@@ -182,7 +197,8 @@ export default function ReleaseCreate() {
       isrc: generateRandomISRC(), // Generate new ISRC for each new track
       version: "original",
       contentRating: "",
-      lyrics: ""
+      lyrics: "",
+      audioFile: undefined,
     });
   };
   
@@ -345,16 +361,6 @@ export default function ReleaseCreate() {
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      // No longer require coverArt
-      // if (!coverArt) {
-      //   setToast({
-      //     show: true,
-      //     message: "Please upload a cover art image",
-      //     type: "error",
-      //   });
-      //   return;
-      // }
-      
       // Get values directly from form elements with EXACT keys matching MongoDB schema
       const title = (document.getElementById('releaseTitle') as HTMLInputElement)?.value || "Untitled Release";
       const artist = (document.getElementById('artistName') as HTMLInputElement)?.value || 
@@ -376,6 +382,30 @@ export default function ReleaseCreate() {
 
       // Debug logging for stores selection
       console.log("DEBUG - Selected stores before submission:", selectedStores);
+      
+      // Using FormData to handle file uploads
+      const formData = new FormData();
+      
+      // Add main release cover art if provided
+      if (coverArt) {
+        formData.append('coverArt', coverArt);
+      }
+      
+      // Add track audio files with index-based naming
+      tracks.forEach((track, index) => {
+        if (track.audioFile) {
+          console.log(`DEBUG - Track ${index} has audio file:`, track.audioFile);
+          console.log(`DEBUG - Track audio details:`, {
+            name: track.audioFile.name,
+            type: track.audioFile.type,
+            size: `${(track.audioFile.size / (1024 * 1024)).toFixed(2)} MB`
+          });
+          formData.append(`trackAudio_${index}`, track.audioFile);
+          console.log(`Adding track ${index} audio file: ${track.audioFile.name}`);
+        } else {
+          console.log(`DEBUG - Track ${index} has NO audio file`);
+        }
+      });
       
       // Create a data object with all fields
       const releaseData = {
@@ -408,7 +438,7 @@ export default function ReleaseCreate() {
         // Pricing
         pricing: (document.getElementById('trackPricing') as HTMLSelectElement)?.value || "free",
         
-        // Track data with complete information
+        // Track data with complete information but without the File objects (they go into FormData separately)
         tracks: tracks.map(track => ({
           title: track.title || "Untitled Track",
           artistName: track.artistName || "Unknown Artist",
@@ -416,23 +446,28 @@ export default function ReleaseCreate() {
           isrc: track.isrc || "",
           version: track.version || "original",
           contentRating: track.contentRating || "",
-          lyrics: track.lyrics || ""
-        })),
+          lyrics: track.lyrics || "",
+        }))
       };
 
       console.log('Release data being submitted:', releaseData);
       
-      // Use the JSON-only method to create the release
-      const response = await createReleaseWithoutFile(releaseData);
+      // Add the JSON data to the FormData
+      formData.append('data', JSON.stringify(releaseData));
+      
+      // Use the createRelease method with FormData
+      console.log("Uploading with files");
+      const response = await createRelease(formData);
 
       console.log("Success response:", response);
       console.log("Stores in response:", response.data.stores);
       console.log("Cover art path:", response.data.coverArt);
+      console.log("Tracks:", response.data.tracks);
       
       // Show success message
       setToast({
         show: true,
-        message: `Release created successfully with cover art: ${response.data.coverArt}`,
+        message: `Release created successfully!`,
         type: "success",
       });
       
@@ -623,9 +658,7 @@ export default function ReleaseCreate() {
             </ul>
           </div>
         </div>
-      </div>
-
-      {/* Upload or Add Tracks Section */}
+      </div>{/* Upload or Add Tracks Section */}
       <div className="bg-[#161A1F] rounded-lg p-3 md:p-6">
         <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Upload or Add Tracks</h2>
 
@@ -1270,6 +1303,7 @@ export default function ReleaseCreate() {
                 </button>
               </div>
               
+              {/* Modal content */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
                 {/* Track Title */}
                 <div>
@@ -1368,6 +1402,67 @@ export default function ReleaseCreate() {
                     <option value="explicit">Explicit</option>
                   </select>
                 </div>
+              </div>
+              
+              {/* Track Audio File Upload */}
+              <div className="mb-4 md:mb-6">
+                <label htmlFor="trackAudio" className="block text-xs md:text-sm font-medium text-gray-400 mb-1">
+                  Audio File
+                </label>
+                <div 
+                  onClick={() => trackAudioInputRef.current?.click()}
+                  className="w-full h-[70px] bg-[#161A1F] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
+                >
+                  {currentTrack.audioFile ? (
+                    <div className="flex items-center justify-center space-x-2 px-4">
+                      <svg 
+                        className="w-6 h-6 text-purple-500" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24" 
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={1.5} 
+                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
+                        />
+                      </svg>
+                      <div className="flex-1 truncate">
+                        <p className="text-sm font-medium text-white truncate">{currentTrack.audioFile.name}</p>
+                        <p className="text-xs text-gray-400">Click to change file</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center p-2">
+                      <svg 
+                        className="w-6 h-6 text-gray-500 mx-auto mb-1" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24" 
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={1.5} 
+                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
+                        />
+                      </svg>
+                      <p className="text-xs text-gray-400">
+                        Click to upload track audio (MP3, WAV, OGG)
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  ref={trackAudioInputRef}
+                  accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg"
+                  onChange={handleTrackAudioUpload}
+                  className="hidden"
+                />
               </div>
               
               {/* Lyrics */}

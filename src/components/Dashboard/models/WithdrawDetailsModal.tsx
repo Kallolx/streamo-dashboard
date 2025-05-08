@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { hasRole } from "@/services/authService";
 import { Copy, Check } from "@phosphor-icons/react";
+import { updateEarningsForWithdrawal } from "@/services/earningsManager";
 
 // Define the withdraw request data interface
 interface WithdrawRequest {
   id: string;
   userName: string;
+  userId?: string;
   date: string;
   transactionId: string;
   amount: string;
@@ -80,14 +82,127 @@ export default function WithdrawDetailsModal({
 
   // Handle approve click
   const handleApprove = () => {
-    onApprove(request.id);
-    onClose();
+    try {
+      // Get amount as a number
+      const amountValue = parseFloat(request.amount.replace(/[$,]/g, '')) || 0;
+      
+      // Get userId from request or use a fallback
+      const userId = request.userId || 'unknown';
+      
+      // Update earnings via the earnings manager with specific userId
+      updateEarningsForWithdrawal(request.id, amountValue, 'approve', userId);
+      
+      // 1. Trigger the custom event to update dashboard data
+      const event = new CustomEvent('withdrawalStatusChanged', {
+        detail: { 
+          status: 'completed',
+          amount: amountValue,
+          id: request.id,
+          userId,
+          timestamp: Date.now()
+        }
+      });
+      window.dispatchEvent(event);
+      
+      // 2. Update localStorage to ensure cross-page communication
+      localStorage.setItem('withdrawalStatusChanged', JSON.stringify({
+        status: 'completed',
+        amount: amountValue,
+        id: request.id,
+        userId,
+        timestamp: Date.now()
+      }));
+      
+      // 3. Broadcast to other browser tabs/windows using BroadcastChannel
+      try {
+        const bc = new BroadcastChannel('withdrawal_updates');
+        bc.postMessage({
+          status: 'completed',
+          amount: amountValue,
+          id: request.id,
+          userId,
+          timestamp: Date.now()
+        });
+        bc.close();
+      } catch (err) {
+        console.error('BroadcastChannel not supported', err);
+        // Fallback already implemented with localStorage
+      }
+      
+      console.log(`Withdrawal approved: ID ${request.id}, Amount ${request.amount}, User ${userId}`);
+      
+      // Call the parent component's approve function
+      onApprove(request.id);
+      onClose();
+    } catch (error) {
+      console.error('Error in handleApprove:', error);
+      // Still call the approval function even if there's an error in the notification
+      onApprove(request.id);
+      onClose();
+    }
   };
 
   // Handle reject click
   const handleReject = () => {
-    onReject(request.id);
-    onClose();
+    try {
+      // Get amount as a number
+      const amountValue = parseFloat(request.amount.replace(/[$,]/g, '')) || 0;
+      
+      // Get userId from request or use a fallback
+      const userId = request.userId || 'unknown';
+      
+      console.log(`Rejecting withdrawal: ID ${request.id}, Amount ${amountValue}, User ${userId}`);
+      
+      // Update earnings via the earnings manager with specific userId
+      updateEarningsForWithdrawal(request.id, amountValue, 'reject', userId);
+      
+      // 1. Trigger event to restore balance if rejected
+      const event = new CustomEvent('withdrawalStatusChanged', {
+        detail: { 
+          status: 'rejected',
+          amount: amountValue,
+          id: request.id,
+          userId,
+          timestamp: Date.now()
+        }
+      });
+      window.dispatchEvent(event);
+      
+      // 2. Update localStorage to ensure cross-page communication
+      localStorage.setItem('withdrawalStatusChanged', JSON.stringify({
+        status: 'rejected',
+        amount: amountValue,
+        id: request.id,
+        userId,
+        timestamp: Date.now()
+      }));
+      
+      // 3. Broadcast to other browser tabs/windows using BroadcastChannel
+      try {
+        const bc = new BroadcastChannel('withdrawal_updates');
+        bc.postMessage({
+          status: 'rejected',
+          amount: amountValue,
+          id: request.id,
+          userId,
+          timestamp: Date.now()
+        });
+        bc.close();
+      } catch (err) {
+        console.error('BroadcastChannel not supported', err);
+        // Fallback already implemented with localStorage
+      }
+      
+      console.log(`Withdrawal rejected: ID ${request.id}, Amount ${amountValue}, User ${userId}`);
+      
+      onReject(request.id);
+      onClose();
+    } catch (error) {
+      console.error('Error in handleReject:', error);
+      // Still call the reject function even if there's an error in the notification
+      onReject(request.id);
+      onClose();
+    }
   };
   
   // Handle delete click

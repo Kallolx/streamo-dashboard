@@ -219,96 +219,110 @@ export default function TrackCreate() {
 
   // Handle form submission
   const handleSubmit = async () => {
-    // Create FormData object for file uploads
-    const formData = new FormData();
-    
-    // Add files
-    if (coverArt) {
-      formData.append('coverArt', coverArt);
-    } else {
-      setToast({
-        show: true,
-        message: "Cover art is required",
-        type: "error"
-      });
-      return;
-    }
-    
-    if (videoFile) {
-      formData.append('videoFile', videoFile);
-    } else {
-      setToast({
-        show: true,
-        message: "Video file is required",
-        type: "error"
-      });
-      return;
-    }
-    
-    if (selectedStores.length === 0) {
-      setToast({
-        show: true,
-        message: "Please select at least one distribution platform",
-        type: "error"
-      });
-      return;
-    }
-    
-    // Add basic track info - we'll handle title as required
-    // but will auto-generate artist if missing to avoid validation errors
-    if (!title) {
-      setToast({
-        show: true,
-        message: "Please enter a video title",
-        type: "error"
-      });
-      return;
-    }
-    formData.append('title', title);
-    
-    // For artist field, use a default if not provided
-    const artistValue = artist || 'Unknown Artist';
-    formData.append('artist', artistValue);
-    
-    // Add other track data
-    formData.append('releaseType', releaseType);
-    formData.append('format', format);
-    formData.append('genre', genre);
-    formData.append('language', language);
-    formData.append('label', label);
-    formData.append('recordingYear', recordingYear);
-    formData.append('releaseDate', releaseDate);
-    formData.append('isrc', isrc);
-    formData.append('upc', upc);
-    formData.append('type', type);
-    formData.append('version', version);
-    formData.append('contentRating', contentRating);
-    formData.append('lyrics', lyrics);
-    
-    // Add contributors
-    formData.append('copyrightHeader', copyrightHeader);
-    formData.append('composer', composer);
-    formData.append('musicProducer', musicProducer);
-    formData.append('singer', singer);
-    formData.append('featuredArtist', featureArtist);
-    formData.append('lyricist', lyricist);
-    formData.append('publisher', publisher);
-    formData.append('musicDirector', musicDirector);
-    
-    // Add pricing
-    formData.append('pricing', pricing);
-    
-    // Set the initial status to "submitted" instead of default "draft"
-    formData.append('status', 'submitted');
-    
-    // Add stores as an array
-    selectedStores.forEach(store => {
-      formData.append('stores', store);
-    });
-    
     try {
+      console.log('Starting track submission...');
+      
+      // Validate required fields first
+      if (!title || title.trim() === '') {
+        setToast({
+          show: true,
+          message: "Please enter a title",
+          type: "error"
+        });
+        return;
+      }
+      
+      if (!artist || artist.trim() === '') {
+        setToast({
+          show: true,
+          message: "Please enter an artist name",
+          type: "error"
+        });
+        return;
+      }
+      
+      // Validate files
+      if (!coverArt) {
+        setToast({
+          show: true,
+          message: "Cover art is required",
+          type: "error"
+        });
+        return;
+      }
+      
+      if (!videoFile) {
+        setToast({
+          show: true,
+          message: "Video file is required",
+          type: "error"
+        });
+        return;
+      }
+      
+      if (selectedStores.length === 0) {
+        setToast({
+          show: true,
+          message: "Please select at least one distribution platform",
+          type: "error"
+        });
+        return;
+      }
+
+      // Create a simplified FormData object
+      const formData = new FormData();
+      
+      // Add required fields first
+      formData.append('title', title.trim());
+      formData.append('artist', artist.trim());
+      
+      // Add files
+      formData.append('coverArt', coverArt);
+      formData.append('videoFile', videoFile);
+      
+      // Add other essential fields with defaults
+      formData.append('releaseType', releaseType || 'single');
+      formData.append('format', format || 'digital');
+      
+      // Only append non-empty fields to reduce request size
+      if (genre) formData.append('genre', genre);
+      if (language) formData.append('language', language);
+      if (label) formData.append('label', label);
+      if (recordingYear) formData.append('recordingYear', recordingYear);
+      if (releaseDate) formData.append('releaseDate', releaseDate);
+      if (isrc) formData.append('isrc', isrc);
+      if (upc) formData.append('upc', upc);
+      if (type) formData.append('type', type);
+      if (version) formData.append('version', version);
+      if (contentRating) formData.append('contentRating', contentRating);
+      if (lyrics) formData.append('lyrics', lyrics);
+      
+      // Add only non-empty contributor fields
+      if (copyrightHeader) formData.append('copyrightHeader', copyrightHeader);
+      if (composer) formData.append('composer', composer);
+      if (musicProducer) formData.append('musicProducer', musicProducer);
+      if (singer) formData.append('singer', singer);
+      if (featureArtist) formData.append('featuredArtist', featureArtist);
+      if (lyricist) formData.append('lyricist', lyricist);
+      if (publisher) formData.append('publisher', publisher);
+      if (musicDirector) formData.append('musicDirector', musicDirector);
+      
+      // Add pricing if set
+      if (pricing) formData.append('pricing', pricing);
+      
+      // Set status
+      formData.append('status', 'submitted');
+      
+      // Add stores as separate entries
+      selectedStores.forEach(store => {
+        formData.append('stores', store);
+      });
+      
       setIsSubmitting(true);
+      console.log('Sending form data to server...');
+      
       const response = await createTrack(formData);
+      console.log('Track created successfully:', response);
       
       setToast({
         show: true,
@@ -316,13 +330,12 @@ export default function TrackCreate() {
         type: "success"
       });
       
-      // Clear the form data
+      // Reset form
       setCoverArt(null);
       setCoverArtPreview(null);
       setVideoFile(null);
       setVideoFileName(null);
       
-      // Clean up the video preview URL
       if (videoPreview) {
         URL.revokeObjectURL(videoPreview);
         setVideoPreview(null);
@@ -366,16 +379,27 @@ export default function TrackCreate() {
         }
       });
       
-      // Redirect to the dedicated videos page
+      // Redirect to videos page
       setTimeout(() => {
         router.push('/dashboard/catalogue?tab=videos');
       }, 2000);
       
-    } catch (error) {
-      console.error('Error creating video:', error);
+    } catch (error: any) {
+      console.error('Error creating track:', error);
+      
+      // Extract error message for better user feedback
+      let errorMessage = "Failed to create track. Please try again.";
+      if (error.response?.data?.error) {
+        errorMessage = typeof error.response.data.error === 'string' 
+          ? error.response.data.error 
+          : JSON.stringify(error.response.data.error);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       setToast({
         show: true,
-        message: "Failed to create video. Please try again.",
+        message: errorMessage,
         type: "error"
       });
     } finally {

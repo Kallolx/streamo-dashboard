@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { getAllStores, Store } from "@/services/storeService";
 
 // Tab interface for the modal
-type TabType = "details" | "track-list";
+type TabType = "details" | "play" | "track-list";
 
 // Interface for the release data
 interface Release {
@@ -58,6 +58,13 @@ export default function ReleaseDetailsModal({
   const [currentTab, setCurrentTab] = useState<TabType>("details");
   const [storeMap, setStoreMap] = useState<Record<string, Store>>({});
   const [storesLoading, setStoresLoading] = useState(true);
+  
+  // Audio player states
+  const [isPlaying, setIsPlaying] = useState<Record<string, boolean>>({});
+  const [progress, setProgress] = useState<Record<string, number>>({});
+  const [duration, setDuration] = useState<Record<string, number>>({});
+  const [currentTime, setCurrentTime] = useState<Record<string, number>>({});
+  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   
   // Default image fallback if release has no cover art
   const defaultImage = "/images/music/placeholder.png";
@@ -152,6 +159,53 @@ export default function ReleaseDetailsModal({
     }
   };
 
+  // Format time in seconds to mm:ss
+  const formatTime = (time: number): string => {
+    if (isNaN(time)) return "00:00";
+    
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+  
+  // Handle play/pause toggle
+  const togglePlay = (trackId: string) => {
+    const audio = audioRefs.current[trackId];
+    if (!audio) return;
+    
+    if (isPlaying[trackId]) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+    
+    setIsPlaying(prev => ({
+      ...prev,
+      [trackId]: !prev[trackId]
+    }));
+  };
+  
+  // Handle progress bar click to seek
+  const handleSeek = (trackId: string, e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRefs.current[trackId];
+    if (!audio) return;
+    
+    const progressBar = e.currentTarget;
+    const rect = progressBar.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    const seekTime = percent * duration[trackId];
+    
+    audio.currentTime = seekTime;
+    setCurrentTime(prev => ({
+      ...prev,
+      [trackId]: seekTime
+    }));
+    setProgress(prev => ({
+      ...prev,
+      [trackId]: percent * 100
+    }));
+  };
+
   // If modal is not open, don't render anything
   if (!isOpen) return null;
 
@@ -188,23 +242,36 @@ export default function ReleaseDetailsModal({
           <div className="flex flex-col sm:flex-row">
             {/* Left side - Album Art */}
             <div className="w-32 h-32 sm:w-40 sm:h-40 relative rounded-md overflow-hidden mx-auto sm:mx-0 sm:mr-6 flex-shrink-0 bg-gray-800 mb-4 sm:mb-0">
-              <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 text-center p-2">
-                <svg 
-                  className="w-16 h-16 text-gray-600 mb-2" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={1} 
-                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
-                  />
-                </svg>
-                <span className="text-xs text-gray-400">Album Artwork</span>
-              </div>
+              {release.coverArt ? (
+                <Image 
+                  src={release.coverArt.startsWith('http') ? release.coverArt : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${release.coverArt}` || defaultImage}
+                  alt={release.title}
+                  fill
+                  className="object-cover"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    e.currentTarget.src = defaultImage;
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 text-center p-2">
+                  <svg 
+                    className="w-16 h-16 text-gray-600 mb-2" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={1} 
+                      d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
+                    />
+                  </svg>
+                  <span className="text-xs text-gray-400">Album Artwork</span>
+                </div>
+              )}
             </div>
 
             {/* Right side - Title and Info */}
@@ -294,6 +361,16 @@ export default function ReleaseDetailsModal({
             onClick={() => setCurrentTab("details")}
           >
             Details
+          </button>
+          <button
+            className={`px-3 sm:px-5 py-2 rounded-full text-sm ${
+              currentTab === "play"
+                ? "bg-[#A365FF] text-white"
+                : "bg-[#1A1E24] text-gray-300"
+            }`}
+            onClick={() => setCurrentTab("play")}
+          >
+            Play
           </button>
           <button
             className={`px-3 sm:px-5 py-2 rounded-full text-sm ${
@@ -459,6 +536,137 @@ export default function ReleaseDetailsModal({
                   </div>
                 </div>
               </div>
+            ) : currentTab === "play" ? (
+              <div className="bg-[#1A1E24] p-4 rounded-md">
+                <h3 className="text-white text-md font-medium mb-6">Track Audio Files</h3>
+                
+                {release.tracks && release.tracks.length > 0 ? (
+                  <div className="space-y-6">
+                    {release.tracks.map((track, index) => {
+                      const trackId = `track-${track._id || index}`;
+                      return (
+                        <div key={trackId} className="flex flex-col bg-[#161A1F] p-4 rounded-md shadow-md">
+                          <div className="flex justify-between items-center mb-3">
+                            <div className="flex-1">
+                              <h4 className="text-white font-medium text-base">{track.title}</h4>
+                              <p className="text-gray-400 text-sm">{track.artistName}</p>
+                            </div>
+                            {track.audioFile && (
+                              <a 
+                                href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.audioFile}`}
+                                download={`${track.title} - ${track.artistName}.mp3`}
+                                className="flex items-center px-3 py-1.5 bg-[#1D2229] text-white rounded-full text-xs hover:bg-[#2A2F36] transition-colors ml-2"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                                Download
+                              </a>
+                            )}
+                          </div>
+                          
+                          {track.audioFile ? (
+                            <div className="mt-1">
+                              {/* Hidden native audio element */}
+                              <audio 
+                                ref={(audio) => {
+                                  audioRefs.current[trackId] = audio;
+                                  
+                                  // Set up event listeners when audio element is created
+                                  if (audio) {
+                                    audio.addEventListener('timeupdate', () => {
+                                      setCurrentTime(prev => ({
+                                        ...prev,
+                                        [trackId]: audio.currentTime
+                                      }));
+                                      setProgress(prev => ({
+                                        ...prev,
+                                        [trackId]: (audio.currentTime / audio.duration) * 100
+                                      }));
+                                    });
+                                    
+                                    audio.addEventListener('loadedmetadata', () => {
+                                      setDuration(prev => ({
+                                        ...prev,
+                                        [trackId]: audio.duration
+                                      }));
+                                    });
+                                    
+                                    audio.addEventListener('ended', () => {
+                                      setIsPlaying(prev => ({
+                                        ...prev,
+                                        [trackId]: false
+                                      }));
+                                    });
+                                  }
+                                }}
+                                src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.audioFile}`}
+                                className="hidden"
+                              />
+                              
+                              {/* Custom audio player UI */}
+                              <div className="flex flex-col">
+                                {/* Player controls */}
+                                <div className="flex items-center mb-2">
+                                  {/* Play/Pause button */}
+                                  <button 
+                                    onClick={() => togglePlay(trackId)}
+                                    className="w-10 h-10 flex items-center justify-center bg-[#A365FF] hover:bg-purple-700 text-white rounded-full transition-colors focus:outline-none mr-3"
+                                  >
+                                    {isPlaying[trackId] ? (
+                                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                  
+                                  {/* Time display */}
+                                  <div className="text-xs text-gray-400 w-16">
+                                    {formatTime(currentTime[trackId] || 0)}
+                                  </div>
+                                  
+                                  {/* Progress bar */}
+                                  <div 
+                                    className="flex-1 bg-[#2D3139] rounded-full h-2 mx-2 cursor-pointer overflow-hidden"
+                                    onClick={(e) => handleSeek(trackId, e)}
+                                  >
+                                    <div 
+                                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all"
+                                      style={{ width: `${progress[trackId] || 0}%` }}
+                                    ></div>
+                                  </div>
+                                  
+                                  {/* Duration */}
+                                  <div className="text-xs text-gray-400 w-16 text-right">
+                                    {formatTime(duration[trackId] || 0)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-[#13171C] text-gray-400 p-3 rounded text-center text-sm">
+                              No audio file available for this track
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-400 py-10">
+                    <svg className="w-16 h-16 mx-auto text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                    </svg>
+                    <p>No tracks found for this release.</p>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="bg-[#1A1E24] p-3 sm:p-4 rounded-sm">
                 {/* Track list table with headers */}
@@ -569,28 +777,6 @@ export default function ReleaseDetailsModal({
                   Approve
                 </button>
               </>
-            )}
-            
-            {/* Distribution button - only for submitted releases */}
-            {release.status === 'submitted' && (
-              <button
-                onClick={() => window.location.href = `/dashboard/distribution?releaseId=${release._id}`}
-                className="flex items-center justify-center px-3 sm:px-4 py-2 bg-[#A365FF] text-white rounded-md hover:bg-purple-700 transition-colors text-sm"
-              >
-                <svg
-                  className="w-4 h-4 mr-1"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Manage Releases
-              </button>
             )}
             
             {/* Close button for all users */}

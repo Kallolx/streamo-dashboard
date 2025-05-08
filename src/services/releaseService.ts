@@ -52,6 +52,7 @@ export interface CreateReleaseData {
   artist: string;
   label?: string;
   coverArt?: File; // Make coverArt optional
+  audioFile?: File; // Add audio file support
   releaseType: string;
   format: string;
   genre: string;
@@ -102,22 +103,34 @@ export const getReleaseById = async (releaseId: string) => {
  * Create a new release
  * Uses FormData to handle file uploads
  */
-export const createRelease = async (releaseData: CreateReleaseData) => {
+export const createRelease = async (releaseData: CreateReleaseData | FormData) => {
   try {
-    // Create FormData object to handle the file upload
-    const formData = new FormData();
+    let formData: FormData;
     
-    // Add coverArt file if provided
-    if (releaseData.coverArt instanceof File) {
-      formData.append('coverArt', releaseData.coverArt);
+    // Check if releaseData is already FormData
+    if (releaseData instanceof FormData) {
+      formData = releaseData;
+    } else {
+      // Convert CreateReleaseData to FormData
+      formData = new FormData();
+      
+      // Add coverArt file if provided
+      if (releaseData.coverArt instanceof File) {
+        formData.append('coverArt', releaseData.coverArt);
+      }
+      
+      // Add audioFile if provided
+      if (releaseData.audioFile instanceof File) {
+        formData.append('audioFile', releaseData.audioFile);
+      }
+      
+      // Add all other fields as JSON string under 'data' key
+      const releaseDataWithoutFiles = { ...releaseData };
+      // Safe deletion of file properties
+      const { coverArt, audioFile, ...dataWithoutFiles } = releaseDataWithoutFiles;
+      
+      formData.append('data', JSON.stringify(dataWithoutFiles));
     }
-    
-    // Add all other fields as JSON string under 'data' key
-    const releaseDataWithoutFile = { ...releaseData };
-    // Safe deletion of coverArt property
-    const { coverArt, ...dataWithoutCoverArt } = releaseDataWithoutFile;
-    
-    formData.append('data', JSON.stringify(dataWithoutCoverArt));
     
     const response = await api.post('/releases', formData, {
       headers: {
@@ -160,10 +173,15 @@ export const updateRelease = async (releaseId: string, releaseData: Partial<Crea
       formData.append('coverArt', releaseData.coverArt);
     }
     
-    // Add all other fields as JSON string under 'data' key
-    const { coverArt, ...dataWithoutCoverArt } = releaseData;
+    // Add audioFile if provided
+    if (releaseData.audioFile instanceof File) {
+      formData.append('audioFile', releaseData.audioFile);
+    }
     
-    formData.append('data', JSON.stringify(dataWithoutCoverArt));
+    // Add all other fields as JSON string under 'data' key
+    const { coverArt, audioFile, ...dataWithoutFiles } = releaseData;
+    
+    formData.append('data', JSON.stringify(dataWithoutFiles));
     
     const response = await api.put(`/releases/${releaseId}`, formData, {
       headers: {
@@ -263,4 +281,34 @@ export const getFallbackReleases = (limit: number = 5): Release[] => {
   ];
   
   return mockReleases.slice(0, limit);
+};
+
+/**
+ * Debug upload function for testing file uploads
+ */
+export const debugUpload = async (audioFile: File) => {
+  try {
+    const formData = new FormData();
+    
+    formData.append('trackAudio_0', audioFile);
+    formData.append('test', 'testing audio upload');
+    
+    console.log('Debug upload form data:', {
+      fileName: audioFile.name,
+      fileType: audioFile.type,
+      fileSize: audioFile.size
+    });
+    
+    const response = await api.post('/releases/debug-upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log('Debug upload response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in debug upload:', error);
+    throw error;
+  }
 }; 

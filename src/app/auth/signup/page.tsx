@@ -242,7 +242,7 @@ function SignupContent() {
           {/* Logo at the top left */}
           <div className="flex justify-start mb-6">
             <Image 
-              src="/images/logo.svg" 
+              src="/images/logo.png" 
               alt="Logo" 
               width={180} 
               height={70} 
@@ -301,7 +301,7 @@ function SignupContent() {
             {/* Logo only visible on mobile */}
             <div className="flex justify-center mb-6 lg:hidden">
               <Image 
-                src="/images/logo.svg" 
+                src="/images/logo.png" 
                 alt="Logo" 
                 width={180} 
                 height={70} 
