@@ -16,6 +16,7 @@ const sampleTracks = [
     title: "Midnight Drive",
     imageSrc: "/images/music/1.png",
     primaryArtist: "Neon Pulse",
+    artist: "Neon Pulse",
     genre: "Alternative Rock",
     contentRating: "PG",
     isrc: "US-XYZ-23-00001",
@@ -30,6 +31,7 @@ const sampleTracks = [
     title: "Urban Echoes",
     imageSrc: "/images/music/2.png",
     primaryArtist: "Cyber Waves",
+    artist: "Cyber Waves",
     genre: "Electronic",
     contentRating: "PG",
     isrc: "US-XYZ-23-00002",
@@ -44,6 +46,7 @@ const sampleTracks = [
     title: "Neon Dreams",
     imageSrc: "/images/music/3.png",
     primaryArtist: "Future Sound",
+    artist: "Future Sound",
     genre: "Synthwave",
     contentRating: "PG",
     isrc: "US-XYZ-23-00003",
@@ -58,6 +61,7 @@ const sampleTracks = [
     title: "Electric Sky",
     imageSrc: "/images/music/4.png",
     primaryArtist: "Digital Horizon",
+    artist: "Digital Horizon",
     genre: "EDM",
     contentRating: "PG",
     isrc: "US-XYZ-23-00004",
@@ -72,6 +76,7 @@ const sampleTracks = [
     title: "Midnight Rhythm",
     imageSrc: "/images/music/5.png",
     primaryArtist: "Beat Masters",
+    artist: "Beat Masters",
     genre: "Hip-Hop",
     contentRating: "PG",
     isrc: "US-XYZ-23-00005",
@@ -103,6 +108,7 @@ interface TrackItem {
   title: string;
   imageSrc: string;
   primaryArtist: string;
+  artist: string;
   genre: string;
   contentRating: string;
   isrc: string;
@@ -223,6 +229,7 @@ export default function CataloguePage() {
             }`
           : "/images/music/1.png",
         primaryArtist: apiTrack.artist || "Unknown Artist",
+        artist: apiTrack.artist || "Unknown Artist",
         genre: apiTrack.genre || "Not Specified",
         contentRating: apiTrack.contentRating || "Not Rated",
         isrc: apiTrack.isrc || "Not Available",
@@ -244,6 +251,7 @@ export default function CataloguePage() {
       setSelectedTrack({
         ...sampleTracks[sampleIndex],
         _id: trackId,
+        artist: sampleTracks[sampleIndex].primaryArtist,
         status: "Not Available",
         createdAt: "Not Available",
         updatedAt: "Not Available",
