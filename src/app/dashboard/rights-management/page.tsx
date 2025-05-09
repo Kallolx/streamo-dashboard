@@ -35,7 +35,7 @@ export default function RightsManagementPage() {
     
     try {
       // Get the API base URL from environment or use default
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:5000/api';
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://streamo-backend.onrender.com/api';
       console.log('Using API URL:', apiBaseUrl);
       
       // Call backend API endpoint to send email
