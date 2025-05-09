@@ -1,16 +1,18 @@
+import './globals.css';
+import { Inter, Poppins } from 'next/font/google';
+import { LogoProvider } from '@/contexts/LogoContext';
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
-import "./globals.css";
 
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const poppins = Poppins({
-  weight: ['400', '500', '600', '700'],
-  variable: "--font-poppins",
-  subsets: ["latin"],
+  weight: ['300', '400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-poppins'
 });
 
 export const metadata: Metadata = {
-  title: "Promise Distribution - Join our music community",
-  description: "Join our music community",
+  title: 'Music Dashboard',
+  description: 'A comprehensive dashboard for music artists and distributors',
   icons: {
     icon: [
       { url: '/favicon/favicon.ico' },
@@ -28,15 +30,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
-      <body
-        className={`${poppins.variable} font-poppins antialiased`}
-      >
-        {children}
+      <body className={`${inter.variable} ${poppins.variable}`}>
+        <LogoProvider>
+          {children}
+        </LogoProvider>
       </body>
     </html>
   );

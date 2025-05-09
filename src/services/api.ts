@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Determine the base URL based on environment
-const getBaseUrl = () => {
+export const getBaseUrl = () => {
   // For production environment (Vercel)
   if (process.env.NODE_ENV === 'production') {
     return 'https://streamo-backend.onrender.com/api';

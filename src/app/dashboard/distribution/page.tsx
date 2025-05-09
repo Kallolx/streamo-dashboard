@@ -105,6 +105,7 @@ export default function DistributionPage() {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedLabel, setSelectedLabel] = useState("all");
   const [selectedArtist, setSelectedArtist] = useState("all");
+  const [showApprovedItems, setShowApprovedItems] = useState(false);
   const itemsPerPage = 10;
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<DistributionItem | null>(null);
@@ -285,7 +286,12 @@ export default function DistributionPage() {
         selectedArtist === "all" || 
         item.artist === selectedArtist;
       
-      return matchesSearch && matchesStatus && matchesLabel && matchesArtist;
+      // Hide approved items filter
+      const matchesApprovedFilter = 
+        showApprovedItems || 
+        item.status !== "approved";
+      
+      return matchesSearch && matchesStatus && matchesLabel && matchesArtist && matchesApprovedFilter;
     }
   );
 
@@ -681,6 +687,20 @@ export default function DistributionPage() {
                       <CaretDown className="h-5 w-5 text-gray-400" />
                     </div>
                   </div>
+                </div>
+                
+                {/* Show Approved Items Toggle */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="showApprovedItems"
+                    checked={showApprovedItems}
+                    onChange={() => setShowApprovedItems(!showApprovedItems)}
+                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-600 rounded bg-gray-700"
+                  />
+                  <label htmlFor="showApprovedItems" className="ml-2 block text-sm text-white">
+                    Show approved items
+                  </label>
                 </div>
                 
                 {/* Label */}

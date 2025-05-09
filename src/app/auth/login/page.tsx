@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { login } from "@/services/authService"; 
 import Image from "next/image";
+import { useLogo } from '@/contexts/LogoContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -16,6 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isPendingApproval, setIsPendingApproval] = useState(false);
   const [showTestAccounts, setShowTestAccounts] = useState(false);
+  const { logo } = useLogo();
 
   useEffect(() => {
 
@@ -74,7 +77,7 @@ export default function LoginPage() {
           {/* Logo at the top left */}
           <div className="flex justify-start">
             <Image 
-              src="/images/logo.png" 
+              src={logo} 
               alt="Logo" 
               width={180} 
               height={70} 
@@ -143,7 +146,7 @@ export default function LoginPage() {
             {/* Logo only visible on mobile */}
             <div className="flex justify-center mb-6 lg:hidden">
               <Image 
-                src="/images/logo.png" 
+                src={logo} 
                 alt="Logo" 
                 width={180} 
                 height={70} 

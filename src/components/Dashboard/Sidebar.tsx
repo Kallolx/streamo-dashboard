@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { House, Books, ChartBar, SignOut, User, ArrowsDownUp, CurrencyDollar, ShoppingCart, Files } from '@phosphor-icons/react';           
-
+import { House, Books, ChartBar, SignOut, User, ArrowsDownUp, CurrencyDollar, ShoppingCart, Files, UserPlus, Shield, Gear } from '@phosphor-icons/react';           
+import { useLogo } from '@/contexts/LogoContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -16,6 +16,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
   const pathname = usePathname();
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const { logo } = useLogo();
 
   // Get user role from localStorage on component mount
   useEffect(() => {
@@ -67,9 +68,17 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
     
     if (userRole === 'superadmin') return true; // Superadmin can see everything
     
-    if (userRole === 'admin') {
-      // Admin can see everything except what's explicitly restricted
-      return true;
+    if (userRole === 'admin') return true;
+   
+    
+    // For specific roles, show or hide items
+    if (item === 'invite-user') {
+      return userRole === 'labelowner' || userRole === 'superadmin';
+    }
+    
+    // Only superadmin can see settings
+    if (item === 'settings') {
+      return userRole === 'superadmin';
     }
     
     // For artist and label owners, hide specific items
@@ -91,7 +100,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
         <div className="flex items-center justify-center h-16">
           <div className={`transition-all duration-300 mt-6 ${isOpen ? 'w-30' : 'w-10'}`}>
             <img 
-              src="/images/logo.png" 
+              src={logo} 
               alt="Music Dashboard Logo" 
               className="w-full h-auto"
             />
@@ -217,6 +226,23 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
               </Link>
             )}
 
+            {isMenuItemVisible('invite-user') && (
+              <Link
+                href="/dashboard/invite-user"
+                className={`flex items-center p-3 rounded-lg transition-colors ${
+                  isActive('/dashboard/invite-user')
+                    ? 'bg-purple-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700'
+                }`}
+                onClick={() => handleLinkClick('/dashboard/invite-user')}
+              >
+                {isActive('/dashboard/invite-user') ? 
+                  <UserPlus size={20} weight="fill" /> : 
+                  <UserPlus size={20} />
+                }
+                {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Invite Users</span>}
+              </Link>
+            )}           
             <Link
               href="/dashboard/withdraw-request"
               className={`flex items-center p-3 rounded-lg transition-colors ${
@@ -268,11 +294,37 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
                 {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Stores</span>}
               </Link>
             )}
+             <Link
+              href="/dashboard/rights-management"
+              className={`flex items-center p-3 rounded-lg transition-colors ${
+                isActive('/dashboard/rights-management')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700'
+              }`}
+              onClick={() => handleLinkClick('/dashboard/rights-management')}
+            >
+              {isActive('/dashboard/rights-management') ? 
+                <Shield size={20} weight="fill" /> : 
+                <Shield size={20} />
+              }
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Rights Management</span>}
+            </Link>
+
           </div>
         </nav>
 
         {/* Logout Button */}
-        <div className="px-4 pb-6">
+        <div className="px-4 pb-6 flex items-center justify-between">
+          {isMenuItemVisible('settings') && (
+            <Link
+              href="/dashboard/settings"
+              className="flex items-center p-3 rounded-lg transition-colors text-gray-300 hover:bg-gray-700"
+              onClick={() => handleLinkClick('/dashboard/settings')}
+            >
+              <Gear size={20} />
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Settings</span>}
+            </Link>
+          )}
           <button
             onClick={() => {
               if (isMobile) {
@@ -280,7 +332,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
               }
               handleLogout();
             }}
-            className="w-full flex items-center p-3 rounded-lg transition-colors text-gray-300 hover:bg-gray-700"
+            className="flex items-center p-3 rounded-lg transition-colors text-gray-300 hover:bg-gray-700"
           >
             <SignOut size={20} />
             {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Logout</span>}

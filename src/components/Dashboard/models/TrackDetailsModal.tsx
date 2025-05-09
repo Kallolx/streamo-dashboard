@@ -48,6 +48,7 @@ interface Track {
   coverArt?: string;
   audioFile?: string;
   videoFile?: string;
+  originalData?: Track;
 }
 
 // Props interface for the modal
@@ -78,11 +79,67 @@ export default function TrackDetailsModal({
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
   
   // Default image fallback if track has no image
   const defaultImage = "/images/music/placeholder.png";
+
+  // Debug logging to help diagnose issues
+  useEffect(() => {
+    if (isOpen) {
+      console.log("Track data:", track);
+      
+      // Add code to retrieve the full track data if necessary
+      const fetchFullTrackData = async () => {
+        if (track._id && (!track.videoFile || !track.coverArt)) {
+          try {
+            console.log("Fetching complete track data for ID:", track._id);
+            // Import the necessary service
+            const { getTrackById } = await import('@/services/trackService');
+            const response = await getTrackById(track._id);
+            
+            if (response.success && response.data) {
+              console.log("Fetched complete track data:", response.data);
+              // Instead of replacing the whole track, we just access the videoFile
+              if (response.data.videoFile) {
+                console.log("Video file found in API response:", response.data.videoFile);
+                // Create a temporary element to display the video
+                const tempVideo = document.createElement('video');
+                const videoSrc = response.data.videoFile.startsWith('http')
+                  ? response.data.videoFile
+                  : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${response.data.videoFile}`;
+                
+                tempVideo.src = videoSrc;
+                tempVideo.style.display = 'none';
+                document.body.appendChild(tempVideo);
+                
+                // Set event listeners to test video loading
+                tempVideo.onloadeddata = () => {
+                  console.log("Video loaded successfully from", videoSrc);
+                  document.body.removeChild(tempVideo);
+                  
+                  // Update the video element in the UI
+                  if (videoRef.current) {
+                    videoRef.current.src = videoSrc;
+                  }
+                };
+                
+                tempVideo.onerror = () => {
+                  console.error("Error loading video from", videoSrc);
+                  document.body.removeChild(tempVideo);
+                };
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching complete track data:", error);
+          }
+        }
+      };
+      
+      fetchFullTrackData();
+    }
+  }, [isOpen, track]);
 
   // Fetch stores when modal opens
   useEffect(() => {
@@ -185,12 +242,12 @@ export default function TrackDetailsModal({
   
   // Handle play/pause toggle for audio
   const toggleAudioPlay = () => {
-    if (!audioRef.current) return;
+    if (!videoRef.current) return;
     
     if (isPlaying) {
-      audioRef.current.pause();
+      videoRef.current.pause();
     } else {
-      audioRef.current.play();
+      videoRef.current.play();
     }
     
     setIsPlaying(!isPlaying);
@@ -198,14 +255,14 @@ export default function TrackDetailsModal({
   
   // Handle progress bar click to seek
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current) return;
+    if (!videoRef.current) return;
     
     const progressBar = e.currentTarget;
     const rect = progressBar.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
     const seekTime = percent * duration;
     
-    audioRef.current.currentTime = seekTime;
+    videoRef.current.currentTime = seekTime;
     setCurrentTime(seekTime);
     setProgress(percent * 100);
   };
@@ -247,16 +304,33 @@ export default function TrackDetailsModal({
             {/* Left side - Track Art */}
             <div className="w-32 h-32 sm:w-40 sm:h-40 relative rounded-md overflow-hidden mx-auto sm:mx-0 sm:mr-6 flex-shrink-0 bg-gray-800 mb-4 sm:mb-0">
               {track.coverArt ? (
-                <Image 
-                  src={track.coverArt.startsWith('http') ? track.coverArt : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.coverArt}` || defaultImage}
-                  alt={track.title}
-                  fill
-                  className="object-cover"
-                  onError={(e) => {
-                    // Fallback if image fails to load
-                    e.currentTarget.src = defaultImage;
-                  }}
-                />
+                <div className="w-full h-full">
+                  <img 
+                    src={track.coverArt.startsWith('http') 
+                      ? track.coverArt 
+                      : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.coverArt}`}
+                    alt={track.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.src = defaultImage;
+                    }}
+                  />
+                </div>
+              ) : track.imageSrc ? (
+                <div className="w-full h-full">
+                  <img 
+                    src={track.imageSrc}
+                    alt={track.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.src = defaultImage;
+                    }}
+                  />
+                </div>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 text-center p-2">
                   <svg 
@@ -504,135 +578,125 @@ export default function TrackDetailsModal({
               <div className="bg-[#1A1E24] p-4 rounded-md">
                 <h3 className="text-white text-md font-medium mb-6">Media Player</h3>
                 
-                {/* Video Player */}
-                {track.videoFile && (
-                  <div className="mb-6">
-                    <h4 className="text-gray-300 text-sm mb-2">Video</h4>
-                    <div className="relative aspect-video bg-black rounded-sm overflow-hidden">
-                      <video 
-                        ref={videoRef}
-                        src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.videoFile}`}
-                        className="w-full h-full object-contain"
-                        controls
-                        poster={track.coverArt ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.coverArt}` : undefined}
-                      />
-                    </div>
-                    <div className="mt-2 flex justify-end">
-                      <a 
-                        href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.videoFile}`}
-                        download={`${track.title} - ${track.artist}.mp4`}
-                        className="flex items-center px-3 py-1.5 bg-[#1D2229] text-white rounded-full text-xs hover:bg-[#2A2F36] transition-colors"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                        </svg>
-                        Download Video
-                      </a>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Audio Player */}
-                {track.audioFile && (
-                  <div>
-                    <h4 className="text-gray-300 text-sm mb-2">Audio</h4>
-                    <div className="bg-[#161A1F] p-4 rounded-md shadow-md">
-                      {/* Hidden native audio element */}
-                      <audio 
-                        ref={audioRef}
-                        src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.audioFile}`}
-                        className="hidden"
-                        onTimeUpdate={() => {
-                          if (audioRef.current) {
-                            setCurrentTime(audioRef.current.currentTime);
-                            setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
-                          }
-                        }}
-                        onLoadedMetadata={() => {
-                          if (audioRef.current) {
-                            setDuration(audioRef.current.duration);
-                          }
-                        }}
-                        onEnded={() => {
-                          setIsPlaying(false);
-                        }}
-                      />
+                {/* Video Player Section - Add manual video URL construction for testing */}
+                <div className="mb-6">
+                  <h4 className="text-gray-300 text-sm mb-2">Video</h4>
+                  
+                  {(() => {
+                    // Manually construct the expected video URL based on track ID
+                    const trackId = track._id;
+                    
+                    // If the track has imageSrc but not videoFile, we can use the same 
+                    // pattern to construct the possible videoFile path
+                    let possibleVideoPath = null;
+                    
+                    if (track.imageSrc && track.imageSrc.includes("cover_")) {
+                      // Extract the timestamp from the cover path
+                      const coverPathMatch = track.imageSrc.match(/cover_(\d+)/);
+                      if (coverPathMatch && coverPathMatch[1]) {
+                        const timestamp = coverPathMatch[1];
+                        possibleVideoPath = `/uploads/videos/video_${timestamp}.mp4`;
+                        console.log("Constructed possible video path:", possibleVideoPath);
+                      }
+                    }
+                    
+                    // Check for videoFile through various possible paths
+                    const videoPath = track.videoFile || possibleVideoPath;
+                    
+                    if (videoPath) {
+                      const fullVideoUrl = videoPath.startsWith('http') 
+                        ? videoPath 
+                        : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${videoPath}`;
+                        
+                      console.log("Using video URL:", fullVideoUrl);
                       
-                      {/* Custom audio player UI */}
-                      <div className="flex flex-col">
-                        {/* Player controls */}
-                        <div className="flex items-center mb-2">
-                          {/* Play/Pause button */}
-                          <button 
-                            onClick={toggleAudioPlay}
-                            className="w-10 h-10 flex items-center justify-center bg-[#A365FF] hover:bg-purple-700 text-white rounded-full transition-colors focus:outline-none mr-3"
-                          >
-                            {isPlaying ? (
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                              </svg>
-                            ) : (
-                              <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </button>
+                      return (
+                        <div className="relative aspect-video bg-black rounded-sm overflow-hidden">
+                          <video 
+                            ref={videoRef}
+                            src={fullVideoUrl}
+                            className="w-full h-full object-contain"
+                            controls
+                            poster={track.coverArt 
+                              ? (track.coverArt.startsWith('http') 
+                                  ? track.coverArt 
+                                  : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.coverArt}`) 
+                              : track.imageSrc || defaultImage}
+                            onError={(e) => {
+                              console.error("Video loading error:", e);
+                              setVideoError("Failed to load video file");
+                            }}
+                          />
+                          {videoError && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
+                              <div className="text-red-400 text-center p-4">
+                                <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p>{videoError}</p>
+                                <p className="text-sm mt-2">Check console for details</p>
+                              </div>
+                            </div>
+                          )}
                           
-                          {/* Time display */}
-                          <div className="text-xs text-gray-400 w-16">
-                            {formatTime(currentTime)}
-                          </div>
-                          
-                          {/* Progress bar */}
-                          <div 
-                            className="flex-1 bg-[#2D3139] rounded-full h-2 mx-2 cursor-pointer overflow-hidden"
-                            onClick={handleSeek}
-                          >
-                            <div 
-                              className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all"
-                              style={{ width: `${progress}%` }}
-                            ></div>
-                          </div>
-                          
-                          {/* Duration */}
-                          <div className="text-xs text-gray-400 w-16 text-right">
-                            {formatTime(duration)}
+                          <div className="mt-3 absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2">
+                            <div className="flex justify-between items-center">
+                              <div className="text-white text-sm font-medium">
+                                {track.title} - {track.artist || track.primaryArtist || "Unknown Artist"}
+                              </div>
+                              <a 
+                                href={fullVideoUrl}
+                                download={`${track.title} - ${track.artist || track.primaryArtist || "Unknown Artist"}.mp4`}
+                                className="flex items-center px-3 py-1.5 bg-[#1D2229] text-white rounded-full text-xs hover:bg-[#2A2F36] transition-colors"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                                Download Video
+                              </a>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="mt-3 flex justify-between items-center">
-                        <div className="text-white text-sm font-medium">
-                          {track.title}
-                        </div>
-                        <a 
-                          href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.audioFile}`}
-                          download={`${track.title} - ${track.artist}.mp3`}
-                          className="flex items-center px-3 py-1.5 bg-[#1D2229] text-white rounded-full text-xs hover:bg-[#2A2F36] transition-colors"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                      );
+                    } else {
+                      return (
+                        <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                          <svg className="w-16 h-16 mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                           </svg>
-                          Download Audio
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* If no media available */}
-                {!track.videoFile && !track.audioFile && (
-                  <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                    <svg className="w-16 h-16 mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <p>No media files available for this track</p>
-                  </div>
-                )}
+                          <p>No video file available for this track</p>
+                          <button 
+                            onClick={async () => {
+                              if (!track._id) return;
+                              
+                              try {
+                                const { getTrackById } = await import('@/services/trackService');
+                                const response = await getTrackById(track._id);
+                                if (response.success && response.data && response.data.videoFile) {
+                                  console.log("Retrieved video file path:", response.data.videoFile);
+                                  // Force refresh of component
+                                  setVideoError(null);
+                                  // This will trigger a re-render
+                                  setTimeout(() => window.location.reload(), 500);
+                                } else {
+                                  setVideoError("No video file found in the complete track data");
+                                }
+                              } catch (error) {
+                                console.error("Error retrieving track data:", error);
+                                setVideoError("Error retrieving track data");
+                              }
+                            }}
+                            className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm"
+                          >
+                            Attempt to load video
+                          </button>
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
               </div>
             ) : (
               <div className="bg-[#1A1E24] p-4 rounded-sm">

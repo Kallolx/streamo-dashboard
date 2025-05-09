@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { register } from '@/services/authService';
 import { validateInvitation } from "@/services/invitationService";
 import Image from "next/image";
+import { useLogo } from '@/contexts/LogoContext';
 
 // Client component with all the existing functionality
 function SignupContent() {
@@ -55,6 +56,7 @@ function SignupContent() {
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
   
   const [isLoading, setIsLoading] = useState(false);
+  const { logo } = useLogo();
 
   // Check for referral code in URL 
   useEffect(() => {
@@ -179,11 +181,11 @@ function SignupContent() {
   // If registration is successful, show the success message
   if (registrationSuccess) {
     return (
-      <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-10">
+      <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-8 px-4 sm:px-6">
         <div className="w-full max-w-md bg-[#161A1F] rounded-xl shadow-lg overflow-hidden">
           <div className="bg-[#683BAB] p-6 flex justify-center">
             <Image 
-              src="/images/logo.png" 
+              src={logo} 
               alt="Logo" 
               width={180} 
               height={70} 
@@ -235,14 +237,14 @@ function SignupContent() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-10">
-      <div className="w-full max-w-[1400px] h-auto lg:h-[700px] mx-4 lg:mx-auto flex flex-col lg:flex-row shadow-2xl overflow-hidden rounded-xl">
+    <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-8 px-4 sm:px-6">
+      <div className="w-full max-w-[1200px] h-auto mx-auto flex flex-col lg:flex-row shadow-2xl overflow-hidden rounded-xl">
         {/* Left Section - Purple background with message - 40% width - Hidden on mobile */}
-        <div className="hidden lg:flex w-full lg:w-2/5 bg-[#683BAB] text-white p-8 lg:p-[50px] flex-col justify-between relative overflow-hidden">
+        <div className="hidden lg:flex w-full lg:w-2/5 bg-[#683BAB] text-white p-6 sm:p-8 lg:p-[40px] flex-col justify-between relative overflow-hidden">
           {/* Logo at the top left */}
-          <div className="flex justify-start mb-6">
+          <div className="flex justify-start">
             <Image 
-              src="/images/logo.png" 
+              src={logo} 
               alt="Logo" 
               width={180} 
               height={70} 
@@ -301,7 +303,7 @@ function SignupContent() {
             {/* Logo only visible on mobile */}
             <div className="flex justify-center mb-6 lg:hidden">
               <Image 
-                src="/images/logo.png" 
+                src={logo} 
                 alt="Logo" 
                 width={180} 
                 height={70} 

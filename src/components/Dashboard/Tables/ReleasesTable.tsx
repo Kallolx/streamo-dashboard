@@ -293,14 +293,9 @@ export default function ReleasesTable({
         <table className="min-w-full divide-y divide-gray-700">
           <thead className="bg-[#1A1E24]">
             <tr>
-              <th className="sticky left-0 z-10 bg-[#1A1E24] w-4 px-4 py-3">
+              <th className="sticky left-0 z-10 bg-[#1A1E24] w-12 px-4 py-3">
                 <div className="flex items-center">
-                  <input 
-                    type="checkbox"
-                    className="w-4 h-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                    checked={selectAll}
-                    onChange={handleSelectAll}
-                  />
+                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Art</span>
                 </div>
               </th>
               <TableHeader label="Track Title" />
@@ -340,14 +335,37 @@ export default function ReleasesTable({
                     onClick={(e) => handleRowClick(release._id, e)}
                   >
                     <td className="sticky left-0 z-10 bg-[#161A1F] hover:bg-[#1A1E24] px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <input 
-                          type="checkbox"
-                          className="w-4 h-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
-                          checked={selectedReleases.includes(release._id)}
-                          onChange={() => handleSelectRelease(release._id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                      <div className="flex items-center justify-center">
+                        <div className="h-8 w-8 rounded-md overflow-hidden bg-gray-800 flex items-center justify-center">
+                          {release.coverArt ? (
+                            <img
+                              src={release.coverArt.startsWith('http') 
+                                ? release.coverArt 
+                                : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${release.coverArt}`}
+                              alt={release.title}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = "/images/music/placeholder.png";
+                              }}
+                            />
+                          ) : (
+                            <svg 
+                              className="w-5 h-5 text-gray-500" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24" 
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={1.5} 
+                                d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
+                              />
+                            </svg>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">{track?.title || '-'}</td>
