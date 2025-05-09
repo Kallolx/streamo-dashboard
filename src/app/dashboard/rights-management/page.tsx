@@ -34,8 +34,12 @@ export default function RightsManagementPage() {
     setIsSubmitting(true);
     
     try {
-      // Call API endpoint to send email
-      const response = await fetch('/api/send-rights-request', {
+      // Get the API base URL from environment or use default
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:5000/api';
+      console.log('Using API URL:', apiBaseUrl);
+      
+      // Call backend API endpoint to send email
+      const response = await fetch(`${apiBaseUrl}/rights/send-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,7 +48,9 @@ export default function RightsManagementPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to send request');
+        const errorData = await response.json();
+        console.error('API error response:', errorData);
+        throw new Error(errorData.message || 'Failed to send request');
       }
       
       // Show success message
