@@ -90,6 +90,7 @@ interface DistributionRequestForModal {
   status: string;
   itemType?: ItemType;
   originalData?: any;
+  isrc?: string;
 }
 
 export default function DistributionPage() {
@@ -771,7 +772,8 @@ export default function DistributionPage() {
               label: selectedRequest.label || '',
               status: getStatusDisplay(selectedRequest.status) as "Approved" | "Pending" | "Rejected" | "Completed",
               itemType: selectedRequest.itemType,
-              originalData: selectedRequest.originalData
+              originalData: selectedRequest.originalData,
+              isrc: selectedRequest.originalData?.isrc || ''
             }}
             isOpen={!!selectedRequest}
             onClose={handleCloseModal}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { House, Books, ChartBar, SignOut, User, ArrowsDownUp, CurrencyDollar, ShoppingCart, Files, UserPlus, Shield, Gear } from '@phosphor-icons/react';           
 import { useLogo } from '@/contexts/LogoContext';
@@ -17,6 +18,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
   const { logo } = useLogo();
+  const [logoError, setLogoError] = useState(false);
 
   // Get user role from localStorage on component mount
   useEffect(() => {
@@ -25,6 +27,11 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
       setUserRole(role);
     }
   }, []);
+
+  // Reset logo error state when logo changes
+  useEffect(() => {
+    setLogoError(false);
+  }, [logo]);
 
   const isActive = (path: string) => {
     // Handle the root path case
@@ -60,6 +67,35 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
     if (isMobile && href !== pathname) {
       router.push(href);
     }
+  };
+
+  // Handle logo loading error
+  const handleLogoError = () => {
+    console.error('Error loading logo image:', logo);
+    setLogoError(true);
+  };
+
+  // Determine what to display for the logo
+  const renderLogo = () => {
+    if (logoError) {
+      // Display default logo text if image fails to load
+      return (
+        <div className="text-white font-bold text-center">
+          {isOpen ? 'Music Dashboard' : 'M'}
+        </div>
+      );
+    }
+    
+    // Use img tag with crossOrigin for all images
+    return (
+      <img 
+        src={logo} 
+        alt="Music Dashboard Logo" 
+        className="w-full h-auto"
+        crossOrigin="anonymous"
+        onError={handleLogoError}
+      />
+    );
   };
 
   // Check if a menu item should be visible based on user role
@@ -99,11 +135,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
         {/* Logo */}
         <div className="flex items-center justify-center h-16">
           <div className={`transition-all duration-300 mt-6 ${isOpen ? 'w-30' : 'w-10'}`}>
-            <img 
-              src={logo} 
-              alt="Music Dashboard Logo" 
-              className="w-full h-auto"
-            />
+            {renderLogo()}
           </div>
         </div>
 

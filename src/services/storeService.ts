@@ -53,20 +53,13 @@ export const getStoreById = async (storeId: string) => {
 };
 
 /**
- * Create a new store with JSON data
+ * Create a new store with FormData to handle file uploads
  */
-export const createStore = async (storeData: {
-  name: string;
-  category: string;
-  status: string;
-  url: string;
-  color: string;
-  videosOnly: boolean;
-}) => {
+export const createStore = async (storeData: FormData) => {
   try {
     const response = await api.post('/stores', storeData, {
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'multipart/form-data',
       },
     });
     return response.data;
@@ -87,14 +80,37 @@ export const updateStore = async (storeId: string, storeData: FormData) => {
       throw new Error(`Invalid store ID format: ${storeId}`);
     }
     
+    // Log what we're sending for debugging
+    console.log(`Updating store ${storeId} with FormData:`, 
+      Array.from(storeData.entries()).reduce((obj, [key, value]) => {
+        obj[key] = value instanceof File ? 
+          `File: ${value.name} (${value.type}, ${value.size} bytes)` : 
+          value;
+        return obj;
+      }, {} as Record<string, any>)
+    );
+    
     const response = await api.put(`/stores/${storeId}`, storeData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+    
+    console.log('Update response:', response.data);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error updating store with ID ${storeId}:`, error);
+    // Try to extract more detailed error info
+    const errorDetails = error.response?.data?.error || error.message || 'Unknown error';
+    console.error('Error details:', errorDetails);
+    
+    // Return a structured error object
+    if (error.response) {
+      return {
+        success: false,
+        error: errorDetails
+      };
+    }
     throw error;
   }
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
 import Toast from "@/components/Common/Toast";
@@ -33,6 +33,11 @@ export default function AddStorePage() {
   const [colorCode, setColorCode] = useState("");
   const [videosOnly, setVideosOnly] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State for store logo
+  const [uploadedLogo, setUploadedLogo] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const router = useRouter();
 
   // Toast state
@@ -83,6 +88,25 @@ export default function AddStorePage() {
     return true;
   };
 
+  // Handle file upload click
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedLogo(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Handle form submission
   const handleSubmit = async () => {
     if (!validateForm() || isSubmitting) return;
@@ -90,18 +114,22 @@ export default function AddStorePage() {
     setIsSubmitting(true);
 
     try {
-      // Create a simple JSON object to send
-      const storeData = {
-        name: storeTitle,
-        category: category,
-        status: status,
-        url: storeLink,
-        color: colorCode,
-        videosOnly: videosOnly
-      };
+      // Create FormData object to send
+      const formData = new FormData();
+      formData.append("name", storeTitle);
+      formData.append("category", category);
+      formData.append("status", status);
+      formData.append("url", storeLink);
+      formData.append("color", colorCode);
+      formData.append("videosOnly", String(videosOnly));
+      
+      // Add store icon if one was uploaded
+      if (fileInputRef.current?.files && fileInputRef.current.files[0]) {
+        formData.append("icon", fileInputRef.current.files[0]);
+      }
 
       // Call the API to create the store
-      const response = await createStore(storeData);
+      const response = await createStore(formData);
 
       // Show success message
       setToast({
@@ -181,6 +209,60 @@ export default function AddStorePage() {
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
+              </div>
+              
+              {/* Store Logo Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Store Logo
+                </label>
+                <div 
+                  className="border-2 border-dashed border-gray-600 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-purple-500"
+                  onClick={handleUploadClick}
+                >
+                  {uploadedLogo ? (
+                    <div className="flex flex-col items-center">
+                      <div className="w-20 h-20 rounded-full overflow-hidden mb-3">
+                        <img
+                          src={uploadedLogo}
+                          alt="Logo preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <p className="text-sm text-gray-400">Click to change</p>
+                    </div>
+                  ) : (
+                    <>
+                      {storeTitle ? (
+                        <div className="w-20 h-20 mb-3 flex items-center justify-center text-white font-semibold rounded-full"
+                          style={{ 
+                            backgroundColor: colorCode || "#333333", 
+                            fontSize: "30px"
+                          }}
+                        >
+                          {storeTitle.charAt(0).toUpperCase()}
+                        </div>
+                      ) : (
+                        <div className="bg-gray-700 rounded-lg p-3 mb-3">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M9 10C10.1046 10 11 9.10457 11 8C11 6.89543 10.1046 6 9 6C7.89543 6 7 6.89543 7 8C7 9.10457 7.89543 10 9 10Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M2.67 18.95L7.6 15.64C8.39 15.11 9.53 15.17 10.24 15.78L10.57 16.07C11.35 16.74 12.61 16.74 13.39 16.07L17.55 12.5C18.33 11.83 19.59 11.83 20.37 12.5L22 13.9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      )}
+                      <p className="text-sm text-gray-400 text-center">Upload store logo</p>
+                      <p className="text-xs text-gray-500 text-center mt-1">Upload a square image for best results</p>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*"
+                  />
+                </div>
               </div>
             </div>
 

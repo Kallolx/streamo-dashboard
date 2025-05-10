@@ -311,4 +311,19 @@ export const debugUpload = async (audioFile: File) => {
     console.error('Error in debug upload:', error);
     throw error;
   }
+};
+
+/**
+ * Update release ISRC and UPC
+ */
+export const updateReleaseISRC = async (releaseId: string, tracks: any[], upc: string) => {
+  try {
+    const response = await api.put(`/releases/${releaseId}`,
+      { data: JSON.stringify({ tracks, upc }) }
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating ISRC/UPC for release with ID ${releaseId}:`, error);
+    throw error;
+  }
 }; 

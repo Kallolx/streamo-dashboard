@@ -66,8 +66,8 @@ export default function ReleaseDetailsModal({
   const [currentTime, setCurrentTime] = useState<Record<string, number>>({});
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   
-  // Default image fallback if release has no cover art
-  const defaultImage = "/images/music/placeholder.png";
+  // Default image fallback if release has no cover art - use a remote S3 URL for the placeholder
+  const defaultImage = "";
 
   // Fetch stores when modal opens
   useEffect(() => {
@@ -96,6 +96,17 @@ export default function ReleaseDetailsModal({
       fetchStores();
     }
   }, [isOpen, release.stores]);
+
+  // Debug audio paths when modal opens
+  useEffect(() => {
+    if (isOpen && release.tracks && release.tracks.length > 0) {
+      release.tracks.forEach(track => {
+        if (track.audioFile) {
+          console.log('Track audio file path:', track.audioFile);
+        }
+      });
+    }
+  }, [isOpen, release]);
 
   // Handle close with Escape key
   const handleKeyDown = useCallback(
@@ -171,12 +182,25 @@ export default function ReleaseDetailsModal({
   // Handle play/pause toggle
   const togglePlay = (trackId: string) => {
     const audio = audioRefs.current[trackId];
-    if (!audio) return;
+    if (!audio) {
+      console.error("Audio element not found for track:", trackId);
+      return;
+    }
+    
+    console.log("Playing audio:", audio.src);
     
     if (isPlaying[trackId]) {
       audio.pause();
     } else {
-      audio.play();
+      // Add error handling for play failure
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error("Audio play error:", error);
+          // Show an error message to the user
+          alert("Failed to play audio. The file might be unavailable or in an unsupported format.");
+        });
+      }
     }
     
     setIsPlaying(prev => ({
@@ -240,36 +264,52 @@ export default function ReleaseDetailsModal({
         {/* Header with album art and basic info */}
         <div className="p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row">
-            {/* Left side - Album Art */}
+            {/* Left side - Album Art - Try direct img tag as fallback */}
             <div className="w-32 h-32 sm:w-40 sm:h-40 relative rounded-md overflow-hidden mx-auto sm:mx-0 sm:mr-6 flex-shrink-0 bg-gray-800 mb-4 sm:mb-0">
               {release.coverArt ? (
-                <Image 
-                  src={release.coverArt.startsWith('http') ? release.coverArt : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${release.coverArt}` || defaultImage}
+                // Using direct image URL with no optimization or processing
+                <img 
+                  src={release.coverArt} 
                   alt={release.title}
-                  fill
-                  className="object-cover"
+                  className="w-full h-full object-cover"
                   onError={(e) => {
-                    // Fallback if image fails to load
-                    e.currentTarget.src = defaultImage;
+                    console.error("Image load error:", release.coverArt);
+                    const imgElement = e.target as HTMLImageElement;
+                    imgElement.style.display = 'none';
+                    const parent = imgElement.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<svg 
+                        class="w-full h-full p-8 text-gray-500" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24" 
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path 
+                          stroke-linecap="round" 
+                          stroke-linejoin="round" 
+                          stroke-width="1.5" 
+                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
+                        />
+                      </svg>`;
+                    }
                   }}
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 text-center p-2">
+                // Default icon if no image
+                <div className="flex items-center justify-center w-full h-full">
                   <svg 
-                    className="w-16 h-16 text-gray-600 mb-2" 
+                    className="w-2/3 h-2/3 text-gray-500" 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
+                    xmlns="http://www.w3.org/2000/svg">
                     <path 
                       strokeLinecap="round" 
                       strokeLinejoin="round" 
-                      strokeWidth={1} 
+                      strokeWidth={1.5} 
                       d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
                     />
                   </svg>
-                  <span className="text-xs text-gray-400">Album Artwork</span>
                 </div>
               )}
             </div>
@@ -553,7 +593,7 @@ export default function ReleaseDetailsModal({
                             </div>
                             {track.audioFile && (
                               <a 
-                                href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.audioFile}`}
+                                href={track.audioFile}
                                 download={`${track.title} - ${track.artistName}.mp3`}
                                 className="flex items-center px-3 py-1.5 bg-[#1D2229] text-white rounded-full text-xs hover:bg-[#2A2F36] transition-colors ml-2"
                                 target="_blank"
@@ -602,7 +642,7 @@ export default function ReleaseDetailsModal({
                                     });
                                   }
                                 }}
-                                src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.audioFile}`}
+                                src={track.audioFile}
                                 className="hidden"
                               />
                               

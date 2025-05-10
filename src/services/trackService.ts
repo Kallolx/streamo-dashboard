@@ -131,4 +131,18 @@ export const updateTrackStatus = async (trackId: string, status: string) => {
     console.error(`Error updating status for video with ID ${trackId}:`, error);
     throw error;
   }
+};
+
+/**
+ * Update track ISRC and UPC
+ */
+export const updateTrackISRC = async (trackId: string, isrc: string, upc: string) => {
+  try {
+    // Use standard PUT endpoint with just the needed fields
+    const response = await api.put(`/tracks/${trackId}`, { isrc, upc });
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating ISRC/UPC for track with ID ${trackId}:`, error);
+    throw error;
+  }
 }; 

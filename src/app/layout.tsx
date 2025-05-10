@@ -37,7 +37,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${poppins.variable}`}>
         <LogoProvider>
-          {children}
+        {children}
         </LogoProvider>
       </body>
     </html>

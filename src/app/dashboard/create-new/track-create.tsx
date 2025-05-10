@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { getAllStores, Store } from '@/services/storeService';
 import { createTrack } from '@/services/trackService';
 import { useRouter } from 'next/navigation';
+import { getUserData } from '@/services/authService';
 
 // Toast component for notifications
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => {
@@ -105,6 +106,17 @@ export default function TrackCreate() {
   
   // Loading state
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Auto-fill label from user data on mount
+  useEffect(() => {
+    const userData = getUserData();
+    if (userData && userData.name) {
+      // Extract stage name from the full name (format: "Full Name (Stage Name)")
+      const match = userData.name.match(/\((.*?)\)/);
+      const stageName = match ? match[1] : "";
+      setLabel(stageName);
+    }
+  }, []);
   
   // Fetch stores from API on component mount
   useEffect(() => {
@@ -350,7 +362,6 @@ export default function TrackCreate() {
       setFormat('');
       setGenre('');
       setLanguage('');
-      setLabel('');
       setRecordingYear('');
       setReleaseDate('');
       setIsrc('');
@@ -422,7 +433,7 @@ export default function TrackCreate() {
           <div className="flex justify-center md:justify-start">
             <div 
               onClick={() => fileInputRef.current?.click()} 
-              className="w-full max-w-[250px] md:max-w-sm h-[250px] md:h-[300px] bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center overflow-hidden cursor-pointer hover:border-purple-500 transition-colors"
+              className="w-full max-w-[320px] md:max-w-[320px] h-[180px] md:h-[180px] bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center overflow-hidden cursor-pointer hover:border-purple-500 transition-colors"
             >
               {coverArtPreview ? (
                 <img 
@@ -431,11 +442,11 @@ export default function TrackCreate() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="text-center p-3 md:p-6">
+                <div className="text-center p-3 md:p-4">
                   <svg className="w-10 h-10 md:w-12 md:h-12 text-gray-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-xs md:text-sm text-gray-400">Click to browse or drag and drop image file</p>
+                  <p className="text-xs text-gray-400">Click or drag to upload 1280x720 thumbnail</p>
                 </div>
               )}
             </div>
@@ -634,10 +645,10 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="label"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Label"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white opacity-75 cursor-not-allowed"
+                placeholder="Your label name will appear here"
                 value={label}
-                onChange={(e) => setLabel(e.target.value)}
+                readOnly
               />
             </div>
             
@@ -689,11 +700,14 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="isrc"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="ISRC"
-                value={isrc}
-                onChange={(e) => setIsrc(e.target.value)}
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white opacity-75 cursor-not-allowed focus:outline-none"
+                placeholder="ISRC (assigned by admin)"
+                value=""
+                readOnly
+                tabIndex={-1}
+                aria-readonly="true"
               />
+              <p className="text-xs text-gray-500 mt-1">This will be assigned by the admin after submission.</p>
             </div>
             
             <div>
@@ -778,11 +792,14 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="upc"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="UPC"
-                value={upc}
-                onChange={(e) => setUpc(e.target.value)}
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white opacity-75 cursor-not-allowed focus:outline-none"
+                placeholder="UPC (assigned by admin)"
+                value=""
+                readOnly
+                tabIndex={-1}
+                aria-readonly="true"
               />
+              <p className="text-xs text-gray-500 mt-1">This will be assigned by the admin after submission.</p>
             </div>
             
             <div>
@@ -948,7 +965,7 @@ export default function TrackCreate() {
                   <div 
                     key={store._id}
                     onClick={() => handleStoreSelection(store._id || "")}
-                    className={`relative rounded-md p-1.5 transition-all cursor-pointer ${
+                    className={`relative rounded-md p-2 transition-all cursor-pointer ${
                       selectedStores.includes(store._id || "") 
                         ? "bg-purple-800 border border-purple-500 shadow-md" 
                         : "bg-[#1D2229] border border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
@@ -961,47 +978,55 @@ export default function TrackCreate() {
                         </svg>
                       </div>
                     )}
-                    <div className="flex flex-col items-center">
-                      {store.icon && (
-                        <div 
-                          className="w-6 h-6 mb-1 rounded bg-contain bg-center bg-no-repeat"
-                          style={{ 
-                            backgroundImage: `url(${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${store.icon})` 
-                          }}
-                        />
-                      )}
-                      <span className="text-center text-xs text-gray-300 line-clamp-1 w-full">{store.name}</span>
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 mr-2">
+                        {store.icon ? (
+                          <img 
+                            src={store.icon.startsWith('http') 
+                              ? store.icon 
+                              : `${process.env.NEXT_PUBLIC_API_URL 
+                                  ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '') 
+                                  : window.location.origin}${store.icon.startsWith('/') ? '' : '/'}${store.icon}`
+                            }
+                            alt={store.name}
+                            className="w-8 h-8 rounded-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.onerror = null;
+                              // Replace with first letter icon
+                              const parent = target.parentElement;
+                              if (parent) {
+                                // Remove the image
+                                parent.removeChild(target);
+                                // Create letter placeholder
+                                const letterDiv = document.createElement('div');
+                                letterDiv.className = "w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center";
+                                letterDiv.innerHTML = `<span class="text-xs text-white font-medium">${store.name.charAt(0)}</span>`;
+                                // Add to parent
+                                parent.appendChild(letterDiv);
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center">
+                            <span className="text-xs text-white font-medium">{store.name.charAt(0)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-300 truncate flex-1">{store.name}</span>
                     </div>
                   </div>
                 ))
               ) : (
-                // Fallback to hardcoded platforms if API fails or returns empty
-                <div className="col-span-full text-center text-gray-400 py-4">
-                  No distribution platforms available. Please check back later.
-                </div>
-              )}
-              
-              {/* Fallback to YouTube if API returns empty */}
-              {stores.length === 0 && !loadingStores && (
-                <div 
-                  onClick={() => handleStoreSelection("youtube")}
-                  className={`relative rounded-md p-1.5 transition-all cursor-pointer ${
-                    selectedStores.includes("youtube") 
-                      ? "bg-purple-800 border border-purple-500 shadow-md" 
-                      : "bg-[#1D2229] border border-[#2A2F36] hover:border-purple-400 hover:bg-[#24292F]"
-                  }`}
-                >
-                  {selectedStores.includes("youtube") && (
-                    <div className="absolute -top-1 -right-1 bg-purple-500 rounded-full p-0.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col items-center">
-                    <img src="/icons/yt.svg" alt="YouTube" className="w-6 h-6 mb-1" />
-                    <span className="text-center text-xs text-gray-300 line-clamp-1">YouTube</span>
+                // Fallback to YouTube if API returns empty
+                <div className="col-span-full flex flex-col items-center py-6">
+                  <div className="bg-gray-800 rounded-full p-3 mb-3">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                   </div>
+                  <p className="text-gray-400 text-sm">No video platforms available right now.</p>
+                  <p className="text-gray-500 text-xs mt-1">Please try again later or contact support.</p>
                 </div>
               )}
             </div>

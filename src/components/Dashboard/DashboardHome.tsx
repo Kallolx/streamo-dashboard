@@ -770,6 +770,23 @@ export default function DashboardHome() {
     }
   };
 
+  // Add a function to sanitize S3 URLs by removing any '@' prefix
+  const sanitizeS3Url = (url: string): string => {
+    if (!url) return '';
+    // Remove any '@' prefix if present
+    return url.startsWith('@') ? url.substring(1) : url;
+  };
+
+  // Add logging for debugging image loading issues
+  useEffect(() => {
+    if (Array.isArray(releases) && releases.length > 0) {
+      console.log('Release images to load:', releases.map(r => ({ 
+        id: r._id,
+        coverArt: r.coverArt
+      })));
+    }
+  }, [releases]);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -878,16 +895,47 @@ export default function DashboardHome() {
                   className="bg-[#161A1F] rounded-lg overflow-hidden transition-transform hover:scale-105 hover:shadow-lg cursor-pointer"
                   onClick={() => handleReleaseClick(release)}
                 >
-                  {/* Placeholder instead of image */}
-                  <div className="aspect-square bg-[#1E2329] flex flex-col items-center justify-center p-4">
-                    <div className="w-12 h-12 rounded-full bg-[#252A32] flex items-center justify-center mb-2">
-                      <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                      </svg>
-                    </div>
-                    <span className="text-xs text-gray-400 text-center">
-                      {release.releaseType || 'Album'}
-                    </span>
+                  {/* Cover Art Image */}
+                  <div className="aspect-square bg-[#1E2329] relative">
+                    {release.coverArt ? (
+                      <img 
+                        src={sanitizeS3Url(release.coverArt)}
+                        alt={release.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error('Error loading cover art:', release.coverArt);
+                          const imgElement = e.target as HTMLImageElement;
+                          imgElement.style.display = 'none';
+                          const parent = imgElement.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="w-full h-full flex flex-col items-center justify-center p-4">
+                                <div class="w-12 h-12 rounded-full bg-[#252A32] flex items-center justify-center mb-2">
+                                  <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                                  </svg>
+                                </div>
+                                <span class="text-xs text-gray-400 text-center">
+                                  ${release.releaseType || 'Album'}
+                                </span>
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    ) : (
+                      // Fallback if no cover art is available
+                      <div className="w-full h-full flex flex-col items-center justify-center p-4">
+                        <div className="w-12 h-12 rounded-full bg-[#252A32] flex items-center justify-center mb-2">
+                          <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                          </svg>
+                        </div>
+                        <span className="text-xs text-gray-400 text-center">
+                          {release.releaseType || 'Album'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   
                   {/* Release details */}

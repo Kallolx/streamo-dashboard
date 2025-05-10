@@ -8,6 +8,68 @@ import { useRouter } from "next/navigation";
 import Toast from "@/components/Common/Toast";
 import { getAllStores, updateStore, toggleStoreStatus, deleteStore, Store } from "@/services/storeService";
 
+// Simple component to display store icon or fallback to first letter
+const StoreIcon = ({ 
+  icon, 
+  name, 
+  color = "#333333", 
+  size = 40 
+}: { 
+  icon?: string; 
+  name: string; 
+  color?: string; 
+  size?: number;
+}) => {
+  // Get the first letter of the name
+  const firstLetter = name.charAt(0).toUpperCase();
+  
+  // Check if icon is a placeholder or empty
+  const isPlaceholder = !icon || icon === '/placeholder.png';
+  
+  if (isPlaceholder) {
+    return (
+      <div 
+        className="flex items-center justify-center text-white font-semibold rounded-full"
+        style={{ 
+          backgroundColor: color, 
+          width: size, 
+          height: size,
+          fontSize: size * 0.5 
+        }}
+      >
+        {firstLetter}
+      </div>
+    );
+  }
+  
+  return (
+    <img
+      src={icon}
+      alt={name}
+      className="rounded-full object-cover"
+      width={size}
+      height={size}
+      onError={(e) => {
+        const target = e.target as HTMLImageElement;
+        target.style.display = 'none';
+        
+        // Create parent element to replace the image
+        const parent = target.parentNode as HTMLElement;
+        if (parent) {
+          const letterDiv = document.createElement('div');
+          letterDiv.className = "flex items-center justify-center text-white font-semibold rounded-full";
+          letterDiv.style.backgroundColor = color;
+          letterDiv.style.width = `${size}px`;
+          letterDiv.style.height = `${size}px`;
+          letterDiv.style.fontSize = `${size * 0.5}px`;
+          letterDiv.textContent = firstLetter;
+          parent.appendChild(letterDiv);
+        }
+      }}
+    />
+  );
+};
+
 // Access control
 const checkAccess = () => {
   if (typeof window !== 'undefined') {
@@ -108,15 +170,79 @@ export default function StoresPage() {
     if (e && e.stopPropagation) {
       e.stopPropagation();
     }
-    setEditingStore(store);
+    console.log('Opening edit modal for store:', store);
+    // Create a deep copy of the store to avoid reference issues
+    setEditingStore({...store});
     setIsModalOpen(true);
+  };
+
+  // Input change handlers for form fields
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    if (editingStore) {
+      console.log(`Name change: "${editingStore.name}" → "${newName}"`);
+      setEditingStore({...editingStore, name: newName});
+    }
+  };
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategory = e.target.value;
+    if (editingStore) {
+      console.log(`Category change: "${editingStore.category}" → "${newCategory}"`);
+      setEditingStore({...editingStore, category: newCategory});
+    }
+  };
+  
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newStatus = e.target.value as "Active" | "Inactive";
+    if (editingStore) {
+      console.log(`Status change: "${editingStore.status}" → "${newStatus}"`);
+      setEditingStore({...editingStore, status: newStatus});
+    }
+  };
+  
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = e.target.value;
+    if (editingStore) {
+      console.log(`URL change: "${editingStore.url}" → "${newUrl}"`);
+      setEditingStore({...editingStore, url: newUrl});
+    }
+  };
+  
+  const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newColor = e.target.value;
+    if (editingStore) {
+      console.log(`Color change: "${editingStore.color}" → "${newColor}"`);
+      setEditingStore({...editingStore, color: newColor});
+    }
+  };
+  
+  const handleVideosOnlyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const videosOnly = e.target.checked;
+    if (editingStore) {
+      console.log(`VideosOnly change: ${editingStore.videosOnly} → ${videosOnly}`);
+      setEditingStore({...editingStore, videosOnly});
+    }
   };
 
   // Handle close modal
   const handleCloseModal = () => {
+    console.log('Closing modal, clearing editing store');
     setIsModalOpen(false);
     setEditingStore(null);
     setUploadedLogo(null);
+  };
+
+  // Handle backdrop click to prevent accidental closes
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Only close if we're not in the middle of submitting 
+    if (!isSubmitting) {
+      console.log('Backdrop clicked, closing modal');
+      handleCloseModal();
+    } else {
+      console.log('Ignoring backdrop click during submission');
+    }
   };
 
   // Handle file upload click
@@ -138,10 +264,14 @@ export default function StoresPage() {
     }
   };
 
-  // Handle save store
+  // Handle save store with enhanced error handling
   const handleSaveStore = async () => {
-    if (!editingStore || isSubmitting) return;
+    if (!editingStore || isSubmitting) {
+      console.error("Cannot save: editingStore is null or already submitting");
+      return;
+    }
 
+    console.log('Saving store with data:', editingStore);
     setIsSubmitting(true);
 
     try {
@@ -154,40 +284,69 @@ export default function StoresPage() {
       formData.append("color", editingStore.color);
       formData.append("videosOnly", String(editingStore.videosOnly));
 
-      // Add logo if uploaded
+      console.log('FormData values:');
+      console.log('- name:', editingStore.name);
+      console.log('- category:', editingStore.category);
+      console.log('- status:', editingStore.status);
+      console.log('- url:', editingStore.url);
+      console.log('- color:', editingStore.color);
+      console.log('- videosOnly:', editingStore.videosOnly);
+
+      // Add logo if uploaded - use 'icon' as the field name instead of 'storeIcon'
       if (fileInputRef.current?.files && fileInputRef.current.files[0]) {
-        formData.append("storeIcon", fileInputRef.current.files[0]);
+        const file = fileInputRef.current.files[0];
+        console.log('Adding logo file:', file.name, 'size:', file.size, 'type:', file.type);
+        formData.append("icon", file);
+      } else {
+        console.log('No new logo file to upload');
       }
 
-      // Update store in API
-      const response = await updateStore(editingStore._id!, formData);
-
-      if (response.success) {
-        // Update local stores list
-        setStores(stores.map(store => 
-          store._id === editingStore._id ? response.data : store
-        ));
-
+      try {
+        // Update store in API
+        console.log('Sending update request for store ID:', editingStore._id);
+        const response = await updateStore(editingStore._id!, formData);
+  
+        console.log('Update response:', response);
+        
+        if (response.success) {
+          // Update local stores list
+          setStores(stores.map(store => 
+            store._id === editingStore._id ? response.data : store
+          ));
+  
+          setToast({
+            show: true,
+            message: "Store updated successfully",
+            type: "success",
+          });
+  
+          // Close modal
+          handleCloseModal();
+        } else {
+          console.error('API returned error:', response);
+          setToast({
+            show: true,
+            message: "Failed to update store: " + (response.error || "Unknown error"),
+            type: "error",
+          });
+        }
+      } catch (apiError) {
+        console.error("API error updating store:", apiError);
         setToast({
           show: true,
-          message: "Store updated successfully",
-          type: "success",
-        });
-
-        // Close modal
-        handleCloseModal();
-      } else {
-        setToast({
-          show: true,
-          message: "Failed to update store",
+          message: "API error: " + (apiError instanceof Error ? apiError.message : "Unknown error"),
           type: "error",
         });
       }
     } catch (error) {
-      console.error("Error updating store:", error);
+      console.error("Error preparing form data:", error);
+      
+      // Try to extract more error details
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      
       setToast({
         show: true,
-        message: "Failed to update store",
+        message: "Form data error: " + errorMsg,
         type: "error",
       });
     } finally {
@@ -350,10 +509,11 @@ export default function StoresPage() {
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-8 w-8 relative">
-                              <img
-                                src={store.icon}
-                                alt={store.name}
-                                className="rounded-full w-8 h-8"
+                              <StoreIcon
+                                icon={store.icon}
+                                name={store.name}
+                                color={store.color}
+                                size={32}
                               />
                             </div>
                             <div className="ml-4">
@@ -474,7 +634,7 @@ export default function StoresPage() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-start justify-center">
             {/* Backdrop with blur */}
-            <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={handleCloseModal}></div>
+            <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={handleBackdropClick}></div>
 
             {/* Modal */}
             <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-full max-h-[85vh] flex flex-col mt-16 transform transition-all">
@@ -502,10 +662,11 @@ export default function StoresPage() {
               <div className="p-5 border-b border-gray-700 flex items-center">
                 {editingStore && (
                   <div className="h-8 w-8 mr-3">
-                    <img 
-                      src={uploadedLogo || editingStore.icon} 
-                      alt={editingStore.name} 
-                      className="rounded-full w-8 h-8"
+                    <StoreIcon
+                      icon={uploadedLogo || editingStore.icon}
+                      name={editingStore.name}
+                      color={editingStore.color}
+                      size={32}
                     />
                   </div>
                 )}
@@ -568,7 +729,7 @@ export default function StoresPage() {
                       placeholder="Store Name"
                       className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       value={editingStore?.name || ""}
-                      onChange={(e) => setEditingStore(prev => prev ? {...prev, name: e.target.value} : null)}
+                      onChange={handleNameChange}
                     />
                   </div>
 
@@ -578,7 +739,7 @@ export default function StoresPage() {
                       <select
                         className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none"
                         value={editingStore?.category || ""}
-                        onChange={(e) => setEditingStore(prev => prev ? {...prev, category: e.target.value} : null)}
+                        onChange={handleCategoryChange}
                       >
                         <option value="" disabled>Category</option>
                         <option value="music">Music</option>
@@ -599,7 +760,7 @@ export default function StoresPage() {
                       <select
                         className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none"
                         value={editingStore?.status || "Active"}
-                        onChange={(e) => setEditingStore(prev => prev ? {...prev, status: e.target.value as "Active" | "Inactive"} : null)}
+                        onChange={handleStatusChange}
                       >
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
@@ -619,7 +780,7 @@ export default function StoresPage() {
                       placeholder="https://www.youtube.com/"
                       className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       value={editingStore?.url || ""}
-                      onChange={(e) => setEditingStore(prev => prev ? {...prev, url: e.target.value} : null)}
+                      onChange={handleUrlChange}
                     />
                   </div>
 
@@ -630,7 +791,7 @@ export default function StoresPage() {
                       placeholder="#D9342B"
                       className="w-full p-2 bg-[#1D2229] border border-gray-700 rounded text-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       value={editingStore?.color || ""}
-                      onChange={(e) => setEditingStore(prev => prev ? {...prev, color: e.target.value} : null)}
+                      onChange={handleColorChange}
                     />
                   </div>
 
@@ -642,7 +803,7 @@ export default function StoresPage() {
                         type="checkbox"
                         className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
                         checked={editingStore?.videosOnly || false}
-                        onChange={(e) => setEditingStore(prev => prev ? {...prev, videosOnly: e.target.checked} : null)}
+                        onChange={handleVideosOnlyChange}
                       />
                       <label htmlFor="videosOnly" className="ml-3 text-white">
                         Videos Only

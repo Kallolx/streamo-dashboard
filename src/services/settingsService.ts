@@ -39,7 +39,7 @@ export const updateSettings = async (settings: Partial<Settings>): Promise<Setti
 };
 
 /**
- * Upload a new logo
+ * Upload a new logo to S3
  */
 export const uploadLogo = async (logoFile: File): Promise<Settings> => {
   try {
@@ -50,7 +50,7 @@ export const uploadLogo = async (logoFile: File): Promise<Settings> => {
     // Use the axios instance with authorization
     const token = localStorage.getItem('token');
     const response = await axios.post(
-      `${getBaseUrl()}/settings/logo`,
+      `${getBaseUrl()}/settings/logo-s3`,
       formData,
       {
         headers: {
@@ -62,7 +62,7 @@ export const uploadLogo = async (logoFile: File): Promise<Settings> => {
     
     return response.data.data;
   } catch (error) {
-    console.error('Error uploading logo:', error);
+    console.error('Error uploading logo to S3:', error);
     throw error;
   }
 };

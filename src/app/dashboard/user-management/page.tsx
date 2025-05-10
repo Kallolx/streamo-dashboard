@@ -2,13 +2,14 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
-import { X, PencilSimple, Trash, SignIn, Check, X as XIcon } from "@phosphor-icons/react";
+import { X, PencilSimple, Trash, SignIn, Check, X as XIcon, Info } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import RoleGuard from "@/components/RoleGuard";
-import { getUsers, createUser, deleteUser, updateUser, approveUser, rejectUser } from "@/services/userService";
+import { getUsers, createUser, deleteUser, updateUser, approveUser, rejectUser, getUserById } from "@/services/userService";
 import { impersonateUser } from "@/services/authService";
 import type { User as ApiUser, CreateUserData } from "@/services/userService";
 import Toast from "@/components/Common/Toast";
+import UserDetailsModal from "@/components/Dashboard/models/UserDetailsModal";
 
 // User types for the table display
 interface User {
@@ -127,6 +128,12 @@ export default function UserManagementPage() {
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
+
+  // User details modal state
+  const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
+  const [selectedUserData, setSelectedUserData] = useState<ApiUser | null>(null);
+  const [isLoadingUserDetails, setIsLoadingUserDetails] = useState(false);
+  const [userDetailsError, setUserDetailsError] = useState<string | null>(null);
 
   // Fetch real users from API
   useEffect(() => {
@@ -683,6 +690,50 @@ export default function UserManagementPage() {
     }
   };
 
+  // Handle view user details
+  const handleViewUserDetails = async (user: User, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent edit modal from opening
+    
+    // Get user ID 
+    let userId = '';
+    if (user.id) {
+      userId = typeof user.id === 'object' && (user.id as any)._id 
+        ? (user.id as any)._id 
+        : user.id.toString();
+    } else if ((user as any)._id) {
+      userId = (user as any)._id;
+    }
+    
+    if (!userId) {
+      setToast({
+        message: "Cannot view user details: User ID is missing",
+        type: "error",
+        visible: true
+      });
+      return;
+    }
+    
+    setIsLoadingUserDetails(true);
+    setUserDetailsError(null);
+    
+    try {
+      // Fetch detailed user data
+      const userData = await getUserById(userId);
+      setSelectedUserData(userData);
+      setShowUserDetailsModal(true);
+    } catch (error: any) {
+      console.error("Error fetching user details:", error);
+      setUserDetailsError(error.message || "Failed to load user details");
+      setToast({
+        message: `Error loading user details: ${error.message || "Unknown error"}`,
+        type: "error",
+        visible: true
+      });
+    } finally {
+      setIsLoadingUserDetails(false);
+    }
+  };
+
   return (
     <RoleGuard allowedRoles={['superadmin', 'admin']} fallbackUrl="/dashboard">
       <DashboardLayout title="User Management" subtitle="Manage all users and their roles">
@@ -889,6 +940,16 @@ export default function UserManagementPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center">
                           <div className="inline-flex items-center justify-center gap-2">
+                            <button 
+                              className="h-8 w-8 rounded-full flex items-center justify-center text-blue-400 hover:text-white hover:bg-blue-600 transition-all"
+                              onClick={(e) => handleViewUserDetails(user, e)}
+                              aria-label="View User Details"
+                              title="View User Details"
+                              disabled={isLoadingUserDetails}
+                            >
+                              <Info size={18} weight="bold" />
+                            </button>
+                            
                             <button 
                               className="h-8 w-8 rounded-full flex items-center justify-center text-purple-400 hover:text-white hover:bg-purple-600 transition-all"
                               onClick={(e) => {
@@ -1675,6 +1736,13 @@ export default function UserManagementPage() {
             onClose={() => setToast({ ...toast, visible: false })}
           />
         )}
+
+        {/* Add User Details Modal */}
+        <UserDetailsModal 
+          isOpen={showUserDetailsModal}
+          onClose={() => setShowUserDetailsModal(false)}
+          user={selectedUserData as any}
+        />
       </DashboardLayout>
     </RoleGuard>
   );

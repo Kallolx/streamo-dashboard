@@ -5,14 +5,14 @@ import { useRouter, usePathname } from "next/navigation";
 import DashboardLayout from "@/components/Dashboard/DashboardLayout";
 import ReleasesTable from "@/components/Dashboard/Tables/ReleasesTable";
 import ReleaseDetailsModal from "@/components/Dashboard/models/ReleaseDetailsModal";
-import TrackDetailsModal from "@/components/Dashboard/models/TrackDetailsModal";
+import VideoDetailsModal from "@/components/Dashboard/models/VideoDetailsModal";
 import TracksTable from "@/components/Dashboard/Tables/TracksTable";
 import api from "@/services/api";
 
-// Example track data for the modal
-const sampleTracks = [
+// Example video data for the modal
+const sampleVideos = [
   {
-    _id: "TRK00123",
+    _id: "VID00123",
     title: "Midnight Drive",
     imageSrc: "/images/music/1.png",
     primaryArtist: "Neon Pulse",
@@ -27,7 +27,7 @@ const sampleTracks = [
     updatedAt: "2023-01-15T10:30:00Z",
   },
   {
-    _id: "TRK00124",
+    _id: "VID00124",
     title: "Urban Echoes",
     imageSrc: "/images/music/2.png",
     primaryArtist: "Cyber Waves",
@@ -42,7 +42,7 @@ const sampleTracks = [
     updatedAt: "2023-02-20T14:45:00Z",
   },
   {
-    _id: "TRK00125",
+    _id: "VID00125",
     title: "Neon Dreams",
     imageSrc: "/images/music/3.png",
     primaryArtist: "Future Sound",
@@ -57,7 +57,7 @@ const sampleTracks = [
     updatedAt: "2023-03-10T09:15:00Z",
   },
   {
-    _id: "TRK00126",
+    _id: "VID00126",
     title: "Electric Sky",
     imageSrc: "/images/music/4.png",
     primaryArtist: "Digital Horizon",
@@ -72,7 +72,7 @@ const sampleTracks = [
     updatedAt: "2023-04-05T16:20:00Z",
   },
   {
-    _id: "TRK00127",
+    _id: "VID00127",
     title: "Midnight Rhythm",
     imageSrc: "/images/music/5.png",
     primaryArtist: "Beat Masters",
@@ -103,7 +103,7 @@ const catalogueTabs = [
 ];
 
 // Define interfaces for different item types
-interface TrackItem {
+interface VideoItem {
   _id: string;
   title: string;
   imageSrc: string;
@@ -117,6 +117,8 @@ interface TrackItem {
   status: string;
   createdAt: string;
   updatedAt: string;
+  videoFile?: string;
+  coverArt?: string;
 }
 
 // Match the Release interface used in the modal
@@ -141,15 +143,15 @@ interface ReleaseItem {
 export default function CataloguePage() {
   // Modal states for each type
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
-  const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<TrackItem>(
-    sampleTracks[0]
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<VideoItem>(
+    sampleVideos[0]
   );
   const [selectedRelease, setSelectedRelease] = useState<ReleaseItem | null>(
     null
   );
   const [releases, setReleases] = useState<ReleaseItem[]>([]);
-  const [tracks, setTracks] = useState<any[]>([]);
+  const [videos, setVideos] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("Releases");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -175,7 +177,7 @@ export default function CataloguePage() {
             const response = await api.get("/tracks");
 
             if (response.data.success) {
-              setTracks(response.data.data);
+              setVideos(response.data.data);
             } else {
               setError("Failed to fetch videos");
             }
@@ -201,7 +203,7 @@ export default function CataloguePage() {
     setActiveTab(tabName);
     // Close any open modals when changing tabs
     setIsReleaseModalOpen(false);
-    setIsTrackModalOpen(false);
+    setIsVideoModalOpen(false);
   };
 
   // Handle release selection
@@ -213,52 +215,50 @@ export default function CataloguePage() {
     }
   };
 
-  // Handle track selection
-  const handleTrackSelect = (trackId: string) => {
-    // Try to find the track in the fetched data
-    const apiTrack = tracks.find((t) => t._id === trackId);
+  // Handle video selection
+  const handleVideoSelect = (videoId: string) => {
+    // Try to find the video in the fetched data
+    const apiVideo = videos.find((v) => v._id === videoId);
 
-    if (apiTrack) {
-      // Map API track data to the format expected by the TrackDetailsModal
-      setSelectedTrack({
-        _id: apiTrack._id,
-        title: apiTrack.title || "Untitled Track",
-        imageSrc: apiTrack.coverArt
-          ? `${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}${
-              apiTrack.coverArt
-            }`
-          : "/images/music/1.png",
-        primaryArtist: apiTrack.artist || "Unknown Artist",
-        artist: apiTrack.artist || "Unknown Artist",
-        genre: apiTrack.genre || "Not Specified",
-        contentRating: apiTrack.contentRating || "Not Rated",
-        isrc: apiTrack.isrc || "Not Available",
-        duration: apiTrack.duration || "0:00",
-        releaseDate: apiTrack.releaseDate
-          ? new Date(apiTrack.releaseDate).toLocaleDateString("en-US", {
+    if (apiVideo) {
+      // Map API video data to the format expected by the VideoDetailsModal
+      setSelectedVideo({
+        _id: apiVideo._id,
+        title: apiVideo.title || "Untitled Video",
+        imageSrc: apiVideo.coverArt || "/images/music/1.png",
+        coverArt: apiVideo.coverArt,
+        videoFile: apiVideo.videoFile,
+        primaryArtist: apiVideo.artist || "Unknown Artist",
+        artist: apiVideo.artist || "Unknown Artist",
+        genre: apiVideo.genre || "Not Specified",
+        contentRating: apiVideo.contentRating || "Not Rated",
+        isrc: apiVideo.isrc || "Not Available",
+        duration: apiVideo.duration || "0:00",
+        releaseDate: apiVideo.releaseDate
+          ? new Date(apiVideo.releaseDate).toLocaleDateString("en-US", {
               day: "numeric",
               month: "long",
               year: "numeric",
             })
           : "Not Available",
-        status: apiTrack.status || "Not Available",
-        createdAt: apiTrack.createdAt || "Not Available",
-        updatedAt: apiTrack.updatedAt || "Not Available",
+        status: apiVideo.status || "Not Available",
+        createdAt: apiVideo.createdAt || "Not Available",
+        updatedAt: apiVideo.updatedAt || "Not Available",
       });
     } else {
-      // Fallback to sample data if track not found
-      const sampleIndex = Math.abs(trackId.charCodeAt(0) % sampleTracks.length);
-      setSelectedTrack({
-        ...sampleTracks[sampleIndex],
-        _id: trackId,
-        artist: sampleTracks[sampleIndex].primaryArtist,
+      // Fallback to sample data if video not found
+      const sampleIndex = Math.abs(videoId.charCodeAt(0) % sampleVideos.length);
+      setSelectedVideo({
+        ...sampleVideos[sampleIndex],
+        _id: videoId,
+        artist: sampleVideos[sampleIndex].primaryArtist,
         status: "Not Available",
         createdAt: "Not Available",
         updatedAt: "Not Available",
       });
     }
 
-    setIsTrackModalOpen(true);
+    setIsVideoModalOpen(true);
   };
 
   // Handle release approve
@@ -368,8 +368,8 @@ export default function CataloguePage() {
 
               {activeTab === "Videos" && (
                 <TracksTable
-                  onTrackSelect={handleTrackSelect}
-                  tracks={tracks}
+                  onTrackSelect={handleVideoSelect}
+                  tracks={videos}
                 />
               )}
             </>
@@ -390,17 +390,17 @@ export default function CataloguePage() {
       )}
 
       {/* Track Details Modal */}
-      <TrackDetailsModal
-        isOpen={isTrackModalOpen}
-        onClose={() => setIsTrackModalOpen(false)}
-        track={selectedTrack}
-        onApprove={(trackId) => {
-          console.log(`Track ${trackId} approved`);
-          setIsTrackModalOpen(false);
+      <VideoDetailsModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        video={selectedVideo}
+        onApprove={(videoId) => {
+          console.log(`Video ${videoId} approved`);
+          setIsVideoModalOpen(false);
         }}
-        onReject={(trackId) => {
-          console.log(`Track ${trackId} rejected`);
-          setIsTrackModalOpen(false);
+        onReject={(videoId) => {
+          console.log(`Video ${videoId} rejected`);
+          setIsVideoModalOpen(false);
         }}
       />
     </DashboardLayout>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { updateReleaseISRC } from "@/services/releaseService";
+import { updateTrackISRC } from "@/services/trackService";
 
 // Define the distribution request data interface
 interface DistributionRequest {
@@ -13,6 +15,8 @@ interface DistributionRequest {
   status: "Approved" | "Pending" | "Rejected" | "Completed" | "approved" | "pending" | "rejected" | "completed" | "submitted" | "processing";
   itemType?: 'track' | 'release';
   originalData?: any;
+  isrc?: string;
+  upc?: string;
 }
 
 interface DistributionDetailsModalProps {
@@ -23,6 +27,24 @@ interface DistributionDetailsModalProps {
   onReject: (id: string) => void;
 }
 
+// Collapsible section component
+function CollapsibleSection({ title, children, defaultOpen = false }: { title: string, children: React.ReactNode, defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="mb-4">
+      <button
+        className="w-full flex justify-between items-center py-2 px-2 bg-[#181C22] rounded-t text-left text-white font-semibold focus:outline-none"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        <span>{title}</span>
+        <svg className={`w-4 h-4 ml-2 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && <div className="bg-[#1A1E24] rounded-b p-4">{children}</div>}
+    </div>
+  );
+}
+
 export default function DistributionDetailsModal({
   request,
   isOpen,
@@ -30,6 +52,16 @@ export default function DistributionDetailsModal({
   onApprove,
   onReject,
 }: DistributionDetailsModalProps) {
+  const [isrc, setIsrc] = useState(request.isrc || request.originalData?.isrc || '');
+  const [upc, setUpc] = useState(request.upc || request.originalData?.upc || '');
+  const [isEditing, setIsEditing] = useState(false);
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
+    show: false,
+    message: '',
+    type: 'success'
+  });
+  const [tracks, setTracks] = useState(request.originalData?.tracks || []);
+
   // Determine profile image based on user name to ensure consistency
   const profileImage = request.userName === "Steven Wilson" 
     ? "/images/singer/1.webp"
@@ -61,8 +93,70 @@ export default function DistributionDetailsModal({
 
   if (!isOpen) return null;
 
-  // Handle approve click
+  // Handle ISRC/UPC update
+  const handleUpdate = async () => {
+    try {
+      if (request.itemType === 'track') {
+        // For video tracks, we have a single ISRC and UPC
+        await updateTrackISRC(request.id, isrc, upc);
+        setIsEditing(false);
+        setToast({
+          show: true,
+          message: 'ISRC/UPC updated successfully',
+          type: 'success'
+        });
+        // Update local state
+        request.originalData.isrc = isrc;
+        request.originalData.upc = upc;
+      } else {
+        // For releases, we have multiple tracks with ISRCs and a single UPC
+        await updateReleaseISRC(request.id, tracks, upc);
+        setIsEditing(false);
+        setToast({
+          show: true,
+          message: 'ISRC/UPC updated successfully',
+          type: 'success'
+        });
+        // Update local state with new values
+        request.originalData.tracks = tracks;
+        request.originalData.upc = upc;
+      }
+    } catch (error) {
+      setToast({
+        show: true,
+        message: 'Failed to update ISRC/UPC',
+        type: 'error'
+      });
+    }
+  };
+
+  // Handle approve with ISRC/UPC validation
   const handleApprove = () => {
+    // For tracks, check the single ISRC
+    if (request.itemType === 'track') {
+      if (!isrc) {
+        setToast({
+          show: true,
+          message: 'Please add ISRC before approving this video',
+          type: 'error'
+        });
+        return;
+      }
+    } 
+    // For releases, check if tracks have ISRCs
+    else {
+      // Check if any track is missing ISRC
+      const missingIsrc = tracks.some((track: { isrc?: string }) => !track.isrc);
+      if (missingIsrc) {
+        setToast({
+          show: true,
+          message: 'Please add ISRC for all tracks before approving',
+          type: 'error'
+        });
+        return;
+      }
+    }
+    
     onApprove(request.id);
     onClose();
   };
@@ -74,202 +168,207 @@ export default function DistributionDetailsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center">
-      {/* Backdrop with blur */}
-      <div className="fixed inset-0 backdrop-blur-sm bg-black/50" onClick={onClose}></div>
-
-      {/* Modal */}
-      <div className="relative z-10 bg-[#111417] rounded-lg overflow-hidden shadow-xl max-w-md w-full max-h-[85vh] flex flex-col mt-16 transform transition-all">
-        {/* Close button */}
-        <button
-          className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
-          onClick={onClose}
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      {/* Modal container */}
+      <div className="relative bg-[#111417] rounded-lg shadow-xl w-full max-w-2xl mx-2 flex flex-col max-h-[95vh] overflow-hidden">
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-[#111417] border-b border-gray-800 px-4 py-3 flex items-center gap-4">
+          <div className="w-14 h-14 relative rounded overflow-hidden flex-shrink-0 bg-gray-800">
+            <Image
+              src={request.originalData?.coverArt || "/images/default-cover.png"}
+              alt={request.userName}
+              fill
+              className="object-cover"
+              priority
             />
-          </svg>
-        </button>
-
-        {/* Header with user and track */}
-        <div className="p-5 border-b border-gray-700">
-          <div className="flex items-center mb-4">
-            {/* User image */}
-            <div className="w-16 h-16 relative rounded-full overflow-hidden mr-4 flex-shrink-0 bg-gray-800">
-              <Image
-                src={profileImage}
-                alt={request.userName}
-                fill
-                className="object-cover"
-                priority
-              />
-            </div>
-
-            {/* User info */}
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-white truncate mb-1">
-                {request.userName}
-              </h2>
-
-              {/* Genre/Style Tags */}
-              <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 text-xs bg-[#1D2229] rounded-full text-gray-300">
-                  USA
-                </span>
-                <span className="px-3 py-1 text-xs bg-[#1D2229] rounded-full text-gray-300">
-                  Hip-Hop
-                </span>
-              </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-white truncate">{request.trackRelease}</h2>
+            <p className="text-gray-400 text-sm truncate">{request.artist}</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {request.originalData?.genre && (
+                <span className="px-2 py-0.5 text-xs bg-[#1D2229] rounded-full text-gray-300">{request.originalData.genre}</span>
+              )}
+              {request.originalData?.language && (
+                <span className="px-2 py-0.5 text-xs bg-[#1D2229] rounded-full text-gray-300">{request.originalData.language}</span>
+              )}
+              {request.originalData?.releaseType && (
+                <span className="px-2 py-0.5 text-xs bg-[#1D2229] rounded-full text-gray-300">{request.originalData.releaseType}</span>
+              )}
             </div>
           </div>
-
-          {/* Track/Release info */}
-          <div className="flex items-center mt-4">
-            <div className="w-16 h-16 relative rounded overflow-hidden mr-4 flex-shrink-0 bg-gray-800">
-              <Image
-                src={trackImage}
-                alt={request.trackRelease}
-                fill
-                className="object-cover"
-                priority
-              />
-            </div>
-            <div>
-              <h3 className="text-white font-medium">{request.trackRelease}</h3>
-              <p className="text-gray-400 text-sm">{request.artist}</p>
-            </div>
-          </div>
+          <button
+            className="ml-2 text-gray-400 hover:text-white"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
         </div>
 
-        {/* Details section */}
-        <button className="bg-[#A365FF] text-white px-4 py-2 rounded-full mx-5 mt-5 mb-2">
-          Details
-        </button>
-
-        {/* Distribution Request Details */}
-        <div className="p-5 overflow-y-auto flex-grow">
-          <div className="grid grid-cols-2 gap-4">
-            {/* Track/Release */}
-            <div className="bg-[#1A1E24] p-4 rounded">
-              <div className="text-gray-400 text-sm mb-1">Track/Release</div>
-              <div className="text-white font-medium">{request.trackRelease}</div>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+          <CollapsibleSection title={request.itemType === 'track' ? "Video Metadata" : "Release Metadata"} defaultOpen={true}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><span className="text-gray-400 text-xs">Title</span><div className="text-white font-medium">{request.trackRelease}</div></div>
+              <div><span className="text-gray-400 text-xs">Artist</span><div className="text-white font-medium">{request.artist}</div></div>
+              <div><span className="text-gray-400 text-xs">Label</span><div className="text-white font-medium">{request.label}</div></div>
+              <div><span className="text-gray-400 text-xs">Status</span><div className={`font-medium ${request.status.toLowerCase().includes('approved') ? 'text-green-400' : request.status.toLowerCase().includes('rejected') ? 'text-red-400' : 'text-yellow-400'}`}>{request.status}</div></div>
+              <div><span className="text-gray-400 text-xs">Release Type</span><div className="text-white">{request.originalData?.releaseType || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Format</span><div className="text-white">{request.originalData?.format || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Genre</span><div className="text-white">{request.originalData?.genre || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Language</span><div className="text-white">{request.originalData?.language || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Release Date</span><div className="text-white">{request.originalData?.releaseDate || '-'}</div></div>
             </div>
+          </CollapsibleSection>
 
-            {/* Artist */}
-            <div className="bg-[#1A1E24] p-4 rounded">
-              <div className="text-gray-400 text-sm mb-1">Artist</div>
-              <div className="text-white font-medium">{request.artist}</div>
+          <CollapsibleSection title="Contributors">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><span className="text-gray-400 text-xs">Featured Artist</span><div className="text-white">{request.originalData?.featuredArtist || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Composer</span><div className="text-white">{request.originalData?.composer || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Lyricist</span><div className="text-white">{request.originalData?.lyricist || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Music Producer</span><div className="text-white">{request.originalData?.musicProducer || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Publisher</span><div className="text-white">{request.originalData?.publisher || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Music Director</span><div className="text-white">{request.originalData?.musicDirector || '-'}</div></div>
             </div>
+          </CollapsibleSection>
 
-            {/* Label */}
-            <div className="bg-[#1A1E24] p-4 rounded">
-              <div className="text-gray-400 text-sm mb-1">Label</div>
-              <div className="text-white font-medium">{request.label}</div>
+          <CollapsibleSection title="ISRC & UPC Management">
+            <div className="mb-2 text-xs text-gray-400">
+              {request.itemType === 'track' 
+                ? "Edit ISRC and UPC for the video." 
+                : "Edit ISRC for each track and the release UPC."} 
+              <span className='italic text-gray-500'>(ISRC is a unique code for each track/video.)</span>
             </div>
-
-            {/* Status */}
-            <div className="bg-[#1A1E24] p-4 rounded">
-              <div className="text-gray-400 text-sm mb-1">Status</div>
-              <div className={`font-medium ${
-                request.status === "Approved" || request.status === "approved" || request.status === "Completed" || request.status === "completed"
-                  ? "text-green-400" 
-                  : request.status === "Rejected" || request.status === "rejected"
-                  ? "text-red-400"
-                  : "text-gray-400"
-              }`}>
-                {request.status}
+            <div className="rounded-lg bg-[#181C22] border border-gray-700 shadow-sm p-4">
+              {request.itemType === 'track' ? (
+                // Single ISRC field for tracks/videos
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">ISRC</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={isrc}
+                        onChange={e => setIsrc(e.target.value)}
+                        className="w-full bg-[#23272F] border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm transition-all duration-150 hover:border-purple-400 focus:border-purple-500"
+                        placeholder="Enter ISRC"
+                      />
+                    ) : (
+                      <span className="text-white text-base">{isrc || <span className='italic text-gray-500'>No ISRC</span>}</span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                // Table of tracks for releases
+                <div className="overflow-x-auto mb-4">
+                  <table className="min-w-full text-sm text-left">
+                    <thead>
+                      <tr className="text-gray-400">
+                        <th className="py-1 pr-4">Title</th>
+                        <th className="py-1 pr-4">Artist</th>
+                        <th className="py-1">ISRC</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tracks.map((track: any, idx: number) => (
+                        <tr key={track._id || idx} className="border-b border-gray-800 last:border-0">
+                          <td className="py-1 pr-4 text-white max-w-[120px] truncate">{track.title}</td>
+                          <td className="py-1 pr-4 text-white max-w-[120px] truncate">{track.artistName}</td>
+                          <td className="py-1">
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={track.isrc || ''}
+                                onChange={e => {
+                                  const newTracks = [...tracks];
+                                  newTracks[idx] = { ...newTracks[idx], isrc: e.target.value };
+                                  setTracks(newTracks);
+                                }}
+                                className="w-32 bg-[#23272F] border border-gray-600 rounded px-2 py-1 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm transition-all duration-150 hover:border-purple-400 focus:border-purple-500"
+                                placeholder="Enter ISRC"
+                              />
+                            ) : (
+                              <span className="text-gray-200">{track.isrc || <span className='italic text-gray-500'>No ISRC</span>}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="mt-2">
+                <label className="block text-gray-400 text-sm mb-1">UPC</label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={upc}
+                    onChange={e => setUpc(e.target.value)}
+                    className="w-full bg-[#23272F] border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm transition-all duration-150 hover:border-purple-400 focus:border-purple-500"
+                    placeholder="Enter UPC"
+                  />
+                ) : (
+                  <span className="text-white text-base">{upc || <span className='italic text-gray-500'>No UPC</span>}</span>
+                )}
+              </div>
+              
+              {/* Edit/Save buttons */}
+              <div className="mt-4 flex justify-end">
+                {isEditing ? (
+                  <button
+                    onClick={handleUpdate}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded shadow-sm transition-colors"
+                  >
+                    Save Changes
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded shadow-sm transition-colors"
+                  >
+                    Edit ISRC/UPC
+                  </button>
+                )}
               </div>
             </div>
-          </div>
+          </CollapsibleSection>
 
-          {/* Additional information */}
-          <div className="mt-4 bg-[#1A1E24] p-4 rounded">
-            <div className="text-gray-400 text-sm mb-1">Distribution Platforms</div>
-            <div className="flex space-x-3 mt-2">
-              <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center">
-                <img
-                  src="/icons/sp.svg"
-                  alt="Spotify"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center">
-                <img
-                  src="/icons/yt.svg"
-                  alt="YouTube Music"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center">
-                <img
-                  src="/icons/ap.svg"
-                  alt="Apple Music"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center">
-                <img
-                  src="/icons/sc.svg"
-                  alt="SoundCloud"
-                  className="w-full h-full object-cover"
-                />
-              </div>
+          <CollapsibleSection title="Distribution Platforms">
+            <div className="flex flex-wrap gap-2">
+              {request.originalData?.stores?.map((store: string) => (
+                <div key={store} className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-[#181C22]">
+                  <img src={`/icons/${store.toLowerCase()}.svg`} alt={store} className="w-6 h-6 object-contain" />
+                </div>
+              ))}
             </div>
-          </div>
+          </CollapsibleSection>
         </div>
 
-        {/* Action buttons */}
-        {(request.status === "Pending" || request.status === "pending" || 
-          request.status === "submitted" || request.status === "processing") && (
-          <div className="p-5 border-t border-gray-700 flex space-x-4">
-            <button 
+        {/* Sticky action bar */}
+        <div className="sticky bottom-0 z-10 bg-[#111417] border-t border-gray-800 px-4 py-3 flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end items-stretch">
+          <div className="flex-1 flex gap-2">
+            <button
               onClick={handleApprove}
-              className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors flex items-center justify-center"
+              className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-base font-semibold transition-colors"
             >
-              <svg 
-                className="w-5 h-5 mr-2" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path 
-                  d="M4 12.6111L8.92308 17.5L20 6.5" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                />
-              </svg>
               Approve
             </button>
-            <button 
-              onClick={handleReject}
-              className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center justify-center"
+            <button
+              onClick={() => onReject(request.id)}
+              className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-base font-semibold transition-colors"
             >
-              <svg 
-                className="w-5 h-5 mr-2" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path 
-                  d="M18 6L6 18M6 6L18 18" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                />
-              </svg>
               Reject
+            </button>
+          </div>
+        </div>
+
+        {/* Toast notification */}
+        {toast.show && (
+          <div className={`fixed bottom-4 right-4 z-50 flex items-center p-4 rounded-md shadow-lg ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+            <div className="text-white">{toast.message}</div>
+            <button onClick={() => setToast({ ...toast, show: false })} className="ml-4 text-white hover:text-gray-300">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
         )}

@@ -5,10 +5,10 @@ import Image from "next/image";
 import { getAllStores, Store } from "@/services/storeService";
 
 // Tab interfaces for the modal
-type TabType = "details" | "lyrics" | "play";
+type TabType = "details" | "play";
 
-// Interface for the track data
-interface Track {
+// Interface for the video data
+interface Video {
   _id: string;
   title: string;
   artist: string;
@@ -23,7 +23,6 @@ interface Track {
   isrc?: string;
   upc?: string;
   label?: string;
-  lyrics?: string;
   subgenre?: string;
   featuredArtist?: string;
   remixerArtist?: string;
@@ -46,31 +45,30 @@ interface Track {
   createdAt: string;
   updatedAt: string;
   coverArt?: string;
-  audioFile?: string;
   videoFile?: string;
-  originalData?: Track;
+  originalData?: Video;
 }
 
 // Props interface for the modal
-interface TrackDetailsModalProps {
+interface VideoDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  track: Track;
-  onApprove?: (trackId: string) => void;
-  onReject?: (trackId: string) => void;
-  onDelete?: (trackId: string) => void;
+  video: Video;
+  onApprove?: (videoId: string) => void;
+  onReject?: (videoId: string) => void;
+  onDelete?: (videoId: string) => void;
   userRole?: 'admin' | 'superadmin' | 'artist' | 'label';
 }
 
-export default function TrackDetailsModal({
+export default function VideoDetailsModal({
   isOpen,
   onClose,
-  track,
+  video: initialVideo,
   onApprove,
   onReject,
   onDelete,
   userRole = 'artist'
-}: TrackDetailsModalProps) {
+}: VideoDetailsModalProps) {
   // State variables
   const [currentTab, setCurrentTab] = useState<TabType>("details");
   const [storeMap, setStoreMap] = useState<Record<string, Store>>({});
@@ -81,69 +79,113 @@ export default function TrackDetailsModal({
   const [currentTime, setCurrentTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [video, setVideo] = useState<Video>(initialVideo);
   
-  // Default image fallback if track has no image
+  // Default image fallback if video has no image
   const defaultImage = "/images/music/placeholder.png";
 
   // Debug logging to help diagnose issues
   useEffect(() => {
     if (isOpen) {
-      console.log("Track data:", track);
+      console.log("Initial video data:", initialVideo);
       
-      // Add code to retrieve the full track data if necessary
-      const fetchFullTrackData = async () => {
-        if (track._id && (!track.videoFile || !track.coverArt)) {
-          try {
-            console.log("Fetching complete track data for ID:", track._id);
-            // Import the necessary service
-            const { getTrackById } = await import('@/services/trackService');
-            const response = await getTrackById(track._id);
+      // Create a clean copy of initialVideo with properly formatted URLs
+      const processedVideo = { ...initialVideo };
+      
+      // For coverArt - Check if it's already an S3 URL
+      if (processedVideo.coverArt && processedVideo.coverArt.includes('amazonaws.com')) {
+        // If it's already an S3 URL but has localhost prefix, extract just the S3 part
+        if (processedVideo.coverArt.includes('localhost') && processedVideo.coverArt.includes('https://')) {
+          const s3Match = processedVideo.coverArt.match(/(https:\/\/.*amazonaws\.com\/.*)/);
+          if (s3Match && s3Match[1]) {
+            processedVideo.coverArt = s3Match[1];
+            console.log('Cleaned coverArt URL:', processedVideo.coverArt);
+          }
+        }
+      }
+      
+      // For videoFile - Check if it's already an S3 URL
+      if (processedVideo.videoFile && processedVideo.videoFile.includes('amazonaws.com')) {
+        // If it's already an S3 URL but has localhost prefix, extract just the S3 part
+        if (processedVideo.videoFile.includes('localhost') && processedVideo.videoFile.includes('https://')) {
+          const s3Match = processedVideo.videoFile.match(/(https:\/\/.*amazonaws\.com\/.*)/);
+          if (s3Match && s3Match[1]) {
+            processedVideo.videoFile = s3Match[1];
+            console.log('Cleaned videoFile URL:', processedVideo.videoFile);
+          }
+        }
+      }
+      
+      setVideo(processedVideo);
+      
+      // Add code to retrieve the full video data if necessary
+      const fetchFullVideoData = async () => {
+        try {
+          console.log("Fetching complete video data for ID:", initialVideo._id);
+          // Import the necessary service
+          const { getTrackById } = await import('@/services/trackService');
+          
+          // Use a fixed endpoint if localhost is causing issues
+          const response = await getTrackById(initialVideo._id);
+          
+          if (response.success && response.data) {
+            console.log("Fetched complete video data:", response.data);
             
-            if (response.success && response.data) {
-              console.log("Fetched complete track data:", response.data);
-              // Instead of replacing the whole track, we just access the videoFile
-              if (response.data.videoFile) {
-                console.log("Video file found in API response:", response.data.videoFile);
-                // Create a temporary element to display the video
-                const tempVideo = document.createElement('video');
-                const videoSrc = response.data.videoFile.startsWith('http')
-                  ? response.data.videoFile
-                  : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${response.data.videoFile}`;
-                
-                tempVideo.src = videoSrc;
-                tempVideo.style.display = 'none';
-                document.body.appendChild(tempVideo);
-                
-                // Set event listeners to test video loading
-                tempVideo.onloadeddata = () => {
-                  console.log("Video loaded successfully from", videoSrc);
-                  document.body.removeChild(tempVideo);
-                  
-                  // Update the video element in the UI
-                  if (videoRef.current) {
-                    videoRef.current.src = videoSrc;
-                  }
-                };
-                
-                tempVideo.onerror = () => {
-                  console.error("Error loading video from", videoSrc);
-                  document.body.removeChild(tempVideo);
-                };
+            // Process response data to ensure clean URLs
+            const apiVideo = { ...response.data };
+            
+            // Clean coverArt URL if present
+            if (apiVideo.coverArt && apiVideo.coverArt.includes('amazonaws.com')) {
+              if (apiVideo.coverArt.includes('localhost') && apiVideo.coverArt.includes('https://')) {
+                const s3Match = apiVideo.coverArt.match(/(https:\/\/.*amazonaws\.com\/.*)/);
+                if (s3Match && s3Match[1]) {
+                  apiVideo.coverArt = s3Match[1];
+                  console.log('Cleaned API coverArt URL:', apiVideo.coverArt);
+                }
               }
             }
-          } catch (error) {
-            console.error("Error fetching complete track data:", error);
+            
+            // Clean videoFile URL if present
+            if (apiVideo.videoFile && apiVideo.videoFile.includes('amazonaws.com')) {
+              if (apiVideo.videoFile.includes('localhost') && apiVideo.videoFile.includes('https://')) {
+                const s3Match = apiVideo.videoFile.match(/(https:\/\/.*amazonaws\.com\/.*)/);
+                if (s3Match && s3Match[1]) {
+                  apiVideo.videoFile = s3Match[1];
+                  console.log('Cleaned API videoFile URL:', apiVideo.videoFile);
+                }
+              }
+            }
+            
+            // Update video state with properly formatted data
+            setVideo(apiVideo);
+            
+            // Log the available URLs for debugging
+            if (apiVideo.videoFile) {
+              console.log("Video URL:", apiVideo.videoFile);
+            } else {
+              console.log("No video file in the response");
+            }
+            
+            if (apiVideo.coverArt) {
+              console.log("Cover Art URL:", apiVideo.coverArt);
+            } else {
+              console.log("No cover art in the response");
+            }
           }
+        } catch (error) {
+          console.error("Error fetching complete video data:", error);
         }
       };
       
-      fetchFullTrackData();
+      if (initialVideo._id) {
+        fetchFullVideoData();
+      }
     }
-  }, [isOpen, track]);
+  }, [isOpen, initialVideo]);
 
   // Fetch stores when modal opens
   useEffect(() => {
-    if (isOpen && track.stores && track.stores.length > 0) {
+    if (isOpen && video.stores && video.stores.length > 0) {
       const fetchStores = async () => {
         try {
           setStoresLoading(true);
@@ -167,7 +209,7 @@ export default function TrackDetailsModal({
       
       fetchStores();
     }
-  }, [isOpen, track.stores]);
+  }, [isOpen, video.stores]);
 
   // Handle close with Escape key
   const handleKeyDown = useCallback(
@@ -200,18 +242,18 @@ export default function TrackDetailsModal({
 
   // Handle approval
   const handleApprove = () => {
-    if (onApprove) onApprove(track._id);
+    if (onApprove) onApprove(video._id);
   };
 
   // Handle rejection
   const handleReject = () => {
-    if (onReject) onReject(track._id);
+    if (onReject) onReject(video._id);
   };
   
   // Handle deletion
   const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this track? This action cannot be undone.")) {
-      if (onDelete) onDelete(track._id);
+    if (confirm("Are you sure you want to delete this video? This action cannot be undone.")) {
+      if (onDelete) onDelete(video._id);
     }
   };
 
@@ -240,33 +282,18 @@ export default function TrackDetailsModal({
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
   
-  // Handle play/pause toggle for audio
-  const toggleAudioPlay = () => {
+  // Handle video time update
+  const handleTimeUpdate = () => {
     if (!videoRef.current) return;
     
-    if (isPlaying) {
-      videoRef.current.pause();
-    } else {
-      videoRef.current.play();
-    }
+    const newTime = videoRef.current.currentTime;
+    const newDuration = videoRef.current.duration;
     
-    setIsPlaying(!isPlaying);
+    setCurrentTime(newTime);
+    setDuration(newDuration);
+    setProgress((newTime / newDuration) * 100);
   };
   
-  // Handle progress bar click to seek
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current) return;
-    
-    const progressBar = e.currentTarget;
-    const rect = progressBar.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
-    const seekTime = percent * duration;
-    
-    videoRef.current.currentTime = seekTime;
-    setCurrentTime(seekTime);
-    setProgress(percent * 100);
-  };
-
   // If modal is not open, don't render anything
   if (!isOpen) return null;
 
@@ -298,56 +325,83 @@ export default function TrackDetailsModal({
           </svg>
         </button>
 
-        {/* Header with track art and basic info */}
+        {/* Header with video art and basic info */}
         <div className="p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row">
-            {/* Left side - Track Art */}
+            {/* Left side - Video Thumbnail */}
             <div className="w-32 h-32 sm:w-40 sm:h-40 relative rounded-md overflow-hidden mx-auto sm:mx-0 sm:mr-6 flex-shrink-0 bg-gray-800 mb-4 sm:mb-0">
-              {track.coverArt ? (
-                <div className="w-full h-full">
-                  <img 
-                    src={track.coverArt.startsWith('http') 
-                      ? track.coverArt 
-                      : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.coverArt}`}
-                    alt={track.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // Fallback if image fails to load
-                      const target = e.target as HTMLImageElement;
-                      target.src = defaultImage;
-                    }}
-                  />
-                </div>
-              ) : track.imageSrc ? (
-                <div className="w-full h-full">
-                  <img 
-                    src={track.imageSrc}
-                    alt={track.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // Fallback if image fails to load
-                      const target = e.target as HTMLImageElement;
-                      target.src = defaultImage;
-                    }}
-                  />
-                </div>
+              {video.coverArt ? (
+                // Using direct image URL with no optimization or processing
+                <img 
+                  src={video.coverArt} 
+                  alt={video.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error("Image load error:", video.coverArt);
+                    const imgElement = e.target as HTMLImageElement;
+                    imgElement.style.display = 'none';
+                    const parent = imgElement.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<svg 
+                        class="w-full h-full p-8 text-gray-500" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24" 
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path 
+                          stroke-linecap="round" 
+                          stroke-linejoin="round" 
+                          stroke-width="1.5" 
+                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" 
+                        />
+                      </svg>`;
+                    }
+                  }}
+                />
+              ) : video.imageSrc ? (
+                // Backup image source if coverArt not available
+                <img 
+                  src={video.imageSrc} 
+                  alt={video.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error("Image load error:", video.imageSrc);
+                    const imgElement = e.target as HTMLImageElement;
+                    imgElement.style.display = 'none';
+                    const parent = imgElement.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<svg 
+                        class="w-full h-full p-8 text-gray-500" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24" 
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path 
+                          stroke-linecap="round" 
+                          stroke-linejoin="round" 
+                          stroke-width="1.5" 
+                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" 
+                        />
+                      </svg>`;
+                    }
+                  }}
+                />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 text-center p-2">
+                // Default icon if no image
+                <div className="flex items-center justify-center w-full h-full">
                   <svg 
-                    className="w-16 h-16 text-gray-600 mb-2" 
+                    className="w-2/3 h-2/3 text-gray-500" 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
+                    xmlns="http://www.w3.org/2000/svg">
                     <path 
                       strokeLinecap="round" 
                       strokeLinejoin="round" 
-                      strokeWidth={1} 
-                      d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" 
+                      strokeWidth={1.5} 
+                      d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" 
                     />
                   </svg>
-                  <span className="text-xs text-gray-400">Track Artwork</span>
                 </div>
               )}
             </div>
@@ -358,33 +412,33 @@ export default function TrackDetailsModal({
               <div className="mb-4 text-center sm:text-left">
                 <div className="flex items-center justify-center sm:justify-start flex-wrap">
                   <h2 className="text-xl sm:text-2xl font-semibold text-white mr-2">
-                    {track.title || "Untitled Track"}
+                    {video.title || "Untitled Video"}
                   </h2>
-                  <span className="text-gray-400 text-sm">{track.releaseType || "Track"}</span>
+                  <span className="text-gray-400 text-sm">{video.releaseType || "Video"}</span>
                 </div>
                 <div className="mt-1 text-sm text-gray-400">
-                  {track.artist || track.primaryArtist || "Unknown Artist"}
+                  {video.artist || video.primaryArtist || "Unknown Artist"}
                 </div>
 
                 {/* Status Badge */}
                 <div className="mt-2 mb-1">
                   <div
                     className={`flex items-center px-3 py-1.5 rounded-md text-sm ${
-                      track.status === "approved"
+                      video.status === "approved"
                         ? "bg-green-900/50 text-green-200 border border-green-700"
-                        : track.status === "rejected"
+                        : video.status === "rejected"
                         ? "bg-red-900/50 text-red-200 border border-red-700"
-                        : track.status === "processing" || track.status === "submitted"
+                        : video.status === "processing" || video.status === "submitted"
                         ? "bg-yellow-900/50 text-yellow-200 border border-yellow-700"
                         : "bg-gray-800/50 text-gray-200 border border-gray-700"
                     }`}
                   >
                     <span className="mr-1.5">
-                      {track.status === "approved" ? (
+                      {video.status === "approved" ? (
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
                         </svg>
-                      ) : track.status === "rejected" ? (
+                      ) : video.status === "rejected" ? (
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"></path>
                         </svg>
@@ -395,27 +449,27 @@ export default function TrackDetailsModal({
                       )}
                     </span>
                     <span className="capitalize font-medium">
-                      {track.status === "approved" 
+                      {video.status === "approved" 
                         ? "Approved - Ready for distribution" 
-                        : track.status === "rejected"
+                        : video.status === "rejected"
                         ? "Rejected - Please check with admin"
-                        : track.status === "submitted" || track.status === "processing"
+                        : video.status === "submitted" || video.status === "processing"
                         ? "Pending approval - Please wait for admin review"
-                        : track.status}
+                        : video.status}
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Distribution Platforms */}
-              {track.stores && track.stores.length > 0 && (
+              {video.stores && video.stores.length > 0 && (
                 <div className="mt-2 mb-4">
                   <h3 className="text-sm text-gray-400 mb-1">Distribution Platforms</h3>
                   <div className="flex flex-wrap gap-2">
                     {storesLoading ? (
                       <div className="text-xs text-gray-400">Loading stores...</div>
                     ) : (
-                      track.stores.map(storeId => (
+                      video.stores.map(storeId => (
                         <span key={storeId} className="inline-flex items-center px-2 py-1 bg-[#1D2229] rounded-md text-xs text-white">
                           {getStoreName(storeId)}
                         </span>
@@ -450,16 +504,6 @@ export default function TrackDetailsModal({
           >
             Play
           </button>
-          <button
-            className={`px-3 sm:px-5 py-2 rounded-full text-sm ${
-              currentTab === "lyrics"
-                ? "bg-[#A365FF] text-white"
-                : "bg-[#1A1E24] text-gray-300"
-            }`}
-            onClick={() => setCurrentTab("lyrics")}
-          >
-            Lyrics
-          </button>
         </div>
 
         {/* Content Area */}
@@ -470,22 +514,22 @@ export default function TrackDetailsModal({
               <div className="flex flex-col">
                 {/* All Metadata Section */}
                 <div className="mb-4">
-                  <h3 className="text-white text-md font-medium mb-4">Track Metadata</h3>
+                  <h3 className="text-white text-md font-medium mb-4">Video Metadata</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {/* Artist */}
                     <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                       <h3 className="text-gray-400 text-xs sm:text-sm">Artist</h3>
                       <p className="text-white text-sm sm:text-base font-medium truncate">
-                        {track.artist || track.primaryArtist || "Unknown Artist"}
+                        {video.artist || video.primaryArtist || "Unknown Artist"}
                       </p>
                     </div>
 
                     {/* Featured Artists */}
-                    {(track.featuredArtist || (track.featuredArtists && track.featuredArtists.length > 0)) && (
+                    {(video.featuredArtist || (video.featuredArtists && video.featuredArtists.length > 0)) && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                         <h3 className="text-gray-400 text-xs sm:text-sm">Featured Artists</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {track.featuredArtist || track.featuredArtists?.join(', ')}
+                          {video.featuredArtist || video.featuredArtists?.join(', ')}
                         </p>
                       </div>
                     )}
@@ -494,36 +538,36 @@ export default function TrackDetailsModal({
                     <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                       <h3 className="text-gray-400 text-xs sm:text-sm">Genre</h3>
                       <p className="text-white text-sm sm:text-base font-medium truncate">
-                        {track.genre || "Unspecified"}
+                        {video.genre || "Unspecified"}
                       </p>
                     </div>
 
                     {/* Subgenre */}
-                    {track.subgenre && (
+                    {video.subgenre && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                         <h3 className="text-gray-400 text-xs sm:text-sm">Subgenre</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {track.subgenre}
+                          {video.subgenre}
                         </p>
                       </div>
                     )}
 
                     {/* ISRC */}
-                    {track.isrc && (
+                    {video.isrc && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                         <h3 className="text-gray-400 text-xs sm:text-sm">ISRC</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {track.isrc}
+                          {video.isrc}
                         </p>
                       </div>
                     )}
 
                     {/* UPC */}
-                    {track.upc && (
+                    {video.upc && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                         <h3 className="text-gray-400 text-xs sm:text-sm">UPC</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {track.upc}
+                          {video.upc}
                         </p>
                       </div>
                     )}
@@ -532,7 +576,7 @@ export default function TrackDetailsModal({
                     <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                       <h3 className="text-gray-400 text-xs sm:text-sm">Release Date</h3>
                       <p className="text-white text-sm sm:text-base font-medium truncate">
-                        {formatDate(track.releaseDate)}
+                        {formatDate(video.releaseDate)}
                       </p>
                     </div>
                     
@@ -540,7 +584,7 @@ export default function TrackDetailsModal({
                     <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                       <h3 className="text-gray-400 text-xs sm:text-sm">Duration</h3>
                       <p className="text-white text-sm sm:text-base font-medium truncate">
-                        {track.duration}
+                        {video.duration}
                       </p>
                     </div>
                     
@@ -548,26 +592,26 @@ export default function TrackDetailsModal({
                     <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                       <h3 className="text-gray-400 text-xs sm:text-sm">Content Rating</h3>
                       <p className="text-white text-sm sm:text-base font-medium truncate">
-                        {track.contentRating}
+                        {video.contentRating}
                       </p>
                     </div>
                     
                     {/* Label */}
-                    {track.label && (
+                    {video.label && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                         <h3 className="text-gray-400 text-xs sm:text-sm">Label</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {track.label}
+                          {video.label}
                         </p>
                       </div>
                     )}
                     
                     {/* Created Date */}
-                    {track.createdAt && (
+                    {video.createdAt && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                         <h3 className="text-gray-400 text-xs sm:text-sm">Created</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {formatDate(track.createdAt)}
+                          {formatDate(video.createdAt)}
                         </p>
                       </div>
                     )}
@@ -576,143 +620,125 @@ export default function TrackDetailsModal({
               </div>
             ) : currentTab === "play" ? (
               <div className="bg-[#1A1E24] p-4 rounded-md">
-                <h3 className="text-white text-md font-medium mb-6">Media Player</h3>
+                <h3 className="text-white text-md font-medium mb-6">Video Player</h3>
                 
-                {/* Video Player Section - Add manual video URL construction for testing */}
+                {/* Video Player Section */}
                 <div className="mb-6">
-                  <h4 className="text-gray-300 text-sm mb-2">Video</h4>
-                  
-                  {(() => {
-                    // Manually construct the expected video URL based on track ID
-                    const trackId = track._id;
-                    
-                    // If the track has imageSrc but not videoFile, we can use the same 
-                    // pattern to construct the possible videoFile path
-                    let possibleVideoPath = null;
-                    
-                    if (track.imageSrc && track.imageSrc.includes("cover_")) {
-                      // Extract the timestamp from the cover path
-                      const coverPathMatch = track.imageSrc.match(/cover_(\d+)/);
-                      if (coverPathMatch && coverPathMatch[1]) {
-                        const timestamp = coverPathMatch[1];
-                        possibleVideoPath = `/uploads/videos/video_${timestamp}.mp4`;
-                        console.log("Constructed possible video path:", possibleVideoPath);
-                      }
-                    }
-                    
-                    // Check for videoFile through various possible paths
-                    const videoPath = track.videoFile || possibleVideoPath;
-                    
-                    if (videoPath) {
-                      const fullVideoUrl = videoPath.startsWith('http') 
-                        ? videoPath 
-                        : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${videoPath}`;
-                        
-                      console.log("Using video URL:", fullVideoUrl);
-                      
-                      return (
-                        <div className="relative aspect-video bg-black rounded-sm overflow-hidden">
-                          <video 
-                            ref={videoRef}
-                            src={fullVideoUrl}
-                            className="w-full h-full object-contain"
-                            controls
-                            poster={track.coverArt 
-                              ? (track.coverArt.startsWith('http') 
-                                  ? track.coverArt 
-                                  : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${track.coverArt}`) 
-                              : track.imageSrc || defaultImage}
-                            onError={(e) => {
-                              console.error("Video loading error:", e);
-                              setVideoError("Failed to load video file");
-                            }}
-                          />
-                          {videoError && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
-                              <div className="text-red-400 text-center p-4">
-                                <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <p>{videoError}</p>
-                                <p className="text-sm mt-2">Check console for details</p>
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div className="mt-3 absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2">
-                            <div className="flex justify-between items-center">
-                              <div className="text-white text-sm font-medium">
-                                {track.title} - {track.artist || track.primaryArtist || "Unknown Artist"}
-                              </div>
-                              <a 
-                                href={fullVideoUrl}
-                                download={`${track.title} - ${track.artist || track.primaryArtist || "Unknown Artist"}.mp4`}
-                                className="flex items-center px-3 py-1.5 bg-[#1D2229] text-white rounded-full text-xs hover:bg-[#2A2F36] transition-colors"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                </svg>
-                                Download Video
-                              </a>
-                            </div>
+                  {video.videoFile ? (
+                    <div className="relative aspect-video bg-black rounded-sm overflow-hidden">
+                      <video 
+                        ref={videoRef}
+                        src={video.videoFile}
+                        className="w-full h-full object-contain"
+                        controls
+                        poster={video.coverArt || video.imageSrc || ""}
+                        onError={(e) => {
+                          console.error("Video loading error for:", video.videoFile);
+                          setVideoError("Failed to load video file");
+                        }}
+                        onTimeUpdate={handleTimeUpdate}
+                      />
+                      {videoError && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
+                          <div className="text-red-400 text-center p-4">
+                            <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p>{videoError}</p>
+                            <p className="text-sm mt-2">The video file might be unavailable or in an unsupported format.</p>
                           </div>
                         </div>
-                      );
-                    } else {
-                      return (
-                        <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                          <svg className="w-16 h-16 mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          <p>No video file available for this track</p>
-                          <button 
-                            onClick={async () => {
-                              if (!track._id) return;
-                              
-                              try {
-                                const { getTrackById } = await import('@/services/trackService');
-                                const response = await getTrackById(track._id);
-                                if (response.success && response.data && response.data.videoFile) {
-                                  console.log("Retrieved video file path:", response.data.videoFile);
-                                  // Force refresh of component
-                                  setVideoError(null);
-                                  // This will trigger a re-render
-                                  setTimeout(() => window.location.reload(), 500);
-                                } else {
-                                  setVideoError("No video file found in the complete track data");
-                                }
-                              } catch (error) {
-                                console.error("Error retrieving track data:", error);
-                                setVideoError("Error retrieving track data");
-                              }
-                            }}
-                            className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm"
+                      )}
+                      
+                      <div className="mt-3 absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2">
+                        <div className="flex justify-between items-center">
+                          <div className="text-white text-sm font-medium">
+                            {video.title} - {video.artist || video.primaryArtist || "Unknown Artist"}
+                          </div>
+                          <a 
+                            href={video.videoFile}
+                            download={`${video.title} - ${video.artist || video.primaryArtist || "Unknown Artist"}.mp4`}
+                            className="flex items-center px-3 py-1.5 bg-[#1D2229] text-white rounded-full text-xs hover:bg-[#2A2F36] transition-colors"
+                            target="_blank"
+                            rel="noopener noreferrer"
                           >
-                            Attempt to load video
-                          </button>
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Download Video
+                          </a>
                         </div>
-                      );
-                    }
-                  })()}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                      <svg className="w-16 h-16 mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <p>No video file available</p>
+                      {video._id && (
+                        <button 
+                          onClick={async () => {
+                            try {
+                              const { getTrackById } = await import('@/services/trackService');
+                              const response = await getTrackById(video._id);
+                              if (response.success && response.data) {
+                                // Process any S3 URLs in the response
+                                const refreshedVideo = { ...response.data };
+                                
+                                // Handle videoFile URL
+                                if (refreshedVideo.videoFile && refreshedVideo.videoFile.includes('localhost') && refreshedVideo.videoFile.includes('amazonaws.com')) {
+                                  const s3UrlMatch = refreshedVideo.videoFile.match(/(https:\/\/promisedis-files\.s3\..*?\.amazonaws\.com\/.*)/);
+                                  if (s3UrlMatch && s3UrlMatch[1]) {
+                                    console.log("Fixed refresh videoFile URL from:", refreshedVideo.videoFile);
+                                    refreshedVideo.videoFile = s3UrlMatch[1];
+                                    console.log("Fixed refresh videoFile URL to:", refreshedVideo.videoFile);
+                                  }
+                                }
+                                
+                                // Handle coverArt URL
+                                if (refreshedVideo.coverArt && refreshedVideo.coverArt.includes('localhost') && refreshedVideo.coverArt.includes('amazonaws.com')) {
+                                  const s3UrlMatch = refreshedVideo.coverArt.match(/(https:\/\/.*?\.amazonaws\.com\/.*)/);
+                                  if (s3UrlMatch && s3UrlMatch[1]) {
+                                    console.log("Fixed refresh coverArt URL from:", refreshedVideo.coverArt);
+                                    refreshedVideo.coverArt = s3UrlMatch[1];
+                                    console.log("Fixed refresh coverArt URL to:", refreshedVideo.coverArt);
+                                  }
+                                }
+                                
+                                // Set the updated video with cleaned URLs
+                                setVideo(refreshedVideo);
+                                
+                                if (refreshedVideo.videoFile) {
+                                  setVideoError(null);
+                                } else {
+                                  setVideoError("No video file found in the data");
+                                }
+                              } else {
+                                setVideoError("No video file found in the data");
+                              }
+                            } catch (error) {
+                              console.error("Error retrieving video data:", error);
+                              setVideoError("Error retrieving video data");
+                            }
+                          }}
+                          className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm"
+                        >
+                          Refresh Data
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="bg-[#1A1E24] p-4 rounded-sm">
-                <h3 className="text-white font-medium mb-3">Song Lyrics</h3>
-                <div className="text-gray-300 whitespace-pre-line">
-                  {track.lyrics || `No lyrics available for this track.`}
-                </div>
-              </div>
-            )}
+            ) : null}
           </div>
 
           {/* Action buttons */}
           <div className="flex p-4 space-x-3 justify-center sm:justify-start flex-wrap gap-2">
-            {/* Admin/SuperAdmin actions for processing/submitted releases */}
+            {/* Admin/SuperAdmin actions for processing/submitted videos */}
             {(userRole === 'admin' || userRole === 'superadmin') && 
-             (track.status === "processing" || track.status === "submitted") && (
+             (video.status === "processing" || video.status === "submitted") && (
               <>
                 <button
                   onClick={handleReject}
@@ -754,10 +780,10 @@ export default function TrackDetailsModal({
               </>
             )}
             
-            {/* Distribution button - only for approved tracks */}
-            {track.status === 'approved' && (
+            {/* Distribution button - only for approved videos */}
+            {video.status === 'approved' && (
               <button
-                onClick={() => window.location.href = `/dashboard/distribution?trackId=${track._id}`}
+                onClick={() => window.location.href = `/dashboard/distribution?videoId=${video._id}`}
                 className="flex items-center justify-center px-3 sm:px-4 py-2 border border-blue-700 text-blue-500 rounded-md hover:bg-blue-900 hover:bg-opacity-30 transition-colors text-sm"
               >
                 <svg
@@ -810,4 +836,4 @@ export default function TrackDetailsModal({
       </div>
     </div>
   );
-}
+} 

@@ -481,7 +481,7 @@ export default function ProfilePage() {
                 {userData?.introduction || 'No introduction provided.'}
               </p>
             </div>
-          </div>
+                </div>
         )}
 
         {activeTab === "edit" && (

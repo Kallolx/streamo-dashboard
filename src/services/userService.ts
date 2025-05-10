@@ -1,44 +1,35 @@
 import api from './api';
 
 export interface User {
-  id: string;
+  id?: string;
+  _id?: string;
   name: string;
   email: string;
   role: string;
   isActive: boolean;
-  isApproved: boolean;
-  profileImage?: string;
   split?: number;
-  
-  // Basic info
+  isApproved: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  // Add new fields to match the detailed user data
+  password?: string;
   birthDate?: string;
   gender?: string;
   introduction?: string;
-  
-  // Address
   country?: string;
   city?: string;
   phone?: string;
   address?: string;
-  
-  // Distributor
   currentDistributor?: string;
   distributorNumber?: string;
-  
-  // Social profiles
   youtubeLink?: string;
   facebookLink?: string;
   tiktokLink?: string;
   instagramLink?: string;
-  
-  // Document info
   documentType?: string;
   documentId?: string;
-  documentPicture?: string;
-  
-  lastLogin?: Date;
-  lastPasswordChanged?: Date;
-  createdAt?: Date;
+  profileImage?: string;
+  lastLogin?: string;
 }
 
 export interface CreateUserData {
@@ -64,15 +55,20 @@ export const getUsers = async (): Promise<User[]> => {
 };
 
 /**
- * Get a single user by ID (admin/superadmin only)
+ * Get user by ID with all details
  */
-export const getUserById = async (id: string): Promise<User> => {
+export const getUserById = async (userId: string): Promise<User> => {
   try {
-    const response = await api.get(`/users/${id}`);
-    return response.data.data;
-  } catch (error) {
-    console.error(`Error fetching user ${id}:`, error);
-    throw error;
+    const response = await api.get(`/users/${userId}`);
+    
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(response.data.message || 'Failed to fetch user details');
+    }
+  } catch (error: any) {
+    console.error('Error fetching user details:', error);
+    throw new Error(error.response?.data?.message || error.message || 'Failed to fetch user details');
   }
 };
 
