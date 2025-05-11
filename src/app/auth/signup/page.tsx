@@ -185,11 +185,15 @@ function SignupContent() {
         <div className="w-full max-w-md bg-[#161A1F] rounded-xl shadow-lg overflow-hidden">
           <div className="bg-[#683BAB] p-6 flex justify-center">
             <Image 
-              src={logo} 
+              src={logo.includes('amazonaws.com') ? '/logo.png' : logo} 
               alt="Logo" 
               width={180} 
               height={70} 
               className="w-[180px]"
+              onError={(e) => {
+                // Fallback to local logo on error
+                e.currentTarget.src = '/logo.png';
+              }}
             />
           </div>
           
@@ -244,11 +248,15 @@ function SignupContent() {
           {/* Logo at the top left */}
           <div className="flex justify-start">
             <Image 
-              src={logo} 
+              src={logo.includes('amazonaws.com') ? '/logo.png' : logo} 
               alt="Logo" 
               width={180} 
               height={70} 
               className="w-[180px]"
+              onError={(e) => {
+                // Fallback to local logo on error
+                e.currentTarget.src = '/logo.png';
+              }}
             />
           </div>
           
@@ -303,11 +311,15 @@ function SignupContent() {
             {/* Logo only visible on mobile */}
             <div className="flex justify-center mb-6 lg:hidden">
               <Image 
-                src={logo} 
+                src={logo.includes('amazonaws.com') ? '/logo.png' : logo} 
                 alt="Logo" 
                 width={180} 
                 height={70} 
                 className="w-[180px]"
+                onError={(e) => {
+                  // Fallback to local logo on error
+                  e.currentTarget.src = '/logo.png';
+                }}
               />
             </div>
             

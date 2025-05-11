@@ -77,11 +77,15 @@ export default function LoginPage() {
           {/* Logo at the top left */}
           <div className="flex justify-start">
             <Image 
-              src={logo} 
+              src={logo.includes('amazonaws.com') ? '/logo.png' : logo} 
               alt="Logo" 
               width={180} 
               height={70} 
               className="w-[180px]"
+              onError={(e) => {
+                // Fallback to local logo on error
+                e.currentTarget.src = '/logo.png';
+              }}
             />
           </div>
           
@@ -146,11 +150,15 @@ export default function LoginPage() {
             {/* Logo only visible on mobile */}
             <div className="flex justify-center mb-6 lg:hidden">
               <Image 
-                src={logo} 
+                src={logo.includes('amazonaws.com') ? '/logo.png' : logo} 
                 alt="Logo" 
                 width={180} 
                 height={70} 
                 className="w-[180px]"
+                onError={(e) => {
+                  // Fallback to local logo on error
+                  e.currentTarget.src = '/logo.png';
+                }}
               />
             </div>
             

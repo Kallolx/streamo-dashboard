@@ -77,12 +77,14 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
 
   // Determine what to display for the logo
   const renderLogo = () => {
-    if (logoError) {
-      // Display default logo text if image fails to load
+    // Always use local logo if the URL contains amazonaws.com (S3)
+    if (logo.includes('amazonaws.com') || logoError) {
       return (
-        <div className="text-white font-bold text-center">
-          {isOpen ? 'Music Dashboard' : 'M'}
-        </div>
+        <img 
+          src="/logo.png" 
+          alt="Music Dashboard Logo" 
+          className="w-full h-auto"
+        />
       );
     }
     

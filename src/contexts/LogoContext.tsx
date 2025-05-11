@@ -11,7 +11,7 @@ interface LogoContextType {
 
 // Create the context with default values
 const LogoContext = createContext<LogoContextType>({
-  logo: '/images/logo.png',  // Default logo
+  logo: '/logo.png',  // Default logo
   setLogo: () => {},
   isLoading: true
 });
@@ -40,7 +40,7 @@ const sanitizeS3Url = (url: string): string => {
 const isUrlAccessible = async (url: string): Promise<boolean> => {
   try {
     // Skip checking for default logo or relative paths
-    if (url === '/images/logo.png' || !url.startsWith('http')) {
+    if (url === '/logo.png' || !url.startsWith('http')) {
       return true;
     }
     
@@ -60,7 +60,7 @@ const isUrlAccessible = async (url: string): Promise<boolean> => {
 
 // Create the provider component
 export const LogoProvider: React.FC<LogoProviderProps> = ({ children }) => {
-  const [logo, setLogo] = useState<string>('/images/logo.png');
+  const [logo, setLogo] = useState<string>('/logo.png');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Fetch the logo on mount
@@ -84,7 +84,7 @@ export const LogoProvider: React.FC<LogoProviderProps> = ({ children }) => {
             setLogo(sanitizedLogo);
           } else {
             console.warn('S3 logo URL is not accessible, using default logo');
-            setLogo('/images/logo.png');
+            setLogo('/logo.png');
           }
         }
         // If the logo is a full URL, use it directly
