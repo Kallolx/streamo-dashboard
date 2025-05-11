@@ -14,11 +14,13 @@ export default function StatementsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [csvUploads, setCsvUploads] = useState<CsvUpload[]>([]);
   const [selectedCsvId, setSelectedCsvId] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [statementSummary, setStatementSummary] = useState<StatementSummary | null>(null);
   const [isLoadingCsv, setIsLoadingCsv] = useState(false);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentYear] = useState<number>(new Date().getFullYear());
   const [earningsData, setEarningsData] = useState<EarningsData>({
     totalEarnings: '$0',
     lastStatement: '$0',
@@ -79,10 +81,10 @@ export default function StatementsPage() {
     loadInitialData();
   }, []);
 
-  // Load transactions when a CSV is selected
+  // Load transactions when a month is selected
   useEffect(() => {
     const loadTransactions = async () => {
-      if (!selectedCsvId) {
+      if (!selectedMonth) {
         setTransactions([]);
         setStatementSummary(null);
         return;
@@ -90,7 +92,9 @@ export default function StatementsPage() {
       
       try {
         setIsLoadingTransactions(true);
-        const transactionData = await getTransactionsForCsv(selectedCsvId);
+        // In a real implementation, you would fetch transactions for the selected month
+        // Here we're reusing the existing function but should be replaced with month-specific API
+        const transactionData = await getTransactionsForCsv(selectedMonth);
         setTransactions(transactionData);
       } catch (error) {
         console.error('Error loading transactions:', error);
@@ -101,7 +105,7 @@ export default function StatementsPage() {
     };
 
     loadTransactions();
-  }, [selectedCsvId]);
+  }, [selectedMonth]);
 
   // Filter statements based on search term
   const filteredStatements = statements.filter(
@@ -173,13 +177,19 @@ export default function StatementsPage() {
 
   // Generate statement summary from transactions
   const handleGenerateStatement = () => {
-    if (transactions.length === 0) return;
+    if (!selectedMonth || transactions.length === 0) return;
     
     setIsGenerating(true);
     
     try {
-      // Generate summary
+      // Generate summary with month name
       const summary = generateStatementSummaryFromTransactions(transactions);
+      
+      // Add the selected month as the period
+      const month = selectedMonth.charAt(0).toUpperCase() + selectedMonth.slice(1);
+      const year = new Date().getFullYear();
+      summary.period = `${month} ${year}`;
+      
       setStatementSummary(summary);
     } catch (error) {
       console.error('Error generating statement summary:', error);
@@ -281,28 +291,35 @@ export default function StatementsPage() {
             <div className="bg-[#161A1F] p-6 rounded-lg mb-6">
               <h2 className="text-white text-xl font-bold mb-4 flex items-center">
                 <FileText size={24} className="mr-2 text-purple-500" />
-                Statement Generator
+                Monthly Statement Generator
               </h2>
               <p className="text-gray-400 mb-6">
-                Select a CSV file to generate a statement summary
+                Select a month to generate and view your monthly earnings statement
               </p>
               
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
                 <div className="relative flex-grow">
                   <select
                     className="w-full py-2 px-4 bg-[#1D2229] text-gray-300 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={selectedCsvId}
-                    onChange={(e) => setSelectedCsvId(e.target.value)}
-                    disabled={isLoadingCsv || isLoadingTransactions}
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    disabled={isLoadingTransactions}
                   >
-                    <option value="">Select a CSV file</option>
-                    {csvUploads.map((upload) => (
-                      <option key={upload.id} value={upload.id}>
-                        {upload.fileName} ({new Date(upload.createdAt).toLocaleDateString()})
-                      </option>
-                    ))}
+                    <option value="">Select a month ({currentYear})</option>
+                    <option value="january">January {currentYear}</option>
+                    <option value="february">February {currentYear}</option>
+                    <option value="march">March {currentYear}</option>
+                    <option value="april">April {currentYear}</option>
+                    <option value="may">May {currentYear}</option>
+                    <option value="june">June {currentYear}</option>
+                    <option value="july">July {currentYear}</option>
+                    <option value="august">August {currentYear}</option>
+                    <option value="september">September {currentYear}</option>
+                    <option value="october">October {currentYear}</option>
+                    <option value="november">November {currentYear}</option>
+                    <option value="december">December {currentYear}</option>
                   </select>
-                  {isLoadingCsv && (
+                  {isLoadingTransactions && (
                     <div className="absolute right-3 top-2.5">
                       <div className="animate-spin h-5 w-5 border-t-2 border-b-2 border-purple-500 rounded-full"></div>
                     </div>
@@ -312,7 +329,7 @@ export default function StatementsPage() {
                 <button
                   className="px-6 py-2.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors whitespace-nowrap flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleGenerateStatement}
-                  disabled={transactions.length === 0 || isLoadingTransactions || isGenerating}
+                  disabled={!selectedMonth || isLoadingTransactions || isGenerating}
                 >
                   {isGenerating || isLoadingTransactions ? (
                     <>
