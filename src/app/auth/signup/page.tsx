@@ -324,7 +324,7 @@ function SignupContent() {
             </div>
             
             <h2 className="text-3xl lg:text-4xl font-semibold mb-3 text-white">
-              Join Streamo Digital
+              Join Promise Distribution
             </h2>
             <p className="text-gray-400 text-sm">
               Create your account and unlock a world of music distribution opportunities

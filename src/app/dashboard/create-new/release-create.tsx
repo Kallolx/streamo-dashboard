@@ -920,11 +920,12 @@ export default function ReleaseCreate() {
             </div>
 
             <div>
-              <label htmlFor="upc" className="block text-sm text-gray-400 mb-1">UPC (Unique Release Identifier)</label>
+              <label htmlFor="upc" className="block text-sm text-gray-400 mb-1">UPC</label>
               <input
                 type="text"
                 id="upc"
                 value=""
+                placeholder="Auto Generated"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500 opacity-75 cursor-not-allowed"
                 readOnly
               />
@@ -941,12 +942,22 @@ export default function ReleaseCreate() {
           {/* Left side - fields */}
           <div className="space-y-3 md:space-y-4">
             <div>
-              <label htmlFor="copyrightHeader" className="block text-sm text-gray-400 mb-1">Copyright Header</label>
+              <label htmlFor="singer" className="block text-sm text-gray-400 mb-1">Artist</label>
               <input
                 type="text"
-                id="copyrightHeader"
+                id="singer"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Copyright Header"
+                placeholder="Artist"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="featureArtist" className="block text-sm text-gray-400 mb-1">Feature Artist</label>
+              <input
+                type="text"
+                id="featureArtist"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Feature Artist"
               />
             </div>
 
@@ -959,38 +970,7 @@ export default function ReleaseCreate() {
                 placeholder="Composer"
               />
             </div>
-            <div>
-              <label htmlFor="musicProducer" className="block text-sm text-gray-400 mb-1">Music Producer</label>
-              <input
-                type="text"
-                id="musicProducer"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Music Producer"
-              />
-            </div>
 
-            <div>
-              <label htmlFor="singer" className="block text-sm text-gray-400 mb-1">Singer</label>
-              <input
-                type="text"
-                id="singer"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Singer"
-              />
-            </div>
-          </div>
-
-          {/* Right side - fields */}
-          <div className="space-y-3 md:space-y-4">
-            <div>
-              <label htmlFor="featureArtist" className="block text-sm text-gray-400 mb-1">Feature Artist</label>
-              <input
-                type="text"
-                id="featureArtist"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Feature Artist"
-              />
-            </div>
             <div>
               <label htmlFor="lyricist" className="block text-sm text-gray-400 mb-1">Lyricist</label>
               <input
@@ -998,6 +978,19 @@ export default function ReleaseCreate() {
                 id="lyricist"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Lyricist"
+              />
+            </div>
+          </div>
+
+          {/* Right side - fields */}
+          <div className="space-y-3 md:space-y-4">
+            <div>
+              <label htmlFor="musicProducer" className="block text-sm text-gray-400 mb-1">Music Producer</label>
+              <input
+                type="text"
+                id="musicProducer"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Music Producer"
               />
             </div>
 
@@ -1018,6 +1011,16 @@ export default function ReleaseCreate() {
                 id="musicDirector"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Music Director"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="copyrightHeader" className="block text-sm text-gray-400 mb-1">Copyright Header</label>
+              <input
+                type="text"
+                id="copyrightHeader"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Copyright Header"
               />
             </div>
           </div>
@@ -1160,8 +1163,7 @@ export default function ReleaseCreate() {
               />
             </div>
             <label htmlFor="terms1" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
-              I confirm that I own or have licensed the necessary rights to
-              distribute this content.
+              I confirm that I am the rightful owner or have obtained all necessary rights, licenses, and permissions to distribute the submitted content.
             </label>
           </div>
 
@@ -1174,8 +1176,7 @@ export default function ReleaseCreate() {
               />
             </div>
             <label htmlFor="terms2" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
-              I agree to the platform's distribution terms and understand the
-              royalty payment structure.
+              I agree to the platform's distribution terms, including content guidelines, usage policies, and the royalty payment structure.
             </label>
           </div>
 
@@ -1188,8 +1189,7 @@ export default function ReleaseCreate() {
               />
             </div>
             <label htmlFor="terms3" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
-              I consent to the processing of my personal information according
-              to the Privacy Policy.
+              I give my consent for the collection, storage, and processing of my personal and professional data in accordance with the platform's Privacy Policy.
             </label>
           </div>
         </div>
@@ -1290,12 +1290,13 @@ export default function ReleaseCreate() {
                 {/* ISRC - Make read-only with generated code */}
                 <div>
                   <label htmlFor="trackIsrc" className="block text-xs md:text-sm font-medium text-gray-400 mb-1">
-                    ISRC (Unique Track Identifier)
+                    ISRC
                   </label>
                   <input
                     type="text"
                     id="trackIsrc"
                     value=""
+                    placeholder="Auto Generated"
                     className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500 opacity-75 cursor-not-allowed"
                     readOnly
                   />

@@ -157,7 +157,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
               <House size={20} weight="fill" /> : 
               <House size={20} />
             }
-            {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Home</span>}
+            {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Dashboard</span>}
           </Link>
 
           {/* Others Section */}         
@@ -256,7 +256,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
                   <User size={20} weight="fill" /> : 
                   <User size={20} />
                 }
-                {isOpen && <span className="ml-3 whitespace-nowrap text-sm">User Management</span>}
+                {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Manage Users</span>}
               </Link>
             )}
 
@@ -290,7 +290,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
                 <CurrencyDollar size={20} weight="fill" /> : 
                 <CurrencyDollar size={20} />
               }
-              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Withdraw Request</span>}
+              {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Payout Request</span>}
             </Link>
 
             {isMenuItemVisible('distribution') && (
@@ -325,7 +325,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobile = false }: Sidebar
                   <ShoppingCart size={20} weight="fill" /> : 
                   <ShoppingCart size={20} />
                 }
-                {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Stores</span>}
+                {isOpen && <span className="ml-3 whitespace-nowrap text-sm">Partner Platforms</span>}
               </Link>
             )}
              <Link

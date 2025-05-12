@@ -839,11 +839,22 @@ export default function TrackCreate() {
             <div>
               <input
                 type="text"
-                id="copyrightHeader"
+                id="singer"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Copyright Header"
-                value={copyrightHeader}
-                onChange={(e) => setCopyrightHeader(e.target.value)}
+                placeholder="Artist"
+                value={singer}
+                onChange={(e) => setSinger(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <input
+                type="text"
+                id="featureArtist"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Feature Artist"
+                value={featureArtist}
+                onChange={(e) => setFeatureArtist(e.target.value)}
               />
             </div>
             
@@ -861,22 +872,11 @@ export default function TrackCreate() {
             <div>
               <input
                 type="text"
-                id="musicProducer"
+                id="lyricist"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Music Producer"
-                value={musicProducer}
-                onChange={(e) => setMusicProducer(e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <input
-                type="text"
-                id="singer"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Singer"
-                value={singer}
-                onChange={(e) => setSinger(e.target.value)}
+                placeholder="Lyricist"
+                value={lyricist}
+                onChange={(e) => setLyricist(e.target.value)}
               />
             </div>
           </div>
@@ -886,21 +886,11 @@ export default function TrackCreate() {
             <div>
               <input
                 type="text"
-                id="featureArtist"
+                id="musicProducer"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Feature Artist"
-                value={featureArtist}
-                onChange={(e) => setFeatureArtist(e.target.value)}
-              />
-            </div>
-            <div>
-              <input
-                type="text"
-                id="lyricist"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Lyricist"
-                value={lyricist}
-                onChange={(e) => setLyricist(e.target.value)}
+                placeholder="Music Producer"
+                value={musicProducer}
+                onChange={(e) => setMusicProducer(e.target.value)}
               />
             </div>
             
@@ -923,6 +913,17 @@ export default function TrackCreate() {
                 placeholder="Music Director"
                 value={musicDirector}
                 onChange={(e) => setMusicDirector(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <input
+                type="text"
+                id="copyrightHeader"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Copyright Header"
+                value={copyrightHeader}
+                onChange={(e) => setCopyrightHeader(e.target.value)}
               />
             </div>
           </div>
@@ -1071,7 +1072,7 @@ export default function TrackCreate() {
               />
             </div>
             <label htmlFor="terms1" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
-              I confirm that I own or have licensed the necessary rights to distribute this content.
+              I confirm that I am the rightful owner or have obtained all necessary rights, licenses, and permissions to distribute the submitted content.
             </label>
           </div>
           
@@ -1084,7 +1085,7 @@ export default function TrackCreate() {
               />
             </div>
             <label htmlFor="terms2" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
-              I agree to the platform's distribution terms and understand the royalty payment structure.
+              I agree to the platform's distribution terms, including content guidelines, usage policies, and the royalty payment structure.
             </label>
           </div>
           
@@ -1097,7 +1098,7 @@ export default function TrackCreate() {
               />
             </div>
             <label htmlFor="terms3" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
-              I consent to the processing of my personal information according to the Privacy Policy.
+              I give my consent for the collection, storage, and processing of my personal and professional data in accordance with the platform's Privacy Policy.
             </label>
           </div>
         </div>
