@@ -119,6 +119,18 @@ export default function ReleaseCreate() {
   const handleTrackAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Check file size - 100MB limit
+      const fileSizeInMB = file.size / (1024 * 1024);
+      if (fileSizeInMB > 100) {
+        setToast({
+          show: true,
+          message: `File size (${fileSizeInMB.toFixed(2)}MB) exceeds the 100MB limit`,
+          type: "error",
+        });
+        return;
+      }
+      
       setCurrentTrack({
         ...currentTrack,
         audioFile: file,
@@ -285,6 +297,25 @@ export default function ReleaseCreate() {
     console.log('Current selectedStores:', newSelectedStores);
   };
 
+  // Add select all stores function
+  const selectAllStores = () => {
+    if (stores.length === 0) return;
+    
+    // Get all store IDs
+    const allStoreIds = stores.map(store => store._id || "").filter(id => id !== "");
+    
+    // Check if all stores are already selected
+    const allSelected = allStoreIds.every(id => selectedStores.includes(id));
+    
+    if (allSelected) {
+      // If all are selected, deselect all
+      setSelectedStores([]);
+    } else {
+      // Otherwise select all
+      setSelectedStores(allStoreIds);
+    }
+  };
+
   // Confirm tracks for submission
   const confirmTracks = () => {
     if (tracks.length === 0) {
@@ -315,6 +346,9 @@ export default function ReleaseCreate() {
     type: "success",
   });
 
+  // Add loading state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Success messages
   const successMessages = [
     "Release created successfully!",
@@ -330,6 +364,9 @@ export default function ReleaseCreate() {
   // Handle form submission
   const handleSubmit = async () => {
     try {
+      // Set loading state to true
+      setIsSubmitting(true);
+      
       // Get values directly from form elements with EXACT keys matching MongoDB schema
       const title = (document.getElementById('releaseTitle') as HTMLInputElement)?.value || "Untitled Release";
       const artist = (document.getElementById('artistName') as HTMLInputElement)?.value || 
@@ -488,6 +525,9 @@ export default function ReleaseCreate() {
         message,
         type: "error",
       });
+    } finally {
+      // Set loading state back to false regardless of success or error
+      setIsSubmitting(false);
     }
   };
 
@@ -1041,19 +1081,27 @@ export default function ReleaseCreate() {
         ) : (
           <>
             {/* Selected Platforms Summary */}
-            {selectedStores.length > 0 && (
-              <div className="mb-4 p-3 bg-[#1D2229] rounded-md">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-300">Selected Platforms: {selectedStores.length}</span>
+            <div className="mb-4 p-3 bg-[#1D2229] rounded-md">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-300">Selected Platforms: {selectedStores.length} of {stores.length}</span>
+                <div className="flex space-x-3">
                   <button 
-                    onClick={() => setSelectedStores([])}
-                    className="text-xs text-red-400 hover:text-red-300"
+                    onClick={selectAllStores}
+                    className="text-xs text-blue-400 hover:text-blue-300"
                   >
-                    Clear All
+                    {selectedStores.length === stores.length && stores.length > 0 ? "Deselect All" : "Select All"}
                   </button>
+                  {selectedStores.length > 0 && (
+                    <button 
+                      onClick={() => setSelectedStores([])}
+                      className="text-xs text-red-400 hover:text-red-300"
+                    >
+                      Clear All
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
             
             {/* Compact Grid View of Stores */}
             <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
@@ -1200,15 +1248,24 @@ export default function ReleaseCreate() {
         <button
           type="button"
           className="flex-1 md:flex-initial px-3 py-2 md:px-4 md:py-2 border border-gray-600 text-gray-400 text-sm md:text-base rounded-md hover:bg-gray-700 transition-colors"
+          disabled={isSubmitting}
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={handleSubmit}
-          className="flex-1 md:flex-initial px-3 py-2 md:px-4 md:py-2 bg-purple-600 text-white text-sm md:text-base rounded-md hover:bg-purple-700 transition-colors"
+          disabled={isSubmitting}
+          className="flex-1 md:flex-initial px-3 py-2 md:px-4 md:py-2 bg-purple-600 text-white text-sm md:text-base rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center"
         >
-          Create Release
+          {isSubmitting ? (
+            <>
+              <div className="w-4 h-4 mr-2 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
+              <span>Creating...</span>
+            </>
+          ) : (
+            "Create Release"
+          )}
         </button>
       </div>
 
@@ -1387,7 +1444,7 @@ export default function ReleaseCreate() {
                         />
                       </svg>
                       <p className="text-xs text-gray-400">
-                        Click to upload track audio (MP3, WAV, OGG)
+                        Click to upload track audio (MP3, WAV, OGG) - Max 100MB
                       </p>
                     </div>
                   )}
