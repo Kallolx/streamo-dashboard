@@ -349,6 +349,32 @@ export default function ReleaseCreate() {
   // Add loading state
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Add validation state for form fields
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
+
+  // Helper function to highlight invalid fields
+  const highlightInvalidField = (fieldId: string) => {
+    const field = document.getElementById(fieldId);
+    if (field) {
+      field.classList.add('border-red-500');
+      field.classList.add('bg-opacity-20');
+      field.classList.add('bg-red-900');
+      
+      // Add event listener to remove highlight when field is filled
+      field.addEventListener('change', () => {
+        if ((field as HTMLInputElement).value || 
+            ((field as HTMLInputElement).type === 'checkbox' && (field as HTMLInputElement).checked)) {
+          field.classList.remove('border-red-500');
+          field.classList.remove('bg-opacity-20');
+          field.classList.remove('bg-red-900');
+          
+          // Remove from invalid fields array
+          setInvalidFields(prev => prev.filter(id => id !== fieldId));
+        }
+      });
+    }
+  };
+
   // Success messages
   const successMessages = [
     "Release created successfully!",
@@ -367,14 +393,115 @@ export default function ReleaseCreate() {
       // Set loading state to true
       setIsSubmitting(true);
       
+      // Reset invalid fields
+      setInvalidFields([]);
+      
       // Get values directly from form elements with EXACT keys matching MongoDB schema
-      const title = (document.getElementById('releaseTitle') as HTMLInputElement)?.value || "Untitled Release";
-      const artist = (document.getElementById('artistName') as HTMLInputElement)?.value || 
+      const title = (document.getElementById('releaseTitle') as HTMLInputElement)?.value || "";
+      const artist = (document.getElementById('singer') as HTMLInputElement)?.value || 
                     (document.getElementById('featureArtist') as HTMLInputElement)?.value || 
-                    "Unknown Artist";
-      const genre = (document.getElementById('selectGenre') as HTMLSelectElement)?.value || "pop";
-      const format = (document.getElementById('format') as HTMLSelectElement)?.value || "digital";
-      const releaseType = (document.getElementById('releaseType') as HTMLSelectElement)?.value || "single";
+                    "";
+      const genre = (document.getElementById('selectGenre') as HTMLSelectElement)?.value || "";
+      const format = (document.getElementById('format') as HTMLSelectElement)?.value || "";
+      const releaseType = (document.getElementById('releaseType') as HTMLSelectElement)?.value || "";
+      const language = (document.getElementById('selectLanguage') as HTMLSelectElement)?.value || "";
+      const releaseDate = (document.getElementById('releaseDate') as HTMLInputElement)?.value || "";
+
+      // Validate required fields
+      const missingFields: {id: string, name: string}[] = [];
+      
+      if (!title) missingFields.push({id: 'releaseTitle', name: "Release Title"});
+      if (!artist) missingFields.push({id: 'singer', name: "Artist"});
+      if (!genre) missingFields.push({id: 'selectGenre', name: "Genre"});
+      if (!format) missingFields.push({id: 'format', name: "Format"});
+      if (!releaseType) missingFields.push({id: 'releaseType', name: "Release Type"});
+      if (!language) missingFields.push({id: 'selectLanguage', name: "Language"});
+      if (!releaseDate) missingFields.push({id: 'releaseDate', name: "Release Date"});
+      
+      // Check recording year
+      const recordingYear = (document.getElementById('recordingYear') as HTMLSelectElement)?.value;
+      if (!recordingYear) missingFields.push({id: 'recordingYear', name: "Recording Year"});
+      
+      // Check label
+      const label = (document.getElementById('label') as HTMLInputElement)?.value;
+      if (!label) missingFields.push({id: 'label', name: "Label"});
+      
+      // Check all contributors fields
+      const featuredArtist = (document.getElementById('featureArtist') as HTMLInputElement)?.value;
+      const composer = (document.getElementById('composer') as HTMLInputElement)?.value;
+      const lyricist = (document.getElementById('lyricist') as HTMLInputElement)?.value;
+      const musicProducer = (document.getElementById('musicProducer') as HTMLInputElement)?.value;
+      const publisher = (document.getElementById('publisher') as HTMLInputElement)?.value;
+      const musicDirector = (document.getElementById('musicDirector') as HTMLInputElement)?.value;
+      const copyrightHeader = (document.getElementById('copyrightHeader') as HTMLInputElement)?.value;
+      
+      // Featured Artist is optional, no validation needed
+      if (!composer) missingFields.push({id: 'composer', name: "Composer"});
+      if (!lyricist) missingFields.push({id: 'lyricist', name: "Lyricist"});
+      if (!musicProducer) missingFields.push({id: 'musicProducer', name: "Music Producer"});
+      if (!publisher) missingFields.push({id: 'publisher', name: "Publisher"});
+      if (!musicDirector) missingFields.push({id: 'musicDirector', name: "Music Director"});
+      if (!copyrightHeader) missingFields.push({id: 'copyrightHeader', name: "Copyright Header"});
+      
+      // Check pricing
+      const pricing = (document.getElementById('trackPricing') as HTMLSelectElement)?.value;
+      if (!pricing) missingFields.push({id: 'trackPricing', name: "Track Pricing"});
+      
+      // Validate terms and conditions checkboxes
+      const terms1Checked = (document.getElementById('terms1') as HTMLInputElement)?.checked;
+      const terms2Checked = (document.getElementById('terms2') as HTMLInputElement)?.checked;
+      const terms3Checked = (document.getElementById('terms3') as HTMLInputElement)?.checked;
+      
+      if (!terms1Checked) missingFields.push({id: 'terms1', name: "Terms & Conditions (1)"});
+      if (!terms2Checked) missingFields.push({id: 'terms2', name: "Terms & Conditions (2)"});
+      if (!terms3Checked) missingFields.push({id: 'terms3', name: "Terms & Conditions (3)"});
+      
+      // Check cover art is uploaded
+      if (!coverArt) {
+        missingFields.push({id: 'fileInputRef', name: "Cover Art"});
+      }
+      
+      // Check if at least one track is added
+      if (tracks.length === 0) {
+        missingFields.push({id: '', name: "At least one track"});
+      }
+      
+      // Check if at least one store is selected
+      if (selectedStores.length === 0) {
+        missingFields.push({id: '', name: "At least one distribution platform"});
+      }
+
+      // If there are missing fields, show error and return
+      if (missingFields.length > 0) {
+        // Set invalid fields for styling
+        const invalidFieldIds = missingFields.filter(field => field.id).map(field => field.id);
+        setInvalidFields(invalidFieldIds);
+        
+        // Highlight invalid fields
+        missingFields.forEach(field => {
+          if (field.id) highlightInvalidField(field.id);
+        });
+        
+        // Create field names list for error message
+        const fieldNames = missingFields.map(field => field.name);
+        
+        setToast({
+          show: true,
+          message: `Please complete the following required fields: ${fieldNames.join(", ")}`,
+          type: "error",
+        });
+        setIsSubmitting(false);
+        
+        // Scroll to first missing field
+        if (missingFields[0]?.id) {
+          const firstField = document.getElementById(missingFields[0].id);
+          if (firstField) {
+            firstField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        
+        return;
+      }
 
       // Check if tracks are confirmed before proceeding
       if (!tracksConfirmed && tracks.length > 0) {
@@ -383,6 +510,7 @@ export default function ReleaseCreate() {
           message: "Please click 'Done' to confirm your tracks first",
           type: "error",
         });
+        setIsSubmitting(false);
         return;
       }
 
@@ -423,9 +551,9 @@ export default function ReleaseCreate() {
         releaseType: releaseType,
         
         // Metadata
-        language: (document.getElementById('selectLanguage') as HTMLSelectElement)?.value || "",
+        language: language,
         upc: "",
-        releaseDate: (document.getElementById('releaseDate') as HTMLInputElement)?.value || new Date().toISOString().split('T')[0],
+        releaseDate: releaseDate || new Date().toISOString().split('T')[0],
         label: userLabelName, // Use the label from user profile
         
         // Stores selection - ensure it's explicitly an array
@@ -538,9 +666,17 @@ export default function ReleaseCreate() {
 
   return (
     <div className="space-y-6 md:space-y-8 px-2 sm:px-0">
+      {/* Required fields legend */}
+      <div className="bg-[#161A1F] rounded-lg p-3 md:p-4 mb-2 md:mb-4">
+        <p className="text-xs md:text-sm text-gray-300 flex items-center">
+          <span className="text-red-500 mr-1">*</span> 
+          <span>Indicates required fields</span>
+        </p>
+      </div>
+      
       {/* Upload Cover Art Section */}
       <div className="rounded-lg">
-        <h2 className="text-xl font-semibold mb-2 md:mb-4">Upload Cover Art</h2>
+        <h2 className="text-xl font-semibold mb-2 md:mb-4">Upload Cover Art <span className="text-red-500">*</span></h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Left side - Upload */}
           <div className="flex justify-center md:justify-start">
@@ -669,7 +805,7 @@ export default function ReleaseCreate() {
         </div>
       </div>{/* Upload or Add Tracks Section */}
       <div className="bg-[#161A1F] rounded-lg p-3 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Add Tracks</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Add Tracks <span className="text-red-500">*</span></h2>
 
         {/* Add Track Button */}
         <div className="mb-3 md:mb-4">
@@ -809,17 +945,18 @@ export default function ReleaseCreate() {
           {/* Left side - 5 fields */}
           <div className="space-y-3 md:space-y-4">
             <div>
-              <label htmlFor="releaseTitle" className="block text-sm text-gray-400 mb-1">Release Title</label>
+              <label htmlFor="releaseTitle" className="block text-sm text-gray-400 mb-1">Release Title <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="releaseTitle"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Release Title"
+                required
               />
             </div>
 
             <div>
-              <label htmlFor="label" className="block text-sm text-gray-400 mb-1">Label</label>
+              <label htmlFor="label" className="block text-sm text-gray-400 mb-1">Label <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="label"
@@ -827,14 +964,16 @@ export default function ReleaseCreate() {
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-not-allowed opacity-75"
                 placeholder="Your label name will appear here"
                 readOnly
+                required
               />
             </div>
 
             <div>
-              <label htmlFor="recordingYear" className="block text-sm text-gray-400 mb-1">Recording Year</label>
+              <label htmlFor="recordingYear" className="block text-sm text-gray-400 mb-1">Recording Year <span className="text-red-500">*</span></label>
               <select
                 id="recordingYear"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required
               >
                 <option value="">Select Year</option>
                 {[...Array(30)].map((_, i) => {
@@ -849,20 +988,22 @@ export default function ReleaseCreate() {
             </div>
 
             <div>
-              <label htmlFor="releaseDate" className="block text-sm text-gray-400 mb-1">Release Date</label>
+              <label htmlFor="releaseDate" className="block text-sm text-gray-400 mb-1">Release Date <span className="text-red-500">*</span></label>
               <input
                 type="date"
                 id="releaseDate"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Release Date"
+                required
               />
             </div>
 
             <div>
-              <label htmlFor="selectGenre" className="block text-sm text-gray-400 mb-1">Genre</label>
+              <label htmlFor="selectGenre" className="block text-sm text-gray-400 mb-1">Genre <span className="text-red-500">*</span></label>
               <select
                 id="selectGenre"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required
               >
                 <option value="">Select Genre</option>
                 {/* International Genres */}
@@ -894,10 +1035,11 @@ export default function ReleaseCreate() {
           {/* Right side - 4 fields */}
           <div className="space-y-3 md:space-y-4 mt-3 md:mt-0">
             <div>
-              <label htmlFor="releaseType" className="block text-sm text-gray-400 mb-1">Release Type</label>
+              <label htmlFor="releaseType" className="block text-sm text-gray-400 mb-1">Release Type <span className="text-red-500">*</span></label>
               <select
                 id="releaseType"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required
               >
                 <option value="">Select Release Type</option>
                 <option value="single">Single</option>
@@ -906,10 +1048,11 @@ export default function ReleaseCreate() {
             </div>
 
             <div>
-              <label htmlFor="format" className="block text-sm text-gray-400 mb-1">Format</label>
+              <label htmlFor="format" className="block text-sm text-gray-400 mb-1">Format <span className="text-red-500">*</span></label>
               <select
                 id="format"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required
               >
                 <option value="">Format</option>
                 <option value="digital">Digital</option>
@@ -920,10 +1063,11 @@ export default function ReleaseCreate() {
             </div>
 
             <div>
-              <label htmlFor="selectLanguage" className="block text-sm text-gray-400 mb-1">Language</label>
+              <label htmlFor="selectLanguage" className="block text-sm text-gray-400 mb-1">Language <span className="text-red-500">*</span></label>
               <select
                 id="selectLanguage"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required
               >
                 <option value="">Select Language</option>
                 {/* Common Languages */}
@@ -976,18 +1120,19 @@ export default function ReleaseCreate() {
 
       {/* Add Contributors Section */}
       <div className="rounded-lg p-3 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Add Contributors</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Add Contributors <span className="text-red-500">*</span></h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-6">
           {/* Left side - fields */}
           <div className="space-y-3 md:space-y-4">
             <div>
-              <label htmlFor="singer" className="block text-sm text-gray-400 mb-1">Artist</label>
+              <label htmlFor="singer" className="block text-sm text-gray-400 mb-1">Artist <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="singer"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Artist"
+                required
               />
             </div>
 
@@ -1002,22 +1147,24 @@ export default function ReleaseCreate() {
             </div>
 
             <div>
-              <label htmlFor="composer" className="block text-sm text-gray-400 mb-1">Composer</label>
+              <label htmlFor="composer" className="block text-sm text-gray-400 mb-1">Composer <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="composer"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Composer"
+                required
               />
             </div>
 
             <div>
-              <label htmlFor="lyricist" className="block text-sm text-gray-400 mb-1">Lyricist</label>
+              <label htmlFor="lyricist" className="block text-sm text-gray-400 mb-1">Lyricist <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="lyricist"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Lyricist"
+                required
               />
             </div>
           </div>
@@ -1025,42 +1172,46 @@ export default function ReleaseCreate() {
           {/* Right side - fields */}
           <div className="space-y-3 md:space-y-4">
             <div>
-              <label htmlFor="musicProducer" className="block text-sm text-gray-400 mb-1">Music Producer</label>
+              <label htmlFor="musicProducer" className="block text-sm text-gray-400 mb-1">Music Producer <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="musicProducer"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Music Producer"
+                required
               />
             </div>
 
             <div>
-              <label htmlFor="publisher" className="block text-sm text-gray-400 mb-1">Publisher</label>
+              <label htmlFor="publisher" className="block text-sm text-gray-400 mb-1">Publisher <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="publisher"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Publisher"
+                required
               />
             </div>
 
             <div>
-              <label htmlFor="musicDirector" className="block text-sm text-gray-400 mb-1">Music Director</label>
+              <label htmlFor="musicDirector" className="block text-sm text-gray-400 mb-1">Music Director <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="musicDirector"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Music Director"
+                required
               />
             </div>
 
             <div>
-              <label htmlFor="copyrightHeader" className="block text-sm text-gray-400 mb-1">Copyright Header</label>
+              <label htmlFor="copyrightHeader" className="block text-sm text-gray-400 mb-1">Copyright Header <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="copyrightHeader"
                 className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Copyright Header"
+                required
               />
             </div>
           </div>
@@ -1069,7 +1220,7 @@ export default function ReleaseCreate() {
 
       {/* Distribution Platforms Section */}
       <div className="rounded-lg p-3 md:p-6 bg-[#161A1F]">
-        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Distribution Platforms</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Distribution Platforms <span className="text-red-500">*</span></h2>
         <p className="text-xs md:text-sm text-gray-400 mb-4 md:mb-6">
           Select where you want your music to be available. You can choose multiple platforms.
         </p>
@@ -1175,16 +1326,17 @@ export default function ReleaseCreate() {
 
       {/* Track Pricing Section */}
       <div className="rounded-lg p-3 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-2">Track Pricing</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-2">Track Pricing <span className="text-red-500">*</span></h2>
         <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-4">
           How much would you like to charge for each track?
         </p>
 
         <div className="mb-3 md:mb-4">
-          <label htmlFor="trackPricing" className="block text-sm text-gray-400 mb-1">Price</label>
+          <label htmlFor="trackPricing" className="block text-sm text-gray-400 mb-1">Price <span className="text-red-500">*</span></label>
           <select
             id="trackPricing"
             className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            required
           >
             <option value="">Select pricing</option>
             <option value="free">Free</option>
@@ -1199,7 +1351,7 @@ export default function ReleaseCreate() {
 
       {/* Terms and Conditions Section */}
       <div className="rounded-lg p-3 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Terms and Conditions</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Terms and Conditions <span className="text-red-500">*</span></h2>
 
         <div className="space-y-3 md:space-y-4">
           <div className="flex items-start">
@@ -1208,6 +1360,7 @@ export default function ReleaseCreate() {
                 id="terms1"
                 type="checkbox"
                 className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                required
               />
             </div>
             <label htmlFor="terms1" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
@@ -1221,6 +1374,7 @@ export default function ReleaseCreate() {
                 id="terms2"
                 type="checkbox"
                 className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                required
               />
             </div>
             <label htmlFor="terms2" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
@@ -1234,6 +1388,7 @@ export default function ReleaseCreate() {
                 id="terms3"
                 type="checkbox"
                 className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                required
               />
             </div>
             <label htmlFor="terms3" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
@@ -1332,16 +1487,36 @@ export default function ReleaseCreate() {
                 {/* Duration */}
                 <div>
                   <label htmlFor="trackDuration" className="block text-xs md:text-sm font-medium text-gray-400 mb-1">
-                    Duration
+                    Tiktok Preview <span className="text-gray-500 text-xs">(min:sec)</span>
                   </label>
-                  <input
-                    type="text"
-                    id="trackDuration"
-                    value={currentTrack.duration}
-                    onChange={(e) => setCurrentTrack({...currentTrack, duration: e.target.value})}
-                    className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="e.g. 3:45"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="trackDuration"
+                      value={currentTrack.duration}
+                      onChange={(e) => {
+                        // Format input to match mm:ss pattern
+                        const value = e.target.value;
+                        // Only allow numbers and colons
+                        const cleaned = value.replace(/[^\d:]/g, '');
+                        
+                        // Auto-format to add colon if user types just numbers
+                        let formatted = cleaned;
+                        if (/^\d{1,2}$/.test(cleaned)) {
+                          // If user has typed 1-2 digits, assume it's minutes
+                          formatted = `${cleaned}:`;
+                        } else if (/^\d{3,4}$/.test(cleaned)) {
+                          // If user has typed 3-4 digits with no colon, format as mm:ss
+                          formatted = `${cleaned.substring(0, cleaned.length-2)}:${cleaned.substring(cleaned.length-2)}`;
+                        }
+                        
+                        setCurrentTrack({...currentTrack, duration: formatted});
+                      }}
+                      className="w-full bg-[#161A1F] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="0:30"
+                    />
+                  </div>
+              
                 </div>
                 
                 {/* ISRC - Make read-only with generated code */}

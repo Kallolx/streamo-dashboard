@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { updateReleaseISRC } from "@/services/releaseService";
 import { updateTrackISRC } from "@/services/trackService";
+import { getAllStores, Store } from "@/services/storeService";
 
 // Define the distribution request data interface
 interface DistributionRequest {
@@ -61,6 +62,8 @@ export default function DistributionDetailsModal({
     type: 'success'
   });
   const [tracks, setTracks] = useState(request.originalData?.tracks || []);
+  const [storeMap, setStoreMap] = useState<Record<string, Store>>({});
+  const [storesLoading, setStoresLoading] = useState(true);
 
   // Determine profile image based on user name to ensure consistency
   const profileImage = request.userName === "Steven Wilson" 
@@ -90,6 +93,40 @@ export default function DistributionDetailsModal({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, handleKeyDown]);
+
+  // Fetch stores data to get proper names
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        setStoresLoading(true);
+        const response = await getAllStores();
+        if (response.success && response.data) {
+          // Create a map of store IDs to store objects for quick lookup
+          const storesById: Record<string, Store> = {};
+          response.data.forEach((store: Store) => {
+            if (store._id) {
+              storesById[store._id] = store;
+            }
+          });
+          setStoreMap(storesById);
+        }
+      } catch (error) {
+        console.error('Error fetching stores:', error);
+      } finally {
+        setStoresLoading(false);
+      }
+    };
+    
+    fetchStores();
+  }, []);
+
+  // Helper function to get store name from ID
+  const getStoreName = (storeId: string) => {
+    if (storeMap[storeId] && storeMap[storeId].name) {
+      return storeMap[storeId].name;
+    }
+    return storeId; // Fallback to ID if name not found
+  };
 
   if (!isOpen) return null;
 
@@ -211,7 +248,7 @@ export default function DistributionDetailsModal({
           <CollapsibleSection title={request.itemType === 'track' ? "Video Metadata" : "Release Metadata"} defaultOpen={true}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><span className="text-gray-400 text-xs">Title</span><div className="text-white font-medium">{request.trackRelease}</div></div>
-              <div><span className="text-gray-400 text-xs">Artist</span><div className="text-white font-medium">{request.artist}</div></div>
+              <div><span className="text-gray-400 text-xs">Singer</span><div className="text-white font-medium">{request.originalData?.singer || request.artist}</div></div>
               <div><span className="text-gray-400 text-xs">Label</span><div className="text-white font-medium">{request.label}</div></div>
               <div><span className="text-gray-400 text-xs">Status</span><div className={`font-medium ${request.status.toLowerCase().includes('approved') ? 'text-green-400' : request.status.toLowerCase().includes('rejected') ? 'text-red-400' : 'text-yellow-400'}`}>{request.status}</div></div>
               <div><span className="text-gray-400 text-xs">Release Type</span><div className="text-white">{request.originalData?.releaseType || '-'}</div></div>
@@ -224,7 +261,7 @@ export default function DistributionDetailsModal({
 
           <CollapsibleSection title="Contributors">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><span className="text-gray-400 text-xs">Featured Artist</span><div className="text-white">{request.originalData?.featuredArtist || '-'}</div></div>
+              <div><span className="text-gray-400 text-xs">Feature Artist</span><div className="text-white">{request.originalData?.artist || request.originalData?.featuredArtist || '-'}</div></div>
               <div><span className="text-gray-400 text-xs">Composer</span><div className="text-white">{request.originalData?.composer || '-'}</div></div>
               <div><span className="text-gray-400 text-xs">Lyricist</span><div className="text-white">{request.originalData?.lyricist || '-'}</div></div>
               <div><span className="text-gray-400 text-xs">Music Producer</span><div className="text-white">{request.originalData?.musicProducer || '-'}</div></div>
@@ -334,31 +371,98 @@ export default function DistributionDetailsModal({
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title="Distribution Platforms">
-            <div className="flex flex-wrap gap-2">
-              {request.originalData?.stores?.map((store: string) => (
-                <div key={store} className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-[#181C22]">
-                  <img src={`/icons/${store.toLowerCase()}.svg`} alt={store} className="w-6 h-6 object-contain" />
+          <CollapsibleSection title={`Distribution Platforms (${request.originalData?.stores?.length || 0})`}>
+            {storesLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="w-6 h-6 border-2 border-gray-600 border-t-purple-500 rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Store count summary */}
+                <div className="flex items-center justify-between">
+                  <p className="text-gray-300 text-xs">
+                    {request.originalData?.stores?.length 
+                      ? `${request.originalData.stores.length} platform${request.originalData.stores.length !== 1 ? 's' : ''} selected` 
+                      : 'No platforms selected'}
+                  </p>
                 </div>
-              ))}
-            </div>
+                
+                <div className="flex flex-wrap gap-3">
+                  {request.originalData?.stores?.map((storeId: string) => {
+                    const store = storeMap[storeId];
+                    return (
+                      <div 
+                        key={storeId} 
+                        className="px-3 py-2 bg-[#1D2229] rounded-md text-xs text-white flex items-center gap-2 border border-gray-700"
+                      >
+                        {store?.icon ? (
+                          <img 
+                            src={store.icon}
+                            alt=""
+                            className="w-5 h-5 object-contain"
+                            onError={(e) => {
+                              // Hide failed images
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-5 h-5 bg-gray-700 rounded-full flex items-center justify-center">
+                            <span className="text-[10px]">{getStoreName(storeId).charAt(0)}</span>
+                          </div>
+                        )}
+                        <span>{getStoreName(storeId)}</span>
+                      </div>
+                    );
+                  })}
+                  {(!request.originalData?.stores || request.originalData.stores.length === 0) && (
+                    <p className="text-gray-400 text-sm">No distribution platforms selected</p>
+                  )}
+                </div>
+              </div>
+            )}
           </CollapsibleSection>
         </div>
 
         {/* Sticky action bar */}
         <div className="sticky bottom-0 z-10 bg-[#111417] border-t border-gray-800 px-4 py-3 flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end items-stretch">
           <div className="flex-1 flex gap-2">
+            {/* Only show approve/reject buttons if status is pending/processing/submitted */}
+            {(request.status.toLowerCase() === "pending" || 
+              request.status.toLowerCase() === "processing" || 
+              request.status.toLowerCase() === "submitted") ? (
+              <>
+                <button
+                  onClick={handleApprove}
+                  className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-base font-semibold transition-colors"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => onReject(request.id)}
+                  className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-base font-semibold transition-colors"
+                >
+                  Reject
+                </button>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center">
+                <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${
+                  request.status.toLowerCase().includes('approved') 
+                    ? 'bg-green-900/50 text-green-200 border border-green-700'
+                    : request.status.toLowerCase().includes('rejected')
+                    ? 'bg-red-900/50 text-red-200 border border-red-700'
+                    : 'bg-gray-800 text-gray-300 border border-gray-700'
+                }`}>
+                  Status: {request.status}
+                </span>
+              </div>
+            )}
+            
             <button
-              onClick={handleApprove}
-              className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-base font-semibold transition-colors"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-700 text-gray-400 rounded-md hover:bg-gray-800 transition-colors"
             >
-              Approve
-            </button>
-            <button
-              onClick={() => onReject(request.id)}
-              className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-base font-semibold transition-colors"
-            >
-              Reject
+              Close
             </button>
           </div>
         </div>

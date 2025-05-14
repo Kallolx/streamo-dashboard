@@ -941,7 +941,7 @@ export default function DashboardHome() {
                   {/* Release details */}
                   <div className="p-3 space-y-1">
                     <h3 className="text-white text-xs font-medium truncate">{release.title || 'Untitled'}</h3>
-                    <p className="text-gray-400 text-xs truncate">{release.artist || 'Unknown Artist'}</p>
+                    <p className="text-gray-400 text-xs truncate">{release.singer || release.artist || 'Unknown Artist'}</p>
                     <span className="text-gray-500 text-xs">{new Date(release.releaseDate).getFullYear()}</span>
                   </div>
                 </div>

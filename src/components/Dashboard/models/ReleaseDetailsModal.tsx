@@ -325,7 +325,7 @@ export default function ReleaseDetailsModal({
                   <span className="text-gray-400 text-sm">{release.releaseType}</span>
                 </div>
                 <div className="mt-1 text-sm text-gray-400">
-                  {release.artist}
+                  {release.singer || release.artist || "Unknown Artist"}
                 </div>
 
                 {/* Status Badge */}
@@ -369,21 +369,39 @@ export default function ReleaseDetailsModal({
                 </div>
               </div>
 
-              {/* Distribution Platforms */}
+              {/* Distribution Platforms - Compact with See More */}
               {release.stores && release.stores.length > 0 && (
                 <div className="mt-2 mb-4">
                   <h3 className="text-sm text-gray-400 mb-1">Distribution Platforms</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {storesLoading ? (
-                      <div className="text-xs text-gray-400">Loading stores...</div>
-                    ) : (
-                      release.stores.map(storeId => (
-                        <span key={storeId} className="inline-flex items-center px-2 py-1 bg-[#1D2229] rounded-md text-xs text-white">
-                          {getStoreName(storeId)}
-                        </span>
-                      ))
-                    )}
-                  </div>
+                  {storesLoading ? (
+                    <div className="text-xs text-gray-400">Loading stores...</div>
+                  ) : (
+                    <div className="relative">
+                      <div className="flex flex-wrap gap-2">
+                        {release.stores.slice(0, 5).map(storeId => (
+                          <span key={storeId} className="inline-flex items-center px-2 py-1 bg-[#1D2229] rounded-md text-xs text-white">
+                            {getStoreName(storeId)}
+                          </span>
+                        ))}
+                        {release.stores.length > 5 && (
+                          <div className="relative group">
+                            <button className="inline-flex items-center px-2 py-1 bg-[#1D2229] rounded-md text-xs text-white hover:bg-[#2D3139]">
+                              +{release.stores.length - 5} more
+                            </button>
+                            <div className="absolute left-0 mt-2 z-10 bg-[#1A1E24] border border-gray-700 rounded-md p-2 shadow-lg w-48 hidden group-hover:block">
+                              <div className="flex flex-wrap gap-1.5">
+                                {release.stores.slice(5).map(storeId => (
+                                  <span key={storeId} className="inline-flex items-center px-2 py-0.5 bg-[#1D2229] rounded-md text-xs text-white">
+                                    {getStoreName(storeId)}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -434,15 +452,25 @@ export default function ReleaseDetailsModal({
                 <div className="mb-4">
                   <h3 className="text-white text-md font-medium mb-4">Release Metadata</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Artist */}
+                    {/* Singer - prioritized */}
                     <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                      <h3 className="text-gray-400 text-xs sm:text-sm">Artist</h3>
+                      <h3 className="text-gray-400 text-xs sm:text-sm">Singer</h3>
                       <p className="text-white text-sm sm:text-base font-medium truncate">
-                        {release.artist || "Unknown Artist"}
+                        {release.singer || "Unknown Artist"}
                       </p>
                     </div>
 
-                    {/* Featured Artist */}
+                    {/* Feature Artist (formerly Artist) */}
+                    {release.artist && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Featured Artist</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {release.artist}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Featured Artist from featuredArtist field */}
                     {release.featuredArtist && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                         <h3 className="text-gray-400 text-xs sm:text-sm">Featured Artist</h3>
@@ -524,16 +552,6 @@ export default function ReleaseDetailsModal({
                         <h3 className="text-gray-400 text-xs sm:text-sm">Publisher</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
                           {release.publisher}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Singer */}
-                    {release.singer && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Singer</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {release.singer}
                         </p>
                       </div>
                     )}
