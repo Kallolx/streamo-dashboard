@@ -39,6 +39,7 @@ export interface CreateUserData {
   role: string;
   split?: number;
   isAdminCreated?: boolean;
+  plainPassword?: string;
 }
 
 /**
@@ -80,7 +81,9 @@ export const createUser = async (userData: CreateUserData): Promise<User> => {
     // Set flag to indicate this user is being created by an admin
     const dataWithFlag = {
       ...userData,
-      isAdminCreated: true
+      isAdminCreated: true,
+      // Include the plainPassword for the welcome email
+      plainPassword: userData.password
     };
     
     // Use the register endpoint to create a new user

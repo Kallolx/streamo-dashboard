@@ -8,6 +8,51 @@ import { validateInvitation } from "@/services/invitationService";
 import Image from "next/image";
 import { useLogo } from '@/contexts/LogoContext';
 
+// Country data with cities
+const countryData: Record<string, { name: string; cities: string[] }> = {
+  // Asian countries prioritized
+  "bd": { name: "Bangladesh", cities: ["Dhaka", "Chittagong", "Khulna", "Rajshahi", "Sylhet", "Barisal", "Rangpur"] },
+  "in": { name: "India", cities: ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkata", "Pune", "Ahmedabad", "Jaipur"] },
+  "np": { name: "Nepal", cities: ["Kathmandu", "Pokhara", "Lalitpur", "Bhaktapur", "Biratnagar", "Birgunj", "Dharan"] },
+  "mm": { name: "Myanmar", cities: ["Yangon", "Mandalay", "Naypyidaw", "Bago", "Mawlamyine", "Taunggyi", "Sittwe"] },
+  "pk": { name: "Pakistan", cities: ["Karachi", "Lahore", "Islamabad", "Faisalabad", "Rawalpindi", "Multan", "Peshawar"] },
+  "lk": { name: "Sri Lanka", cities: ["Colombo", "Kandy", "Galle", "Jaffna", "Negombo", "Batticaloa", "Trincomalee"] },
+  "vn": { name: "Vietnam", cities: ["Hanoi", "Ho Chi Minh City", "Da Nang", "Hue", "Nha Trang", "Hai Phong"] },
+  "th": { name: "Thailand", cities: ["Bangkok", "Chiang Mai", "Phuket", "Pattaya", "Krabi", "Koh Samui"] },
+  "my": { name: "Malaysia", cities: ["Kuala Lumpur", "Penang", "Johor Bahru", "Ipoh", "Melaka", "Kota Kinabalu"] },
+  "id": { name: "Indonesia", cities: ["Jakarta", "Surabaya", "Bandung", "Medan", "Semarang", "Makassar"] },
+  "ph": { name: "Philippines", cities: ["Manila", "Quezon City", "Davao", "Cebu", "Makati", "Baguio"] },
+  "sg": { name: "Singapore", cities: ["Singapore City", "Jurong", "Woodlands", "Tampines", "Pasir Ris"] },
+  "jp": { name: "Japan", cities: ["Tokyo", "Osaka", "Kyoto", "Yokohama", "Nagoya", "Sapporo", "Fukuoka"] },
+  "kr": { name: "South Korea", cities: ["Seoul", "Busan", "Incheon", "Daegu", "Daejeon", "Gwangju", "Suwon"] },
+  "cn": { name: "China", cities: ["Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Chengdu", "Hangzhou", "Xi'an"] },
+  "kh": { name: "Cambodia", cities: ["Phnom Penh", "Siem Reap", "Battambang", "Sihanoukville", "Kampot", "Kep"] },
+  "la": { name: "Laos", cities: ["Vientiane", "Luang Prabang", "Pakse", "Savannakhet", "Thakhek"] },
+  "bt": { name: "Bhutan", cities: ["Thimphu", "Paro", "Punakha", "Phuentsholing", "Jakar"] },
+  "mv": { name: "Maldives", cities: ["Malé", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo"] },
+  
+  // Rest of the world
+  "us": { name: "United States", cities: ["New York", "Los Angeles", "Chicago", "Houston", "Miami", "San Francisco", "Seattle"] },
+  "uk": { name: "United Kingdom", cities: ["London", "Manchester", "Birmingham", "Liverpool", "Glasgow", "Edinburgh"] },
+  "ca": { name: "Canada", cities: ["Toronto", "Vancouver", "Montreal", "Calgary", "Ottawa", "Edmonton"] },
+  "au": { name: "Australia", cities: ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Gold Coast"] },
+  "nz": { name: "New Zealand", cities: ["Auckland", "Wellington", "Christchurch", "Hamilton", "Dunedin"] },
+  "de": { name: "Germany", cities: ["Berlin", "Munich", "Hamburg", "Frankfurt", "Cologne", "Stuttgart"] },
+  "fr": { name: "France", cities: ["Paris", "Marseille", "Lyon", "Toulouse", "Nice", "Bordeaux"] },
+  "it": { name: "Italy", cities: ["Rome", "Milan", "Naples", "Turin", "Florence", "Venice"] },
+  "es": { name: "Spain", cities: ["Madrid", "Barcelona", "Valencia", "Seville", "Malaga", "Bilbao"] },
+  "br": { name: "Brazil", cities: ["São Paulo", "Rio de Janeiro", "Brasília", "Salvador", "Fortaleza"] },
+  "mx": { name: "Mexico", cities: ["Mexico City", "Guadalajara", "Monterrey", "Puebla", "Tijuana"] },
+  "ar": { name: "Argentina", cities: ["Buenos Aires", "Córdoba", "Rosario", "Mendoza", "Tucumán"] },
+  "za": { name: "South Africa", cities: ["Johannesburg", "Cape Town", "Durban", "Pretoria", "Port Elizabeth"] },
+  "ng": { name: "Nigeria", cities: ["Lagos", "Abuja", "Kano", "Ibadan", "Port Harcourt"] },
+  "eg": { name: "Egypt", cities: ["Cairo", "Alexandria", "Giza", "Shubra El-Kheima", "Port Said"] },
+  "ke": { name: "Kenya", cities: ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret"] },
+  "af": { name: "Afghanistan", cities: ["Kabul", "Herat", "Mazar-i-Sharif", "Kandahar", "Jalalabad"] },
+  "al": { name: "Albania", cities: ["Tirana", "Durrës", "Vlorë", "Elbasan", "Shkodër"] },
+  "dz": { name: "Algeria", cities: ["Algiers", "Oran", "Constantine", "Annaba", "Blida"] }
+};
+
 // Client component with all the existing functionality
 function SignupContent() {
   const router = useRouter();
@@ -36,6 +81,9 @@ function SignupContent() {
   const [city, setCity] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  
+  // Add state for available cities based on selected country
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
   
   // Current Distributor Form State
   const [currentDistributor, setCurrentDistributor] = useState("");
@@ -86,8 +134,27 @@ function SignupContent() {
     }
   };
 
+  // Update available cities when country changes
+  useEffect(() => {
+    if (country && countryData[country]) {
+      setAvailableCities(countryData[country].cities);
+      // Reset city when country changes
+      setCity("");
+    } else {
+      setAvailableCities([]);
+    }
+  }, [country]);
+
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Add validation for city when on step 2
+    if (formStep === 2 && country && !city) {
+      // If country is selected but city is not, show an alert
+      alert("Please select a city");
+      return;
+    }
+    
     if (formStep < 5) {
       setFormStep(formStep + 1); // Move to the next step
     }
@@ -114,8 +181,8 @@ function SignupContent() {
         gender,
         introduction,
         
-        // Address
-        country,
+        // Address - use the country name and city name, not the code
+        country: country ? countryData[country].name : '',
         city,
         phone,
         address,
@@ -181,9 +248,9 @@ function SignupContent() {
   // If registration is successful, show the success message
   if (registrationSuccess) {
     return (
-      <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-8 px-4 sm:px-6">
-        <div className="w-full max-w-md bg-[#161A1F] rounded-xl shadow-lg overflow-hidden">
-          <div className="bg-[#683BAB] p-6 flex justify-center">
+      <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-16">
+        <div className="w-full max-w-[1400px] mx-4 lg:mx-auto bg-[#161A1F] rounded-xl shadow-2xl overflow-hidden">
+          <div className="bg-[#683BAB] p-10 flex justify-center">
             <Image 
               src={logo.includes('amazonaws.com') ? '/logo.png' : logo} 
               alt="Logo" 
@@ -197,7 +264,7 @@ function SignupContent() {
             />
           </div>
           
-          <div className="p-8 text-center">
+          <div className="p-10 lg:p-[60px] text-center">
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 rounded-full bg-green-600/20 flex items-center justify-center">
                 <svg 
@@ -216,21 +283,21 @@ function SignupContent() {
               </div>
             </div>
             
-            <h2 className="text-2xl font-bold text-white mb-4">Registration Successful!</h2>
+            <h2 className="text-3xl font-bold text-white mb-6">Registration Successful!</h2>
             
-            <div className="bg-amber-600/10 border border-amber-600/20 rounded-md p-4 mb-6">
-              <p className="text-amber-400 text-sm">
+            <div className="bg-amber-600/10 border border-amber-600/20 rounded-md p-6 mb-8 mx-auto max-w-2xl">
+              <p className="text-amber-400 text-base">
                 Your account has been created successfully but is pending approval from an administrator. You'll be able to log in once your account is approved.
               </p>
             </div>
             
-            <p className="text-gray-400 mb-8">
+            <p className="text-gray-400 mb-10 mx-auto max-w-2xl">
               We'll notify you via email once your account has been approved. This usually takes less than 24 hours.
             </p>
             
             <button 
               onClick={() => router.push('/auth/login')}
-              className="w-full flex justify-center h-[56px] items-center rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors"
+              className="w-full max-w-md mx-auto flex justify-center h-[56px] items-center rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 transition-colors"
             >
               Go to Login Page
             </button>
@@ -241,10 +308,10 @@ function SignupContent() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-8 px-4 sm:px-6">
-      <div className="w-full max-w-[1200px] h-auto mx-auto flex flex-col lg:flex-row shadow-2xl overflow-hidden rounded-xl">
+    <div className="min-h-screen w-full bg-[#0F1215] flex items-center justify-center font-poppins py-16">
+      <div className="w-full max-w-[1400px] h-auto lg:h-[750px] mx-4 lg:mx-auto flex flex-col lg:flex-row shadow-2xl overflow-hidden rounded-xl">
         {/* Left Section - Purple background with message - 40% width - Hidden on mobile */}
-        <div className="hidden lg:flex w-full lg:w-2/5 bg-[#683BAB] text-white p-6 sm:p-8 lg:p-[40px] flex-col justify-between relative overflow-hidden">
+        <div className="hidden lg:flex w-full lg:w-2/5 bg-[#683BAB] text-white p-10 lg:p-[60px] flex-col justify-between relative overflow-hidden">
           {/* Logo at the top left */}
           <div className="flex justify-start">
             <Image 
@@ -353,8 +420,8 @@ function SignupContent() {
             </div>
           )}
           
-          {/* Scrollable form container */}
-          <div className="flex-1 overflow-y-auto pr-4 h-[400px] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800">
+          {/* Scrollable form container - increased height to match forget-password page */}
+          <div className="flex-1 overflow-y-auto pr-4 h-[430px] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800">
             {formStep === 1 ? (
               /* Step 1: Basic Info Form */
               <form onSubmit={handleNextStep} className="space-y-6 max-w-md">
@@ -542,10 +609,12 @@ function SignupContent() {
                       required
                     >
                       <option value="" disabled>Select your country</option>
-                      <option value="us">United States</option>
-                      <option value="uk">United Kingdom</option>
-                      <option value="ca">Canada</option>
-                      {/* More countries would be added here */}
+                      {/* Map over our expanded country list */}
+                      {Object.entries(countryData).map(([code, data]) => (
+                        <option key={code} value={code}>
+                          {data.name}
+                        </option>
+                      ))}
                     </select>
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -566,12 +635,17 @@ function SignupContent() {
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       required
+                      disabled={!country} // Disable until country is selected
                     >
-                      <option value="" disabled>Select your city</option>
-                      <option value="ny">New York</option>
-                      <option value="la">Los Angeles</option>
-                      <option value="ch">Chicago</option>
-                      {/* More cities would be added here */}
+                      <option value="" disabled>
+                        {country ? "Select your city" : "Please select a country first"}
+                      </option>
+                      {/* Map over cities based on selected country */}
+                      {availableCities.map((cityName) => (
+                        <option key={cityName} value={cityName}>
+                          {cityName}
+                        </option>
+                      ))}
                     </select>
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">

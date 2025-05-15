@@ -283,7 +283,7 @@ export default function StatementsPage() {
   };
 
   return (
-    <DashboardLayout title="Statement History" subtitle="View and generate statements from your transaction data">
+    <DashboardLayout title="" subtitle="">
       <div className="mb-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left side: Statement Generator */}

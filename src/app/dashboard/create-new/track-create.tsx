@@ -44,6 +44,65 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
   );
 };
 
+// Upload Progress Bar Component
+const UploadProgressBar = ({ 
+  fileName,
+  fileSize 
+}: { 
+  fileName: string;
+  fileSize: string;
+}) => {
+  const [progress, setProgress] = useState<number>(0);
+  
+  // Simulate progress for user feedback
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    const startSimulation = () => {
+      let currentProgress = 0;
+      interval = setInterval(() => {
+        // Slow down progress as we approach 90%
+        const increment = currentProgress < 30 ? 5 : 
+                          currentProgress < 60 ? 3 : 
+                          currentProgress < 80 ? 1 : 0.5;
+                          
+        currentProgress = Math.min(currentProgress + increment, 90);
+        setProgress(currentProgress);
+        
+        // Stop at 90% - the final 10% will be shown when upload actually completes
+        if (currentProgress >= 90) {
+          clearInterval(interval);
+        }
+      }, 1000);
+    };
+    
+    startSimulation();
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="fixed inset-x-0 top-4 mx-auto max-w-xl z-50 bg-[#161A1F] border border-purple-500 rounded-lg shadow-lg p-4">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-white font-medium">Uploading Video</h3>
+        <span className="text-purple-400 text-sm">{progress.toFixed(0)}%</span>
+      </div>
+      
+      <div className="w-full bg-gray-700 rounded-full h-2.5 mb-3">
+        <div 
+          className="bg-purple-600 h-2.5 rounded-full transition-all duration-300 ease-in-out"
+          style={{ width: `${progress}%` }}
+        ></div>
+      </div>
+      
+      <div className="text-xs text-gray-300 truncate mb-1.5">{fileName}</div>
+      
+      <div className="flex justify-between items-center text-xs text-gray-400">
+        <div>File Size: <span className="text-gray-300">{fileSize}</span></div>
+        <div className="text-gray-300 italic">This may take several minutes for large files</div>
+      </div>
+    </div>
+  );
+};
+
 export default function TrackCreate() {
   const router = useRouter();
   
@@ -58,6 +117,61 @@ export default function TrackCreate() {
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const videoPlayerRef = useRef<HTMLVideoElement>(null);
+  
+  // Upload progress state
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSpeed, setUploadSpeed] = useState('0 KB/s');
+  const [estimatedTime, setEstimatedTime] = useState('Calculating...');
+  const [uploadedSize, setUploadedSize] = useState('0 MB');
+  const [totalSize, setTotalSize] = useState('0 MB');
+  
+  // Required fields validation
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  
+  // Required fields list
+  const requiredFields = [
+    'title',
+    'artist', 
+    'releaseType',
+    'genre',
+    'language',
+    'releaseDate',
+    'contentRating'
+  ];
+  
+  // Add validation state for form fields
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
+  
+  // Helper function to highlight invalid fields
+  const highlightInvalidField = (fieldId: string) => {
+    const field = document.getElementById(fieldId);
+    if (field) {
+      field.classList.add('border-red-500');
+      field.classList.add('bg-opacity-20');
+      field.classList.add('bg-red-900');
+      
+      // Add event listener to remove highlight when field is filled
+      field.addEventListener('change', () => {
+        if ((field as HTMLInputElement).value || 
+            ((field as HTMLInputElement).type === 'checkbox' && (field as HTMLInputElement).checked)) {
+          field.classList.remove('border-red-500');
+          field.classList.remove('bg-opacity-20');
+          field.classList.remove('bg-red-900');
+          
+          // Remove from invalid fields array
+          setInvalidFields(prev => prev.filter(id => id !== fieldId));
+          
+          // Also remove from formErrors
+          setFormErrors(prev => {
+            const newErrors = {...prev};
+            delete newErrors[fieldId];
+            return newErrors;
+          });
+        }
+      });
+    }
+  };
   
   // Track list state
   const [tracks, setTracks] = useState([
@@ -168,8 +282,37 @@ export default function TrackCreate() {
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Clear previous errors
+      setFormErrors(prev => ({ ...prev, videoFile: '' }));
+      
+      // File size validation (2GB limit)
+      const maxSize = 2 * 1024 * 1024 * 1024; // 2GB in bytes
+      if (file.size > maxSize) {
+        setFormErrors(prev => ({ 
+          ...prev, 
+          videoFile: 'Video file is too large. Maximum size is 2GB.'
+        }));
+        return;
+      }
+      
+      // File type validation
+      const validTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/mpeg'];
+      if (!validTypes.includes(file.type)) {
+        setFormErrors(prev => ({ 
+          ...prev, 
+          videoFile: 'Invalid file format. Supported formats: MP4, MOV, AVI, MPEG'
+        }));
+        return;
+      }
+      
+      // Set video file
       setVideoFile(file);
       setVideoFileName(file.name);
+      
+      // Show file size in human-readable format
+      const fileSize = file.size / (1024 * 1024); // Convert to MB
+      setTotalSize(`${fileSize.toFixed(2)} MB`);
       
       // Create video preview URL
       const videoURL = URL.createObjectURL(file);
@@ -234,66 +377,119 @@ export default function TrackCreate() {
     try {
       console.log('Starting track submission...');
       
-      // Validate required fields first
-      if (!title || title.trim() === '') {
-        setToast({
-          show: true,
-          message: "Please enter a title",
-          type: "error"
-        });
-        return;
-      }
+      // Reset errors
+      const errors: Record<string, string> = {};
+      setInvalidFields([]);
       
-      if (!artist || artist.trim() === '') {
-        setToast({
-          show: true,
-          message: "Please enter an artist name",
-          type: "error"
-        });
-        return;
-      }
+      // Create array to track missing fields for error message
+      const missingFields: {id: string, name: string}[] = [];
       
-      // Validate files
+      // Validate all required fields
+      requiredFields.forEach(field => {
+        // Skip releaseType validation as it has a default value
+        if (field === 'releaseType') return;
+        
+        const value = eval(field) as string;
+        if (!value || value.trim() === '') {
+          errors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+          missingFields.push({
+            id: field === 'title' ? 'releaseTitle' : 
+                field === 'artist' ? 'artist' :
+                field === 'genre' ? 'selectGenre' :
+                field === 'language' ? 'selectLanguage' :
+                field === 'releaseDate' ? 'releaseDate' :
+                field === 'contentRating' ? 'contentRating' : field,
+            name: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')
+          });
+        }
+      });
+      
+      // Validate cover art
       if (!coverArt) {
-        setToast({
-          show: true,
-          message: "Cover art is required",
-          type: "error"
-        });
-        return;
+        errors.coverArt = "Cover art is required";
+        missingFields.push({id: 'fileInputRef', name: "Cover Art"});
       }
       
+      // Validate video file
       if (!videoFile) {
+        errors.videoFile = "Video file is required";
+        missingFields.push({id: 'videoInputRef', name: "Video File"});
+      }
+      
+      // Validate store selection
+      if (!selectedStores.length) {
+        errors.stores = "Please select at least one distribution platform";
+        missingFields.push({id: '', name: "Distribution Platform"});
+      }
+      
+      // If terms not checked
+      const terms1 = document.getElementById('terms1') as HTMLInputElement;
+      const terms2 = document.getElementById('terms2') as HTMLInputElement;
+      const terms3 = document.getElementById('terms3') as HTMLInputElement;
+      
+      if (!terms1?.checked || !terms2?.checked || !terms3?.checked) {
+        errors.terms = "You must agree to all terms and conditions";
+        
+        if (!terms1?.checked) missingFields.push({id: 'terms1', name: "Terms & Conditions (1)"});
+        if (!terms2?.checked) missingFields.push({id: 'terms2', name: "Terms & Conditions (2)"});
+        if (!terms3?.checked) missingFields.push({id: 'terms3', name: "Terms & Conditions (3)"});
+      }
+      
+      // If there are validation errors, show them and stop submission
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        
+        // Set invalid fields for styling
+        const invalidFieldIds = missingFields.filter(field => field.id).map(field => field.id);
+        setInvalidFields(invalidFieldIds);
+        
+        // Highlight invalid fields
+        missingFields.forEach(field => {
+          if (field.id) highlightInvalidField(field.id);
+        });
+        
+        // Create field names list for error message
+        const fieldNames = missingFields.map(field => field.name);
+        
+        // Show first error in toast
         setToast({
           show: true,
-          message: "Video file is required",
+          message: `Please complete the following required fields: ${fieldNames.join(", ")}`,
           type: "error"
         });
+        
+        // Scroll to first missing field
+        if (missingFields[0]?.id) {
+          const firstField = document.getElementById(missingFields[0].id);
+          if (firstField) {
+            firstField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        
         return;
       }
       
-      if (selectedStores.length === 0) {
-        setToast({
-          show: true,
-          message: "Please select at least one distribution platform",
-          type: "error"
-        });
-        return;
-      }
-
-      // Create a simplified FormData object
+      // Begin upload process - show the upload indicator
+      setIsUploading(true);
+      
+      // Create FormData object
       const formData = new FormData();
       
       // Add required fields first
       formData.append('title', title.trim());
       formData.append('artist', artist.trim());
       
-      // Add files
-      formData.append('coverArt', coverArt);
-      formData.append('videoFile', videoFile);
+      // Add files (with TypeScript null check)
+      if (coverArt) formData.append('coverArt', coverArt);
+      if (videoFile) {
+        formData.append('videoFile', videoFile);
+        // Set total size in human-readable format for the upload progress bar
+        const fileSize = videoFile.size / (1024 * 1024); // Convert to MB
+        setTotalSize(`${fileSize > 1000 ? (fileSize / 1024).toFixed(2) + ' GB' : fileSize.toFixed(2) + ' MB'}`);
+      }
       
       // Add other essential fields with defaults
-      formData.append('releaseType', releaseType || 'single');
+      formData.append('releaseType', 'single'); // Always use 'single' as the releaseType
       formData.append('format', format || 'digital');
       
       // Only append non-empty fields to reduce request size
@@ -333,9 +529,12 @@ export default function TrackCreate() {
       setIsSubmitting(true);
       console.log('Sending form data to server...');
       
+      // Make the API call
       const response = await createTrack(formData);
       console.log('Track created successfully:', response);
       
+      // Show success message and finish the upload animation
+      setIsUploading(false);
       setToast({
         show: true,
         message: "Video created successfully!",
@@ -397,6 +596,7 @@ export default function TrackCreate() {
       
     } catch (error: any) {
       console.error('Error creating track:', error);
+      setIsUploading(false);
       
       // Extract error message for better user feedback
       let errorMessage = "Failed to create track. Please try again.";
@@ -425,15 +625,28 @@ export default function TrackCreate() {
 
   return (
     <div className="space-y-6 md:space-y-8 px-2 sm:px-0">
+      {/* Show upload progress when uploading */}
+      {isUploading && (
+        <UploadProgressBar 
+          fileName={videoFileName || 'video file'}
+          fileSize={totalSize}
+        />
+      )}
+      
+      {/* Required fields legend */}
+      <div className="text-right text-xs text-gray-400">
+        <span className="inline-block">* Required fields</span>
+      </div>
+
       {/* Upload Cover Art Section */}
       <div className="rounded-lg p-3 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Upload Cover Art</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Upload Cover Art *</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Left side - Upload */}
-          <div className="flex justify-center md:justify-start">
+          <div className="flex justify-center md:justify-start flex-col">
             <div 
               onClick={() => fileInputRef.current?.click()} 
-              className="w-full max-w-[320px] md:max-w-[320px] h-[180px] md:h-[180px] bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center overflow-hidden cursor-pointer hover:border-purple-500 transition-colors"
+              className={`w-full max-w-[320px] md:max-w-[320px] h-[180px] md:h-[180px] bg-[#1D2229] border-2 border-dashed ${formErrors.coverArt ? 'border-red-500' : 'border-gray-600'} rounded-md flex items-center justify-center overflow-hidden cursor-pointer hover:border-purple-500 transition-colors`}
             >
               {coverArtPreview ? (
                 <img 
@@ -457,6 +670,9 @@ export default function TrackCreate() {
               onChange={handleCoverArtUpload}
               className="hidden"
             />
+            {formErrors.coverArt && (
+              <p className="text-red-500 text-xs mt-2">{formErrors.coverArt}</p>
+            )}
           </div>
           
           {/* Right side - Tips */}
@@ -496,13 +712,13 @@ export default function TrackCreate() {
 
       {/* Upload Video File Section */}
       <div className="rounded-lg p-3 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Upload Video File</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Upload Video File *</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Left side - Upload */}
-          <div className="flex justify-center md:justify-start">
+          <div className="flex justify-center md:justify-start flex-col">
             <div 
               onClick={() => videoInputRef.current?.click()} 
-              className="w-full max-w-[250px] md:max-w-sm h-[150px] md:h-[180px] bg-[#1D2229] border-2 border-dashed border-gray-600 rounded-md flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors overflow-hidden"
+              className={`w-full max-w-[250px] md:max-w-sm h-[150px] md:h-[180px] bg-[#1D2229] border-2 border-dashed ${formErrors.videoFile ? 'border-red-500' : 'border-gray-600'} rounded-md flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors overflow-hidden`}
             >
               {videoPreview ? (
                 <div className="w-full h-full relative">
@@ -575,6 +791,9 @@ export default function TrackCreate() {
               onChange={handleVideoUpload}
               className="hidden"
             />
+            {formErrors.videoFile && (
+              <p className="text-red-500 text-xs mt-2">{formErrors.videoFile}</p>
+            )}
           </div>
           
           {/* Right side - Tips */}
@@ -587,7 +806,7 @@ export default function TrackCreate() {
                 <svg className="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span>File size under 100MB</span>
+                <span>File size under 2GB</span>
               </li>
               <li className="flex items-start">
                 <svg className="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-1 md:mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -623,22 +842,28 @@ export default function TrackCreate() {
               <input
                 type="text"
                 id="releaseTitle"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Video Title"
+                className={`w-full bg-[#1D2229] border ${invalidFields.includes('releaseTitle') ? 'border-red-500 bg-red-900 bg-opacity-20' : 'border-gray-700'} rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                placeholder="Video Title *"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
+              {formErrors.title && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.title}</p>
+              )}
             </div>
             
             <div>
               <input
                 type="text"
                 id="artist"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Artist Name"
+                className={`w-full bg-[#1D2229] border ${invalidFields.includes('artist') ? 'border-red-500 bg-red-900 bg-opacity-20' : 'border-gray-700'} rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                placeholder="Artist Name *"
                 value={artist}
                 onChange={(e) => setArtist(e.target.value)}
               />
+              {formErrors.artist && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.artist}</p>
+              )}
             </div>
             
             <div>
@@ -671,21 +896,24 @@ export default function TrackCreate() {
               <input
                 type="date"
                 id="releaseDate"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Release Date"
+                className={`w-full bg-[#1D2229] border ${invalidFields.includes('releaseDate') ? 'border-red-500 bg-red-900 bg-opacity-20' : 'border-gray-700'} rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                placeholder="Release Date *"
                 value={releaseDate}
                 onChange={(e) => setReleaseDate(e.target.value)}
               />
+              {formErrors.releaseDate && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.releaseDate}</p>
+              )}
             </div>
             
             <div>
               <select
                 id="selectGenre"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className={`w-full bg-[#1D2229] border ${invalidFields.includes('selectGenre') ? 'border-red-500 bg-red-900 bg-opacity-20' : 'border-gray-700'} rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500`}
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
               >
-                <option value="">Select Genre</option>
+                <option value="">Select Genre *</option>
                 <option value="pop">Pop</option>
                 <option value="rock">Rock</option>
                 <option value="hiphop">Hip Hop</option>
@@ -694,6 +922,9 @@ export default function TrackCreate() {
                 <option value="jazz">Jazz</option>
                 <option value="classical">Classical</option>
               </select>
+              {formErrors.genre && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.genre}</p>
+              )}
             </div>
             
             <div>
@@ -745,14 +976,15 @@ export default function TrackCreate() {
           {/* Right side */}
           <div className="space-y-3 md:space-y-4 mt-3 md:mt-0">
             <div>
-              <select
+              <input
+                type="text"
                 id="releaseType"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                value={releaseType}
-                onChange={(e) => setReleaseType(e.target.value)}
-              >
-                <option value="">Video</option>
-              </select>
+                className={`w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-not-allowed opacity-75`}
+                placeholder="Video"
+                value="Video"
+                readOnly
+                disabled
+              />
             </div>
             
             <div>
@@ -773,11 +1005,11 @@ export default function TrackCreate() {
             <div>
               <select
                 id="selectLanguage"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className={`w-full bg-[#1D2229] border ${invalidFields.includes('selectLanguage') ? 'border-red-500 bg-red-900 bg-opacity-20' : 'border-gray-700'} rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500`}
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
               >
-                <option value="">Select Language</option>
+                <option value="">Select Language *</option>
                 <option value="english">English</option>
                 <option value="spanish">Spanish</option>
                 <option value="french">French</option>
@@ -786,6 +1018,9 @@ export default function TrackCreate() {
                 <option value="korean">Korean</option>
                 <option value="chinese">Chinese</option>
               </select>
+              {formErrors.language && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.language}</p>
+              )}
             </div>
             
             <div>
@@ -805,14 +1040,17 @@ export default function TrackCreate() {
             <div>
               <select
                 id="contentRating"
-                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className={`w-full bg-[#1D2229] border ${invalidFields.includes('contentRating') ? 'border-red-500 bg-red-900 bg-opacity-20' : 'border-gray-700'} rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500`}
                 value={contentRating}
                 onChange={(e) => setContentRating(e.target.value)}
               >
-                <option value="">Content Rating</option>
+                <option value="">Content Rating *</option>
                 <option value="clean">Clean</option>
                 <option value="explicit">Explicit</option>
               </select>
+              {formErrors.contentRating && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.contentRating}</p>
+              )}
             </div>
             
             <div>
@@ -932,7 +1170,7 @@ export default function TrackCreate() {
 
       {/* Select Store Section */}
       <div className="rounded-lg p-3 md:p-6 bg-[#161A1F]">
-        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Distribution Platforms</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Distribution Platforms *</h2>
         <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-6">
           Select where you want your video to be available. You can choose multiple platforms.
         </p>
@@ -959,7 +1197,7 @@ export default function TrackCreate() {
             )}
             
             {/* Compact Grid View of Stores */}
-            <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+            <div className={`grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 ${formErrors.stores ? 'border border-red-500 p-2 rounded-md' : ''}`}>
               {/* Dynamic store rendering from API */}
               {stores.length > 0 ? (
                 stores.map((store) => (
@@ -1031,13 +1269,16 @@ export default function TrackCreate() {
                 </div>
               )}
             </div>
+            {formErrors.stores && (
+              <p className="text-red-500 text-xs mt-2">{formErrors.stores}</p>
+            )}
           </>
         )}
       </div>
 
       {/* Track Pricing Section */}
       <div className="rounded-lg p-3 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-2">Track Pricing</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-2">Video Pricing</h2>
         <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-4">How much would you like to charge for each video?</p>
         
         <div className="mb-3 md:mb-4">
@@ -1060,7 +1301,7 @@ export default function TrackCreate() {
 
       {/* Terms and Conditions Section */}
       <div className="rounded-lg p-3 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Terms and Conditions</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-2 md:mb-4">Terms and Conditions *</h2>
         
         <div className="space-y-3 md:space-y-4">
           <div className="flex items-start">
@@ -1068,7 +1309,7 @@ export default function TrackCreate() {
               <input
                 id="terms1"
                 type="checkbox"
-                className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                className={`h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0 ${invalidFields.includes('terms1') ? 'ring-1 ring-red-500' : ''}`}
               />
             </div>
             <label htmlFor="terms1" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
@@ -1081,7 +1322,7 @@ export default function TrackCreate() {
               <input
                 id="terms2"
                 type="checkbox"
-                className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                className={`h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0 ${invalidFields.includes('terms2') ? 'ring-1 ring-red-500' : ''}`}
               />
             </div>
             <label htmlFor="terms2" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
@@ -1094,13 +1335,17 @@ export default function TrackCreate() {
               <input
                 id="terms3"
                 type="checkbox"
-                className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                className={`h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0 ${invalidFields.includes('terms3') ? 'ring-1 ring-red-500' : ''}`}
               />
             </div>
             <label htmlFor="terms3" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
               I give my consent for the collection, storage, and processing of my personal and professional data in accordance with the platform's Privacy Policy.
             </label>
           </div>
+          
+          {formErrors.terms && (
+            <p className="text-red-500 text-xs mt-1">{formErrors.terms}</p>
+          )}
         </div>
       </div>
       
@@ -1120,10 +1365,10 @@ export default function TrackCreate() {
           disabled={isSubmitting}
           className="flex-1 md:flex-initial px-3 py-2 md:px-4 md:py-2 bg-purple-600 text-white text-sm md:text-base rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center"
         >
-          {isSubmitting ? (
+          {isSubmitting || isUploading ? (
             <>
               <div className="w-3 h-3 md:w-4 md:h-4 border-t-2 border-b-2 border-white rounded-full animate-spin mr-1 md:mr-2"></div>
-              <span>Creating...</span>
+              <span>{isUploading ? "Uploading..." : "Creating..."}</span>
             </>
           ) : (
             "Create Video"

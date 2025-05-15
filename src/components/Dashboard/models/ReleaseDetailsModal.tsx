@@ -460,16 +460,6 @@ export default function ReleaseDetailsModal({
                       </p>
                     </div>
 
-                    {/* Feature Artist (formerly Artist) */}
-                    {release.artist && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Featured Artist</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {release.artist}
-                        </p>
-                      </div>
-                    )}
-
                     {/* Featured Artist from featuredArtist field */}
                     {release.featuredArtist && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">

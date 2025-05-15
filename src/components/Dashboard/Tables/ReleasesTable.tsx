@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FormEvent } from "react";
 import Link from "next/link";
 
@@ -102,6 +102,14 @@ export default function ReleasesTable({
     key: 'createdAt', 
     direction: 'desc' 
   });
+  
+  // Filter dropdown state
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
 
   // Debug log the releases array
   useEffect(() => {
@@ -113,6 +121,7 @@ export default function ReleasesTable({
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
     // The search is already handled by the filteredReleases calculation
+    setCurrentPage(1); // Reset to first page when searching
   };
 
   // Handle sort
@@ -187,6 +196,25 @@ export default function ReleasesTable({
       return 0;
     });
 
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredReleases.length / rowsPerPage);
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentReleases = filteredReleases.slice(indexOfFirstRow, indexOfLastRow);
+
+  // Page navigation handlers
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPrevPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const goToPage = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+  };
+
   // Effect to update selectAll state when selectedReleases changes
   useEffect(() => {
     if (filteredReleases.length > 0 && selectedReleases.length === filteredReleases.length) {
@@ -212,8 +240,84 @@ export default function ReleasesTable({
     });
   };
 
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const maxPageButtons = 5; // Max number of page buttons to show
+    
+    if (totalPages <= maxPageButtons) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    let startPage = Math.max(currentPage - Math.floor(maxPageButtons / 2), 1);
+    const endPage = Math.min(startPage + maxPageButtons - 1, totalPages);
+    
+    if (endPage - startPage + 1 < maxPageButtons) {
+      startPage = Math.max(endPage - maxPageButtons + 1, 1);
+    }
+    
+    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+  };
+
   // Default image fallback if release has no cover art
   const defaultImage = "";
+
+  // Handle outside click for filter dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setShowFilterDropdown(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Generate CSV data
+  const generateCSV = () => {
+    // CSV header row
+    const header = ['Title', 'Artist', 'ISRC', 'Version', 'Content Rating', 'Status', 'Release Date'];
+    
+    // Map filtered releases to CSV rows
+    const rows = filteredReleases.map(release => {
+      const track = Array.isArray(release.tracks) && release.tracks.length > 0 ? release.tracks[0] : null;
+      return [
+        track?.title || '',
+        track?.artistName || release.artist || '',
+        track?.isrc || '',
+        track?.version || '',
+        track?.contentRating || '',
+        release.status,
+        release.releaseDate
+      ];
+    });
+    
+    // Combine header and rows
+    const csvContent = [
+      header.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    
+    return csvContent;
+  };
+  
+  // Handle CSV download
+  const handleDownloadCSV = () => {
+    const csvContent = generateCSV();
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `releases_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="bg-[#161A1F] rounded-lg pt-6 pb-8 px-4 sm:px-6 h-full flex flex-col">
@@ -250,33 +354,81 @@ export default function ReleasesTable({
         </form>
 
         <div className="flex items-center gap-2">
-          {/* Format filter */}
-          <select
-            value={selectedFormat}
-            onChange={(e) => setSelectedFormat(e.target.value)}
-            className="bg-[#1D2229] border border-gray-700 text-white text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 p-2.5"
+          {/* Filter dropdown button */}
+          <div ref={filterDropdownRef} className="relative">
+            <button
+              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+              className="bg-[#1D2229] border border-gray-700 text-white text-sm rounded-lg hover:bg-[#252A32] focus:outline-none focus:ring-1 focus:ring-purple-500 p-2.5 flex items-center"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+              </svg>
+              Filters
+              {(selectedFormat !== 'all' || selectedGenre !== 'all') && (
+                <span className="ml-1.5 flex h-2 w-2 rounded-full bg-purple-500"></span>
+              )}
+              <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={showFilterDropdown ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}></path>
+              </svg>
+            </button>
+            
+            {/* Filter dropdown */}
+            {showFilterDropdown && (
+              <div className="absolute right-0 mt-2 w-64 bg-[#1D2229] border border-gray-700 rounded-lg shadow-lg z-20 p-4 space-y-3">
+                {/* Format filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Format</label>
+                  <select
+                    value={selectedFormat}
+                    onChange={(e) => {
+                      setSelectedFormat(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-[#161A1F] border border-gray-700 text-white text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 p-2 w-full"
+                  >
+                    <option value="all">All Formats</option>
+                    {formats.map((format) => (
+                      <option key={format} value={format}>
+                        {format.charAt(0).toUpperCase() + format.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Genre filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Genre</label>
+                  <select
+                    value={selectedGenre}
+                    onChange={(e) => {
+                      setSelectedGenre(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-[#161A1F] border border-gray-700 text-white text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 p-2 w-full"
+                  >
+                    <option value="all">All Genres</option>
+                    {genres.map((genre) => (
+                      <option key={genre} value={genre}>
+                        {genre.charAt(0).toUpperCase() + genre.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* CSV Download button */}
+          <button
+            onClick={handleDownloadCSV}
+            className="bg-[#1D2229] border border-gray-700 text-white text-sm rounded-lg hover:bg-[#252A32] focus:outline-none focus:ring-1 focus:ring-purple-500 p-2.5 flex items-center"
+            title="Download as CSV"
           >
-            <option value="all">All Formats</option>
-            {formats.map((format) => (
-              <option key={format} value={format}>
-                {format.charAt(0).toUpperCase() + format.slice(1)}
-              </option>
-            ))}
-          </select>
-
-          {/* Genre filter */}
-          <select
-            value={selectedGenre}
-            onChange={(e) => setSelectedGenre(e.target.value)}
-            className="bg-[#1D2229] border border-gray-700 text-white text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 p-2.5"
-          >
-            <option value="all">All Genres</option>
-            {genres.map((genre) => (
-              <option key={genre} value={genre}>
-                {genre.charAt(0).toUpperCase() + genre.slice(1)}
-              </option>
-            ))}
-          </select>
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Export CSV
+          </button>
           
           {/* Create New button */}
           <a 
@@ -291,19 +443,42 @@ export default function ReleasesTable({
         </div>
       </div>
       
+      {/* Selected releases count bubble */}
+      {selectedReleases.length > 0 && (
+        <div className="mb-3 bg-purple-600/20 border border-purple-600/30 rounded-md py-1.5 px-3 text-sm text-purple-300 inline-flex items-center">
+          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+          {selectedReleases.length} {selectedReleases.length === 1 ? 'release' : 'releases'} selected
+        </div>
+      )}
+      
       {/* Table */}
-      <div className="overflow-x-auto overflow-y-hidden rounded-lg">
+      <div className="overflow-x-auto overflow-y-hidden rounded-lg flex-grow">
         <table className="min-w-full divide-y divide-gray-700">
           <thead className="bg-[#1A1E24]">
             <tr>
-              <th className="sticky left-0 z-10 bg-[#1A1E24] w-12 px-4 py-3">
-                <div className="flex items-center">
+              {/* Select column with radio buttons */}
+              <th className="sticky left-0 z-10 bg-[#1A1E24] w-10 px-2 py-3">
+                <div className="flex items-center justify-center">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      className="h-4 w-4 rounded bg-gray-800 border-gray-600 text-purple-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </th>
+              
+              <th className="sticky left-10 z-10 bg-[#1A1E24] w-16 px-2 py-3">
+                <div className="flex items-center justify-center">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Art</span>
                 </div>
               </th>
               <TableHeader label="Track Title" />
               <TableHeader label="Track Artist" />
-              <TableHeader label="Duration" />
               <TableHeader label="ISRC" />
               <TableHeader label="Version" />
               <TableHeader label="Content Rating" />
@@ -316,20 +491,20 @@ export default function ReleasesTable({
           <tbody className="bg-[#161A1F] divide-y divide-gray-700">
             {!Array.isArray(releases) || releases.length === 0 ? (
               <tr className="bg-[#161A1F] border-b border-gray-700">
-                <td colSpan={10} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
                   No releases found. Create your first release!
                 </td>
               </tr>
             ) : !Array.isArray(filteredReleases) || filteredReleases.length === 0 ? (
               <tr className="bg-[#161A1F] border-b border-gray-700">
-                <td colSpan={10} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
                   {searchTerm || selectedFormat !== "all" || selectedGenre !== "all"
                     ? "No releases match your search criteria."
                     : "No releases found. Create your first release!"}
                 </td>
               </tr>
             ) : (
-              filteredReleases.map((release) => {
+              currentReleases.map((release) => {
                 const track = Array.isArray(release.tracks) && release.tracks.length > 0 ? release.tracks[0] : null;
                 return (
                   <tr
@@ -337,9 +512,25 @@ export default function ReleasesTable({
                     className="hover:bg-[#1A1E24] transition-colors cursor-pointer"
                     onClick={(e) => handleRowClick(release._id, e)}
                   >
-                    <td className="sticky left-0 z-10 bg-[#161A1F] hover:bg-[#1A1E24] px-4 py-3 whitespace-nowrap">
+                    {/* Radio button cell */}
+                    <td className="sticky left-0 z-10 bg-[#161A1F] hover:bg-[#1A1E24] px-2 py-3 whitespace-nowrap">
                       <div className="flex items-center justify-center">
-                        <div className="h-8 w-8 rounded-md overflow-hidden bg-gray-800 flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedReleases.includes(release._id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleSelectRelease(release._id);
+                          }}
+                          className="h-4 w-4 rounded bg-gray-800 border-gray-600 text-purple-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                        />
+                      </div>
+                    </td>
+                    
+                    {/* Cover art - increased size */}
+                    <td className="sticky left-10 z-10 bg-[#161A1F] hover:bg-[#1A1E24] px-2 py-3 whitespace-nowrap">
+                      <div className="flex items-center justify-center">
+                        <div className="h-12 w-12 rounded-md overflow-hidden bg-gray-800 flex items-center justify-center">
                           {release.coverArt ? (
                             <img
                               src={release.coverArt}
@@ -351,7 +542,7 @@ export default function ReleasesTable({
                                 const parent = target.parentElement;
                                 if (parent) {
                                   parent.innerHTML = `<svg 
-                                    class="w-5 h-5 text-gray-500" 
+                                    class="w-6 h-6 text-gray-500" 
                                     fill="none" 
                                     stroke="currentColor" 
                                     viewBox="0 0 24 24" 
@@ -368,7 +559,7 @@ export default function ReleasesTable({
                             />
                           ) : (
                             <svg 
-                              className="w-5 h-5 text-gray-500" 
+                              className="w-6 h-6 text-gray-500" 
                               fill="none" 
                               stroke="currentColor" 
                               viewBox="0 0 24 24" 
@@ -385,9 +576,16 @@ export default function ReleasesTable({
                         </div>
                       </div>
                     </td>
+                    
                     <td className="px-4 py-3 whitespace-nowrap">{track?.title || '-'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{track?.artistName || '-'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{track?.duration || '-'}</td>
+                    
+                    {/* Artist name with truncation */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="max-w-[150px] truncate" title={track?.artistName || '-'}>
+                        {track?.artistName || '-'}
+                      </div>
+                    </td>
+                    
                     <td className="px-4 py-3 whitespace-nowrap">{track?.isrc || '-'}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{track?.version || '-'}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{track?.contentRating || '-'}</td>
@@ -443,6 +641,61 @@ export default function ReleasesTable({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination UI */}
+      {filteredReleases.length > 0 && (
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between">
+          <div className="text-gray-400 text-sm mb-4 sm:mb-0">
+            Showing {indexOfFirstRow + 1}-{Math.min(indexOfLastRow, filteredReleases.length)} of {filteredReleases.length} releases
+          </div>
+          <div className="flex items-center space-x-2">
+            {/* Previous page button */}
+            <button
+              onClick={goToPrevPage}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded-md ${
+                currentPage === 1
+                  ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                  : 'bg-[#1D2229] text-gray-300 hover:bg-[#252A32]'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            {/* Page numbers */}
+            {getPageNumbers().map(pageNumber => (
+              <button
+                key={pageNumber}
+                onClick={() => goToPage(pageNumber)}
+                className={`w-8 h-8 flex items-center justify-center rounded-md ${
+                  currentPage === pageNumber
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-[#1D2229] text-gray-300 hover:bg-[#252A32]'
+                }`}
+              >
+                {pageNumber}
+              </button>
+            ))}
+            
+            {/* Next page button */}
+            <button
+              onClick={goToNextPage}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1 rounded-md ${
+                currentPage === totalPages
+                  ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                  : 'bg-[#1D2229] text-gray-300 hover:bg-[#252A32]'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

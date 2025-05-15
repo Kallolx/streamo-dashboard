@@ -3,6 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import api from '@/services/api';
+
+// Email validation function
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
 export default function ForgetPasswordPage() {
   const router = useRouter();
@@ -11,35 +18,86 @@ export default function ForgetPasswordPage() {
   // Form States
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", ""]);
+  const [otpToken, setOtpToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const handleNextStep = (e: React.FormEvent) => {
+  const handleNextStep = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     
     if (formStep === 1) {
-      // In a real app, you would validate the email/phone and send OTP
-      if (!emailOrPhone) {
-        setError("Please enter your email or phone number");
+      // Validate the email and send reset request
+      if (!emailOrPhone || !validateEmail(emailOrPhone)) {
+        setError("Please enter a valid email address");
         return;
       }
-      setFormStep(2);
+      
+      setIsLoading(true);
+      
+      try {
+        // Call the forgot password API
+        const response = await api.post('/auth/forgot-password', {
+          email: emailOrPhone
+        });
+        
+        setIsLoading(false);
+        
+        if (response.data.success) {
+          setSuccessMessage("Verification code sent successfully.");
+          setFormStep(2);
+        } else {
+          setError(response.data.message || 'Failed to send password reset request');
+        }
+      } catch (error: any) {
+        setIsLoading(false);
+        setError(error.response?.data?.message || "Failed to send reset request. Please try again.");
+      }
     } else if (formStep === 2) {
-      // In a real app, you would validate the OTP
+      // Validate OTP
       if (otp.some(digit => !digit)) {
-        setError("Please enter the complete OTP");
+        setError("Please enter the complete verification code");
         return;
       }
-      setFormStep(3);
+      
+      // Verify OTP before proceeding to the password reset step
+      setIsLoading(true);
+      
+      try {
+        // Get the OTP as a string
+        const otpValue = otp.join('');
+        
+        // Call API to verify OTP before proceeding
+        const response = await api.post('/auth/verify-otp', {
+          email: emailOrPhone,
+          otp: otpValue
+        });
+        
+        setIsLoading(false);
+        
+        if (response.data.success) {
+          // Store the verified OTP
+          setOtpToken(otpValue);
+          // Move to password reset step
+          setFormStep(3);
+        } else {
+          setError(response.data.message || 'Invalid verification code');
+        }
+      } catch (error: any) {
+        setIsLoading(false);
+        setError(error.response?.data?.message || "Failed to verify code. Please check and try again.");
+      }
     }
   };
 
   const handlePrevStep = () => {
     setError("");
+    setSuccessMessage("");
     if (formStep > 1) {
       setFormStep(formStep - 1);
     }
@@ -75,6 +133,7 @@ export default function ForgetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match");
@@ -83,12 +142,64 @@ export default function ForgetPasswordPage() {
     
     setIsLoading(true);
     
-    // In a real app, you would send the new password to the server
-    // For now, we'll just simulate a successful password reset
-    setTimeout(() => {
+    try {
+      // Get the OTP as a string
+      const otpValue = otp.join('');
+      
+      // Call the verify-otp-reset-password API
+      const response = await api.post('/auth/verify-otp-reset-password', {
+        email: emailOrPhone,
+        otp: otpValue,
+        password: newPassword
+      });
+      
       setIsLoading(false);
-      router.push("/auth/login");
-    }, 1000);
+      
+      if (response.data.success) {
+        setSuccessMessage("Your password has been reset successfully!");
+        // Redirect to login page after short delay
+        setTimeout(() => {
+          router.push("/auth/login");
+        }, 2000);
+      } else {
+        setError(response.data.message || 'Failed to reset password');
+      }
+    } catch (error: any) {
+      setIsLoading(false);
+      setError(error.response?.data?.message || "Failed to reset password. Please try again.");
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setError("");
+    setSuccessMessage("");
+    
+    if (!emailOrPhone || !validateEmail(emailOrPhone)) {
+      setError("Invalid email address");
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Call the forgot password API again to resend OTP
+      const response = await api.post('/auth/forgot-password', {
+        email: emailOrPhone
+      });
+      
+      setIsLoading(false);
+      
+      if (response.data.success) {
+        setSuccessMessage("A new verification code has been sent to your email address.");
+        // Reset OTP input fields
+        setOtp(["", "", "", ""]);
+      } else {
+        setError(response.data.message || 'Failed to resend verification code');
+      }
+    } catch (error: any) {
+      setIsLoading(false);
+      setError(error.response?.data?.message || "Failed to resend verification code. Please try again.");
+    }
   };
 
   return (
@@ -155,8 +266,14 @@ export default function ForgetPasswordPage() {
           {/* Scrollable form container */}
           <div className="flex-1 overflow-y-auto pr-4 h-[430px] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800">
             {error && (
-              <div className="bg-red-500 bg-opacity-10 border border-red-500 text-red-500 px-4 py-3 rounded mb-6">
+              <div className="text-red-500 px-4 py-3 mb-6">
                 {error}
+              </div>
+            )}
+            
+            {successMessage && (
+              <div className="text-green-500 px-4 py-3 mb-6">
+                {successMessage}
               </div>
             )}
             
@@ -199,8 +316,17 @@ export default function ForgetPasswordPage() {
                   <button
                     type="submit"
                     className="inline-flex items-center justify-center h-[56px] px-10 rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-purple-500 transition-colors"
+                    disabled={isLoading}
                   >
-                    Next
+                    {isLoading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </div>
+                    ) : "Next"}
                   </button>
                 </div>
               </form>
@@ -209,8 +335,12 @@ export default function ForgetPasswordPage() {
               <form onSubmit={handleNextStep} className="space-y-6 max-w-md">
                 <h3 className="text-xl font-medium text-white mb-4">Enter Verification Code</h3>
                 
-                <p className="text-gray-400 text-sm mb-6">
+                <p className="text-gray-400 text-sm mb-2">
                   We've sent a 4-digit verification code to {emailOrPhone}. Please enter the code below.
+                </p>
+                
+                <p className="text-yellow-500 text-xs mb-6">
+                  Not seeing it? Be sure to check your spam or junk folder.
                 </p>
                 
                 <div>
@@ -232,7 +362,14 @@ export default function ForgetPasswordPage() {
                 </div>
                 
                 <p className="text-gray-400 text-sm text-center mt-4">
-                  Didn't receive a code? <button type="button" className="text-purple-500 hover:text-purple-400">Resend</button>
+                  Didn't receive a code? <button 
+                    type="button" 
+                    className="text-purple-500 hover:text-purple-400"
+                    onClick={handleResendOTP}
+                    disabled={isLoading}
+                  >
+                    Resend
+                  </button>
                 </p>
                 
                 <div className="flex space-x-4 mt-8">
@@ -246,8 +383,17 @@ export default function ForgetPasswordPage() {
                   <button
                     type="submit"
                     className="w-1/2 flex justify-center h-[56px] items-center rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-purple-500 transition-colors"
+                    disabled={isLoading}
                   >
-                    Next
+                    {isLoading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Verifying...
+                      </div>
+                    ) : "Next"}
                   </button>
                 </div>
               </form>
