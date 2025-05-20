@@ -28,6 +28,18 @@ export interface Track {
   singer?: string;
   musicDirector?: string;
   copyrightHeader?: string;
+  // New metadata fields
+  publisherName?: string;
+  publisherIPI?: string;
+  lineProducer?: string;
+  lineYear?: string;
+  producer?: string;
+  productionCompany?: string;
+  previouslyReleased?: boolean;
+  madeForKids?: boolean;
+  contentIdYoutube?: boolean;
+  visibilityYoutube?: boolean;
+  exclusiveRights?: boolean;
   stores?: string[];
   pricing?: string;
   status?: string;

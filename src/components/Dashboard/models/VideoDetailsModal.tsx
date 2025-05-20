@@ -16,7 +16,7 @@ interface Video {
   imageSrc?: string;
   genre: string;
   contentRating: string;
-  duration?: string;
+
   releaseDate: string;
   status: string;
   stores?: string[];
@@ -47,6 +47,18 @@ interface Video {
   coverArt?: string;
   videoFile?: string;
   originalData?: Video;
+  // New metadata fields
+  publisherName?: string;
+  publisherIPI?: string;
+  lineProducer?: string;
+  lineYear?: string;
+  producer?: string;
+  productionCompany?: string;
+  previouslyReleased?: boolean;
+  madeForKids?: boolean;
+  contentIdYoutube?: boolean;
+  visibilityYoutube?: boolean;
+  exclusiveRights?: boolean;
 }
 
 // Props interface for the modal
@@ -92,6 +104,13 @@ export default function VideoDetailsModal({
       // Create a clean copy of initialVideo with properly formatted URLs
       const processedVideo = { ...initialVideo };
       
+      // Process boolean fields to ensure they're proper booleans
+      processedVideo.previouslyReleased = processedVideo.previouslyReleased === true;
+      processedVideo.madeForKids = processedVideo.madeForKids === true;
+      processedVideo.contentIdYoutube = processedVideo.contentIdYoutube === true;
+      processedVideo.visibilityYoutube = processedVideo.visibilityYoutube === true;
+      processedVideo.exclusiveRights = processedVideo.exclusiveRights === true;
+      
       // For coverArt - Check if it's already an S3 URL
       if (processedVideo.coverArt && processedVideo.coverArt.includes('amazonaws.com')) {
         // If it's already an S3 URL but has localhost prefix, extract just the S3 part
@@ -134,6 +153,13 @@ export default function VideoDetailsModal({
             // Process response data to ensure clean URLs
             const apiVideo = { ...response.data };
             
+            // Process boolean fields to ensure they're proper booleans
+            apiVideo.previouslyReleased = apiVideo.previouslyReleased === true;
+            apiVideo.madeForKids = apiVideo.madeForKids === true;
+            apiVideo.contentIdYoutube = apiVideo.contentIdYoutube === true;
+            apiVideo.visibilityYoutube = apiVideo.visibilityYoutube === true;
+            apiVideo.exclusiveRights = apiVideo.exclusiveRights === true;
+            
             // Clean coverArt URL if present
             if (apiVideo.coverArt && apiVideo.coverArt.includes('amazonaws.com')) {
               if (apiVideo.coverArt.includes('localhost') && apiVideo.coverArt.includes('https://')) {
@@ -158,6 +184,23 @@ export default function VideoDetailsModal({
             
             // Update video state with properly formatted data
             setVideo(apiVideo);
+            
+            // Ensure boolean fields are properly set
+            if (apiVideo.previouslyReleased !== undefined) {
+              console.log('Previous Release value:', apiVideo.previouslyReleased);
+            }
+            if (apiVideo.madeForKids !== undefined) {
+              console.log('Made for Kids value:', apiVideo.madeForKids);
+            }
+            if (apiVideo.contentIdYoutube !== undefined) {
+              console.log('Content ID YouTube value:', apiVideo.contentIdYoutube);
+            }
+            if (apiVideo.visibilityYoutube !== undefined) {
+              console.log('Visibility YouTube value:', apiVideo.visibilityYoutube);
+            }
+            if (apiVideo.exclusiveRights !== undefined) {
+              console.log('Exclusive Rights value:', apiVideo.exclusiveRights);
+            }
             
             // Log the available URLs for debugging
             if (apiVideo.videoFile) {
@@ -579,15 +622,7 @@ export default function VideoDetailsModal({
                         {formatDate(video.releaseDate)}
                       </p>
                     </div>
-                    
-                    {/* Duration */}
-                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                      <h3 className="text-gray-400 text-xs sm:text-sm">Duration</h3>
-                      <p className="text-white text-sm sm:text-base font-medium truncate">
-                        {video.duration}
-                      </p>
-                    </div>
-                    
+                                        
                     {/* Content Rating */}
                     <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                       <h3 className="text-gray-400 text-xs sm:text-sm">Content Rating</h3>
@@ -612,6 +647,241 @@ export default function VideoDetailsModal({
                         <h3 className="text-gray-400 text-xs sm:text-sm">Created</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
                           {formatDate(video.createdAt)}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Release Type */}
+                    {video.releaseType && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Release Type</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.releaseType}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Language */}
+                    {video.language && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Language</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.language}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Format */}
+                    {video.format && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Format</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.format}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Recording Year */}
+                    {video.recordingYear && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Recording Year</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.recordingYear}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Contributors Section Header */}
+                    <div className="col-span-1 md:col-span-2 mt-4 mb-2">
+                      <h3 className="text-white text-md font-medium">Contributors</h3>
+                    </div>
+                    
+                    {/* Composer */}
+                    {video.composer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Composer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.composer}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Lyricist */}
+                    {video.lyricist && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Lyricist</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.lyricist}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Music Producer */}
+                    {video.musicProducer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Music Producer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.musicProducer}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Publisher */}
+                    {video.publisher && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Publisher</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.publisher}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Singer */}
+                    {video.singer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Singer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.singer}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Music Director */}
+                    {video.musicDirector && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Music Director</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.musicDirector}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Copyright Header */}
+                    {video.copyrightHeader && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Copyright Header</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.copyrightHeader}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Additional Metadata Section Header */}
+                    <div className="col-span-1 md:col-span-2 mt-4 mb-2">
+                      <h3 className="text-white text-md font-medium">Additional Metadata</h3>
+                    </div>
+
+                    {/* Publisher Name */}
+                    {video.publisherName && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Publisher Name</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.publisherName}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Publisher IPI/CAE */}
+                    {video.publisherIPI && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Publisher IPI/CAE</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.publisherIPI}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Producer */}
+                    {video.producer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Producer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.producer}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Line Producer */}
+                    {video.lineProducer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Line Producer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.lineProducer}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Line Year */}
+                    {video.lineYear && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Line Year</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.lineYear}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Production Company */}
+                    {video.productionCompany && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Production Company</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.productionCompany}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Rights and Settings Section Header */}
+                    <div className="col-span-1 md:col-span-2 mt-4 mb-2">
+                      <h3 className="text-white text-md font-medium">Rights and Settings</h3>
+                    </div>
+                    
+                    {/* Previously Released */}
+                    {video.previouslyReleased !== undefined && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Previously Released</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.previouslyReleased ? "Yes" : "No"}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Made for Kids */}
+                    {video.madeForKids !== undefined && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Made for Kids</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.madeForKids ? "Yes" : "No"}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Content ID on YouTube */}
+                    {video.contentIdYoutube !== undefined && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Content ID on YouTube</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.contentIdYoutube ? "Yes" : "No"}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Visibility on YouTube */}
+                    {video.visibilityYoutube !== undefined && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Visibility on YouTube</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.visibilityYoutube ? "Yes" : "No"}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Exclusive Rights */}
+                    {video.exclusiveRights !== undefined && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Exclusive Rights</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.exclusiveRights ? "Yes" : "No"}
                         </p>
                       </div>
                     )}

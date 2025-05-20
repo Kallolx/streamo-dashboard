@@ -215,6 +215,19 @@ export default function TrackCreate() {
   const [publisher, setPublisher] = useState('');
   const [musicDirector, setMusicDirector] = useState('');
   
+  // New metadata fields state
+  const [publisherName, setPublisherName] = useState('');
+  const [publisherIPI, setPublisherIPI] = useState('');
+  const [lineProducer, setLineProducer] = useState('');
+  const [lineYear, setLineYear] = useState('');
+  const [producer, setProducer] = useState('');
+  const [productionCompany, setProductionCompany] = useState('');
+  const [previouslyReleased, setPreviouslyReleased] = useState(false);
+  const [madeForKids, setMadeForKids] = useState(false);
+  const [contentIdYoutube, setContentIdYoutube] = useState(false);
+  const [visibilityYoutube, setVisibilityYoutube] = useState(false);
+  const [exclusiveRights, setExclusiveRights] = useState(false);
+  
   // Pricing state
   const [pricing, setPricing] = useState('');
   
@@ -386,15 +399,13 @@ export default function TrackCreate() {
       
       // Validate all required fields
       requiredFields.forEach(field => {
-        // Skip releaseType validation as it has a default value
-        if (field === 'releaseType') return;
-        
         const value = eval(field) as string;
         if (!value || value.trim() === '') {
           errors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
           missingFields.push({
             id: field === 'title' ? 'releaseTitle' : 
                 field === 'artist' ? 'artist' :
+                field === 'releaseType' ? 'releaseType' :
                 field === 'genre' ? 'selectGenre' :
                 field === 'language' ? 'selectLanguage' :
                 field === 'releaseDate' ? 'releaseDate' :
@@ -489,7 +500,7 @@ export default function TrackCreate() {
       }
       
       // Add other essential fields with defaults
-      formData.append('releaseType', 'single'); // Always use 'single' as the releaseType
+      formData.append('releaseType', releaseType || 'Premium Music Video');
       formData.append('format', format || 'digital');
       
       // Only append non-empty fields to reduce request size
@@ -514,6 +525,21 @@ export default function TrackCreate() {
       if (lyricist) formData.append('lyricist', lyricist);
       if (publisher) formData.append('publisher', publisher);
       if (musicDirector) formData.append('musicDirector', musicDirector);
+      
+      // Add new metadata fields
+      if (publisherName) formData.append('publisherName', publisherName);
+      if (publisherIPI) formData.append('publisherIPI', publisherIPI);
+      if (lineProducer) formData.append('lineProducer', lineProducer);
+      if (lineYear) formData.append('lineYear', lineYear);
+      if (producer) formData.append('producer', producer);
+      if (productionCompany) formData.append('productionCompany', productionCompany);
+      
+      // Add boolean fields
+      formData.append('previouslyReleased', previouslyReleased.toString());
+      formData.append('madeForKids', madeForKids.toString());
+      formData.append('contentIdYoutube', contentIdYoutube.toString());
+      formData.append('visibilityYoutube', visibilityYoutube.toString());
+      formData.append('exclusiveRights', exclusiveRights.toString());
       
       // Add pricing if set
       if (pricing) formData.append('pricing', pricing);
@@ -578,6 +604,19 @@ export default function TrackCreate() {
       setPublisher('');
       setMusicDirector('');
       setPricing('');
+      
+      // Reset new metadata fields
+      setPublisherName('');
+      setPublisherIPI('');
+      setLineProducer('');
+      setLineYear('');
+      setProducer('');
+      setProductionCompany('');
+      setPreviouslyReleased(false);
+      setMadeForKids(false);
+      setContentIdYoutube(false);
+      setVisibilityYoutube(false);
+      setExclusiveRights(false);
       
       // Reset all form input elements
       const formElements = document.querySelectorAll('input:not([type="file"]), select, textarea');
@@ -976,15 +1015,22 @@ export default function TrackCreate() {
           {/* Right side */}
           <div className="space-y-3 md:space-y-4 mt-3 md:mt-0">
             <div>
-              <input
-                type="text"
+              <select
                 id="releaseType"
-                className={`w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-not-allowed opacity-75`}
-                placeholder="Video"
-                value="Video"
-                readOnly
-                disabled
-              />
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                value={releaseType}
+                onChange={(e) => setReleaseType(e.target.value)}
+              >
+                <option value="">Select Video Type *</option>
+                <option value="Premium Music Video">Premium Music Video</option>
+                <option value="Lyrics Video">Lyrics Video</option>
+                <option value="Live/Concert">Live/Concert</option>
+                <option value="Karaoke">Karaoke</option>
+                <option value="Other Music Content">Other Music Content</option>
+              </select>
+              {formErrors.releaseType && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.releaseType}</p>
+              )}
             </div>
             
             <div>
@@ -1062,6 +1108,151 @@ export default function TrackCreate() {
                 value={lyrics}
                 onChange={(e) => setLyrics(e.target.value)}
               ></textarea>
+            </div>
+          </div>
+        </div>
+      
+        {/* Additional Metadata Section */}
+        <h3 className="text-base md:text-lg font-medium mb-2 md:mb-4 mt-6">Additional Metadata</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
+          {/* Left side - Additional metadata */}
+          <div className="space-y-3 md:space-y-4">
+            <div>
+              <input
+                type="text"
+                id="publisherName"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Publisher Name"
+                value={publisherName}
+                onChange={(e) => setPublisherName(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <input
+                type="text"
+                id="publisherIPI"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Publisher IPI/CAE"
+                value={publisherIPI}
+                onChange={(e) => setPublisherIPI(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <input
+                type="text"
+                id="lineProducer"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Producer/Cover producer"
+                value={lineProducer}
+                onChange={(e) => setLineProducer(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <input
+                type="text"
+                id="lineYear"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Line Year (optional)"
+                value={lineYear}
+                onChange={(e) => setLineYear(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <input
+                type="text"
+                id="producer"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Producer"
+                value={producer}
+                onChange={(e) => setProducer(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          {/* Right side - More additional metadata and yes/no questions*/}
+          <div className="space-y-3 md:space-y-4 mt-3 md:mt-0">
+            <div>
+              <input
+                type="text"
+                id="productionCompany"
+                className="w-full bg-[#1D2229] border border-gray-700 rounded-md px-3 py-2 text-sm md:text-base text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Production Company (optional)"
+                value={productionCompany}
+                onChange={(e) => setProductionCompany(e.target.value)}
+              />
+            </div>
+            
+            {/* Yes/No Questions */}
+            <div className="mt-2 space-y-3">
+              <div className="flex items-center">
+                <input
+                  id="previouslyReleased"
+                  type="checkbox"
+                  className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                  checked={previouslyReleased}
+                  onChange={(e) => setPreviouslyReleased(e.target.checked)}
+                />
+                <label htmlFor="previouslyReleased" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
+                  Is this video previously released?
+                </label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  id="madeForKids"
+                  type="checkbox"
+                  className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                  checked={madeForKids}
+                  onChange={(e) => setMadeForKids(e.target.checked)}
+                />
+                <label htmlFor="madeForKids" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
+                  This video made for kids?
+                </label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  id="contentIdYoutube"
+                  type="checkbox"
+                  className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                  checked={contentIdYoutube}
+                  onChange={(e) => setContentIdYoutube(e.target.checked)}
+                />
+                <label htmlFor="contentIdYoutube" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
+                  Content ID on Youtube?
+                </label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  id="visibilityYoutube"
+                  type="checkbox"
+                  className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                  checked={visibilityYoutube}
+                  onChange={(e) => setVisibilityYoutube(e.target.checked)}
+                />
+                <label htmlFor="visibilityYoutube" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
+                  Visibility on Youtube?
+                </label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  id="exclusiveRights"
+                  type="checkbox"
+                  className="h-4 w-4 bg-[#1D2229] border-gray-600 rounded text-purple-600 focus:ring-0 focus:ring-offset-0"
+                  checked={exclusiveRights}
+                  onChange={(e) => setExclusiveRights(e.target.checked)}
+                />
+                <label htmlFor="exclusiveRights" className="ml-2 md:ml-3 text-xs md:text-sm text-gray-300">
+                  Do you exclusively own and/or control the rights to this sound recording?
+                </label>
+              </div>
             </div>
           </div>
         </div>
