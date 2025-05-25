@@ -474,8 +474,10 @@ export default function DistributionPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-white">
                           {item.userName}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-white">
-                          {item.title}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="max-w-[200px] truncate text-white">
+                            {item.title}
+                          </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-white">
                           {item.artist}

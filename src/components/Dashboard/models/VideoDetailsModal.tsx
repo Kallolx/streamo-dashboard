@@ -555,10 +555,18 @@ export default function VideoDetailsModal({
           <div className="px-4 sm:px-5 pb-5 flex-1 overflow-y-auto">
             {currentTab === "details" ? (
               <div className="flex flex-col">
-                {/* All Metadata Section */}
-                <div className="mb-4">
-                  <h3 className="text-white text-md font-medium mb-4">Video Metadata</h3>
+                {/* Metadata Section */}
+                <div className="mb-6">
+                  <h3 className="text-white text-md font-medium mb-4">Metadata</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Title */}
+                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                      <h3 className="text-gray-400 text-xs sm:text-sm">Title</h3>
+                      <p className="text-white text-sm sm:text-base font-medium truncate">
+                        {video.title || "Untitled"}
+                      </p>
+                    </div>
+
                     {/* Artist */}
                     <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                       <h3 className="text-gray-400 text-xs sm:text-sm">Artist</h3>
@@ -595,6 +603,72 @@ export default function VideoDetailsModal({
                       </div>
                     )}
 
+                    {/* Release Date */}
+                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                      <h3 className="text-gray-400 text-xs sm:text-sm">Release Date</h3>
+                      <p className="text-white text-sm sm:text-base font-medium truncate">
+                        {formatDate(video.releaseDate)}
+                      </p>
+                    </div>
+
+                    {/* Content Rating */}
+                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                      <h3 className="text-gray-400 text-xs sm:text-sm">Content Rating</h3>
+                      <p className="text-white text-sm sm:text-base font-medium truncate">
+                        {video.contentRating || "Not specified"}
+                      </p>
+                    </div>
+
+                    {/* Label */}
+                    {video.label && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Label</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.label}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Release Type */}
+                    {video.releaseType && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Release Type</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.releaseType}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Format */}
+                    {video.format && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Format</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.format}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Language */}
+                    {video.language && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Language</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.language}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Recording Year */}
+                    {video.recordingYear && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Recording Year</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.recordingYear}
+                        </p>
+                      </div>
+                    )}
+
                     {/* ISRC */}
                     {video.isrc && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -614,118 +688,13 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
+                  </div>
+                </div>
 
-                    {/* Release Date */}
-                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                      <h3 className="text-gray-400 text-xs sm:text-sm">Release Date</h3>
-                      <p className="text-white text-sm sm:text-base font-medium truncate">
-                        {formatDate(video.releaseDate)}
-                      </p>
-                    </div>
-                                        
-                    {/* Content Rating */}
-                    <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                      <h3 className="text-gray-400 text-xs sm:text-sm">Content Rating</h3>
-                      <p className="text-white text-sm sm:text-base font-medium truncate">
-                        {video.contentRating}
-                      </p>
-                    </div>
-                    
-                    {/* Label */}
-                    {video.label && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Label</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.label}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Created Date */}
-                    {video.createdAt && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Created</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {formatDate(video.createdAt)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Release Type */}
-                    {video.releaseType && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Release Type</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.releaseType}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Language */}
-                    {video.language && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Language</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.language}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Format */}
-                    {video.format && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Format</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.format}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Recording Year */}
-                    {video.recordingYear && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Recording Year</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.recordingYear}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Contributors Section Header */}
-                    <div className="col-span-1 md:col-span-2 mt-4 mb-2">
-                      <h3 className="text-white text-md font-medium">Contributors</h3>
-                    </div>
-                    
-                    {/* Composer */}
-                    {video.composer && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Composer</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.composer}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Lyricist */}
-                    {video.lyricist && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Lyricist</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.lyricist}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Music Producer */}
-                    {video.musicProducer && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Music Producer</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.musicProducer}
-                        </p>
-                      </div>
-                    )}
-                    
+                {/* Additional Metadata Section */}
+                <div className="mb-6">
+                  <h3 className="text-white text-md font-medium mb-4">Additional Metadata</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {/* Publisher */}
                     {video.publisher && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -735,41 +704,6 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-                    
-                    {/* Singer */}
-                    {video.singer && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Singer</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.singer}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Music Director */}
-                    {video.musicDirector && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Music Director</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.musicDirector}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Copyright Header */}
-                    {video.copyrightHeader && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Copyright Header</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.copyrightHeader}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Additional Metadata Section Header */}
-                    <div className="col-span-1 md:col-span-2 mt-4 mb-2">
-                      <h3 className="text-white text-md font-medium">Additional Metadata</h3>
-                    </div>
 
                     {/* Publisher Name */}
                     {video.publisherName && (
@@ -790,37 +724,17 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-                    
-                    {/* Producer */}
-                    {video.producer && (
+
+                    {/* Copyright Header */}
+                    {video.copyrightHeader && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Producer</h3>
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Copyright Header</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.producer}
+                          {video.copyrightHeader}
                         </p>
                       </div>
                     )}
-                    
-                    {/* Line Producer */}
-                    {video.lineProducer && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Line Producer</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.lineProducer}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Line Year */}
-                    {video.lineYear && (
-                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
-                        <h3 className="text-gray-400 text-xs sm:text-sm">Line Year</h3>
-                        <p className="text-white text-sm sm:text-base font-medium truncate">
-                          {video.lineYear}
-                        </p>
-                      </div>
-                    )}
-                    
+
                     {/* Production Company */}
                     {video.productionCompany && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -830,12 +744,17 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-                    
-                    {/* Rights and Settings Section Header */}
-                    <div className="col-span-1 md:col-span-2 mt-4 mb-2">
-                      <h3 className="text-white text-md font-medium">Rights and Settings</h3>
-                    </div>
-                    
+
+                    {/* Line Year */}
+                    {video.lineYear && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Line Year</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.lineYear}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Previously Released */}
                     {video.previouslyReleased !== undefined && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -845,7 +764,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-                    
+
                     {/* Made for Kids */}
                     {video.madeForKids !== undefined && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -855,7 +774,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-                    
+
                     {/* Content ID on YouTube */}
                     {video.contentIdYoutube !== undefined && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -865,7 +784,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-                    
+
                     {/* Visibility on YouTube */}
                     {video.visibilityYoutube !== undefined && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -875,13 +794,109 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-                    
+
                     {/* Exclusive Rights */}
                     {video.exclusiveRights !== undefined && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                         <h3 className="text-gray-400 text-xs sm:text-sm">Exclusive Rights</h3>
                         <p className="text-white text-sm sm:text-base font-medium truncate">
                           {video.exclusiveRights ? "Yes" : "No"}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Created Date */}
+                    {video.createdAt && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Created Date</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {formatDate(video.createdAt)}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Updated Date */}
+                    {video.updatedAt && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Last Updated</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {formatDate(video.updatedAt)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contributors Section */}
+                <div className="mb-6">
+                  <h3 className="text-white text-md font-medium mb-4">Contributors</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Singer */}
+                    {video.singer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Singer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.singer}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Composer */}
+                    {video.composer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Composer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.composer}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Lyricist */}
+                    {video.lyricist && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Lyricist</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.lyricist}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Music Producer */}
+                    {video.musicProducer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Music Producer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.musicProducer}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Music Director */}
+                    {video.musicDirector && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Music Director</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.musicDirector}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Producer */}
+                    {video.producer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Producer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.producer}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Line Producer */}
+                    {video.lineProducer && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Line Producer</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.lineProducer}
                         </p>
                       </div>
                     )}

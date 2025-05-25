@@ -226,12 +226,9 @@ export default function VideosTable({ onTrackSelect, tracks = [] }: TracksTableP
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <Link 
-                    href={`/dashboard/catalogue/tracks/${track._id || ''}`} 
-                    className="text-white hover:text-purple-400"
-                  >
+                  <div className="max-w-[200px] truncate text-white">
                     {track.title}
-                  </Link>
+                  </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">{track.artist}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{track.type || 'Single'}</td>
