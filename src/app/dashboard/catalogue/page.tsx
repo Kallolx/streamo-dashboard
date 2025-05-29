@@ -223,7 +223,7 @@ export default function CataloguePage() {
     if (apiVideo) {
       // Map API video data to the format expected by the VideoDetailsModal
       setSelectedVideo({
-        _id: apiVideo._id,
+        ...apiVideo,
         title: apiVideo.title || "Untitled Video",
         imageSrc: apiVideo.coverArt || "/images/music/1.png",
         coverArt: apiVideo.coverArt,

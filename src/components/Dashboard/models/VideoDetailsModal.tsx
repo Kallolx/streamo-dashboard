@@ -59,6 +59,9 @@ interface Video {
   contentIdYoutube?: boolean;
   visibilityYoutube?: boolean;
   exclusiveRights?: boolean;
+  tags?: string[];
+  publisherNames?: string[];
+  description?: string;
 }
 
 // Props interface for the modal
@@ -105,11 +108,11 @@ export default function VideoDetailsModal({
       const processedVideo = { ...initialVideo };
       
       // Process boolean fields to ensure they're proper booleans
-      processedVideo.previouslyReleased = processedVideo.previouslyReleased === true;
-      processedVideo.madeForKids = processedVideo.madeForKids === true;
-      processedVideo.contentIdYoutube = processedVideo.contentIdYoutube === true;
-      processedVideo.visibilityYoutube = processedVideo.visibilityYoutube === true;
-      processedVideo.exclusiveRights = processedVideo.exclusiveRights === true;
+      processedVideo.previouslyReleased = String(processedVideo.previouslyReleased) === "true";
+      processedVideo.madeForKids = String(processedVideo.madeForKids) === "true";
+      processedVideo.contentIdYoutube = String(processedVideo.contentIdYoutube) === "true";
+      processedVideo.visibilityYoutube = String(processedVideo.visibilityYoutube) === "true";
+      processedVideo.exclusiveRights = String(processedVideo.exclusiveRights) === "true";
       
       // For coverArt - Check if it's already an S3 URL
       if (processedVideo.coverArt && processedVideo.coverArt.includes('amazonaws.com')) {
@@ -154,11 +157,11 @@ export default function VideoDetailsModal({
             const apiVideo = { ...response.data };
             
             // Process boolean fields to ensure they're proper booleans
-            apiVideo.previouslyReleased = apiVideo.previouslyReleased === true;
-            apiVideo.madeForKids = apiVideo.madeForKids === true;
-            apiVideo.contentIdYoutube = apiVideo.contentIdYoutube === true;
-            apiVideo.visibilityYoutube = apiVideo.visibilityYoutube === true;
-            apiVideo.exclusiveRights = apiVideo.exclusiveRights === true;
+            apiVideo.previouslyReleased = String(apiVideo.previouslyReleased) === "true";
+            apiVideo.madeForKids = String(apiVideo.madeForKids) === "true";
+            apiVideo.contentIdYoutube = String(apiVideo.contentIdYoutube) === "true";
+            apiVideo.visibilityYoutube = String(apiVideo.visibilityYoutube) === "true";
+            apiVideo.exclusiveRights = String(apiVideo.exclusiveRights) === "true";
             
             // Clean coverArt URL if present
             if (apiVideo.coverArt && apiVideo.coverArt.includes('amazonaws.com')) {
@@ -593,6 +596,26 @@ export default function VideoDetailsModal({
                       </p>
                     </div>
 
+                    {/* Tags */}
+                    {video.tags && video.tags.length > 0 && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Tags</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.tags.join(', ')}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Publisher Names */}
+                    {video.publisherNames && video.publisherNames.length > 0 && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Publisher Names</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.publisherNames.join(', ')}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Subgenre */}
                     {video.subgenre && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -610,7 +633,7 @@ export default function VideoDetailsModal({
                         {formatDate(video.releaseDate)}
                       </p>
                     </div>
-
+                                        
                     {/* Content Rating */}
                     <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
                       <h3 className="text-gray-400 text-xs sm:text-sm">Content Rating</h3>
@@ -618,7 +641,7 @@ export default function VideoDetailsModal({
                         {video.contentRating || "Not specified"}
                       </p>
                     </div>
-
+                    
                     {/* Label */}
                     {video.label && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -628,7 +651,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Release Type */}
                     {video.releaseType && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -638,7 +661,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Format */}
                     {video.format && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -648,7 +671,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Language */}
                     {video.language && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -668,7 +691,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* ISRC */}
                     {video.isrc && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -688,9 +711,19 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
+
+                    {/* Description */}
+                    {video.description && (
+                      <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
+                        <h3 className="text-gray-400 text-xs sm:text-sm">Description</h3>
+                        <p className="text-white text-sm sm:text-base font-medium truncate">
+                          {video.description}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-
+                
                 {/* Additional Metadata Section */}
                 <div className="mb-6">
                   <h3 className="text-white text-md font-medium mb-4">Additional Metadata</h3>
@@ -704,7 +737,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Publisher Name */}
                     {video.publisherName && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -714,7 +747,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Publisher IPI/CAE */}
                     {video.publisherIPI && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -724,7 +757,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Copyright Header */}
                     {video.copyrightHeader && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -734,7 +767,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Production Company */}
                     {video.productionCompany && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -744,7 +777,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Line Year */}
                     {video.lineYear && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -754,7 +787,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Previously Released */}
                     {video.previouslyReleased !== undefined && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -772,7 +805,7 @@ export default function VideoDetailsModal({
                         <p className="text-white text-sm sm:text-base font-medium truncate">
                           {video.madeForKids ? "Yes" : "No"}
                         </p>
-                      </div>
+                    </div>
                     )}
 
                     {/* Content ID on YouTube */}
@@ -794,7 +827,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Exclusive Rights */}
                     {video.exclusiveRights !== undefined && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -804,7 +837,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Created Date */}
                     {video.createdAt && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -814,7 +847,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Updated Date */}
                     {video.updatedAt && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -840,7 +873,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Composer */}
                     {video.composer && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -848,9 +881,9 @@ export default function VideoDetailsModal({
                         <p className="text-white text-sm sm:text-base font-medium truncate">
                           {video.composer}
                         </p>
-                      </div>
+                    </div>
                     )}
-
+                    
                     {/* Lyricist */}
                     {video.lyricist && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -860,7 +893,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Music Producer */}
                     {video.musicProducer && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -870,7 +903,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Music Director */}
                     {video.musicDirector && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -880,7 +913,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Producer */}
                     {video.producer && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">
@@ -890,7 +923,7 @@ export default function VideoDetailsModal({
                         </p>
                       </div>
                     )}
-
+                    
                     {/* Line Producer */}
                     {video.lineProducer && (
                       <div className="space-y-1 bg-[#1A1E24] p-3 rounded-sm">

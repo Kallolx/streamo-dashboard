@@ -45,6 +45,9 @@ export interface Track {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  // New fields for tags and publishers
+  tags?: string[];
+  publisherNames?: string[];
 }
 
 /**
