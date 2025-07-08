@@ -63,7 +63,7 @@ function TabContent() {
       </div>
 
       {/* Content Area */}
-      <div className="rounded-lg p-8">
+      <div className="">
         {renderTabContent()}
       </div>
     </div>

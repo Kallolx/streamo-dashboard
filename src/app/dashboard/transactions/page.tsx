@@ -11,16 +11,13 @@ import {
   CaretLeft as ChevronLeft, 
   CaretRight as ChevronRight,
   MagnifyingGlass as SearchIcon,
-  CurrencyDollar,
-  SpeakerSimpleHigh
 } from "@phosphor-icons/react";
 import TransactionDetailsModal from "@/components/Dashboard/models/TransactionDetailsModal";
 import { getUserRole, isAuthenticated } from "@/services/authService";
 import { uploadCsv, getCsvUploads, deleteCsvUpload, getCsvStatus, CsvUpload } from "@/services/csvService";
-import { getTransactions, deleteTransaction, Transaction } from "@/services/transactionService";
-import {  extractCsvSummary } from "@/services/csvAnalyticsService";
+import { getTransactions, deleteTransaction, Transaction, processTransactionsToAnalytics } from "@/services/transactionService";
 import { useRouter } from "next/navigation";
-import api from "@/services/api";
+
 
 // Define the transactions tabs
 const transactionTabs = [
@@ -43,21 +40,6 @@ const transactionTabs = [
   },
 ];
 
-// Dollar icon component
-const DollarIcon = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 16 16"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M8.00004 1.33334C4.31804 1.33334 1.33337 4.31801 1.33337 8.00001C1.33337 11.682 4.31804 14.6667 8.00004 14.6667C11.682 14.6667 14.6667 11.682 14.6667 8.00001C14.6667 4.31801 11.682 1.33334 8.00004 1.33334ZM8.66671 11.3333H7.33337V9.33334H8.66671V11.3333ZM9.74804 7.01467L9.18137 7.58934C8.73337 8.03867 8.66671 8.33334 8.66671 8.66667H7.33337V8.33334C7.33337 7.80001 7.52004 7.30867 7.96804 6.86067L8.75471 6.06801C8.97471 5.85334 9.10004 5.55734 9.10004 5.25334C9.10004 4.64134 8.60604 4.14001 8.00004 4.14001C7.39404 4.14001 6.90004 4.64134 6.90004 5.25334H5.56671C5.56671 3.90067 6.65404 2.80001 8.00004 2.80001C9.34604 2.80001 10.4334 3.90067 10.4334 5.25334C10.4334 5.92201 10.1814 6.53334 9.74804 7.01467Z"
-      fill="#A365FF"
-    />
-  </svg>
-);
 
 export default function TransactionsPage() {
   const router = useRouter();
@@ -81,6 +63,10 @@ export default function TransactionsPage() {
   const [isLoadingUploads, setIsLoadingUploads] = useState(false);
   const [csvPage, setCsvPage] = useState(1);
   const [csvTotalPages, setCsvTotalPages] = useState(1);
+  
+  // Real-time processing states
+  const [processingCsvIds, setProcessingCsvIds] = useState<Set<string>>(new Set());
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
@@ -184,7 +170,7 @@ export default function TransactionsPage() {
   // Load CSV summary data for transaction cards
   const loadCsvSummaryData = async () => {
     // Declare cachedData outside the try block so it's available in the catch block
-    let cachedData = null;
+    let cachedData: string | null = null;
     
     try {
       setIsLoadingCsvSummary(true);
@@ -211,66 +197,43 @@ export default function TransactionsPage() {
         }
       }
       
-      // Check for new CSV uploads in the background (don't block the UI)
+      // Fetch transaction data directly from MongoDB to calculate summary
       setTimeout(async () => {
         try {
-          // Try to get the most recent CSV upload
-          const response = await getCsvUploads(1, 1, 'completed'); // Get most recent completed upload
-          console.log("Recent CSV uploads response:", response);
+          console.log("Fetching transaction data from MongoDB to calculate summary...");
           
-          // Check upload time/ID to see if it's newer than our cached data
-          if (response.uploads && response.uploads.length > 0) {
-            const latestCsvId = response.uploads[0].id;
-            const latestCsvTimestamp = new Date(response.uploads[0].createdAt).getTime();
+          // Get all transactions to calculate summary data
+          const transactionsResponse = await getTransactions(1, 1000, {}); // Get a large number to include all transactions
+          
+          if (transactionsResponse && transactionsResponse.data && transactionsResponse.data.length > 0) {
+            console.log(`Found ${transactionsResponse.data.length} transactions in database`);
             
-            // Check if we have a "last processed CSV ID" in localStorage
-            const lastProcessedId = safeLocalStorageGet('lastProcessedCsvId');
-            const lastProcessedTimestamp = safeLocalStorageGet('lastProcessedCsvTimestamp');
+            // Process transactions into analytics format using the new function
+            const transactions = transactionsResponse.data;
+            const analyticsData = processTransactionsToAnalytics(transactions);
             
-            // If this is a new CSV or we don't have a record of the last one
-            if (!lastProcessedId || lastProcessedId !== latestCsvId || 
-                !lastProcessedTimestamp || parseInt(lastProcessedTimestamp) < latestCsvTimestamp) {
-              
-              console.log("Found newer CSV upload, will try to process it");
-              
-              try {
-                console.log("Attempting to load CSV content...");
-                const csvResponse = await api.get(`/csv/${latestCsvId}/content`);
-                
-                if (csvResponse && csvResponse.data && csvResponse.data.content) {
-                  const csvContent = csvResponse.data.content;
-                  console.log("CSV content loaded, length:", csvContent.length);
-                  
-                  // Parse and analyze the CSV
-                  console.time('serverCsvAnalysis');
-                  const summary = extractCsvSummary(csvContent);
-                  console.timeEnd('serverCsvAnalysis');
-                  
-                  // Update the summary data
-                  setCsvSummary(summary);
-                  
-                  // Update localStorage cache
-                  safeLocalStorageSet('csvSummaryData', JSON.stringify(summary));
-                  safeLocalStorageSet('lastProcessedCsvId', latestCsvId);
-                  safeLocalStorageSet('lastProcessedCsvTimestamp', latestCsvTimestamp.toString());
-                  
-                  console.log("Updated to latest CSV data successfully");
-                } else {
-                  console.error("CSV response is missing content");
-                }
-              } catch (contentError) {
-                console.error("Error fetching or processing CSV content:", contentError);
-                // Still have cached data, so no need to reset
-              }
-            } else {
-              console.log("Already processed the latest CSV upload, no update needed");
-            }
+            console.log("Analytics data calculated:", analyticsData);
+            
+            // Update the summary data
+            setCsvSummary(analyticsData);
+            
+            // Update localStorage cache with current timestamp
+            safeLocalStorageSet('csvSummaryData', JSON.stringify(analyticsData));
+            safeLocalStorageSet('lastProcessedCsvId', 'database-calculated');
+            safeLocalStorageSet('lastProcessedCsvTimestamp', Date.now().toString());
+            
+            console.log("Analytics data updated from database transactions");
           } else {
-            console.log("No CSV uploads found on server");
+            console.log("No transactions found in database");
+            // If no transactions, reset to default
+            resetCsvSummary();
           }
         } catch (error) {
-          console.error("Background CSV check error:", error);
-          // Silently fail in background check - we're still using cached data
+          console.error("Error fetching transactions for summary:", error);
+          // If we don't have cached data, reset to default
+          if (!cachedData) {
+            resetCsvSummary();
+          }
         } finally {
           setIsLoadingCsvSummary(false);
         }
@@ -300,7 +263,14 @@ export default function TransactionsPage() {
       },
       lastStatementPeriod: 'N/A',
       totalRevenue: 0,
-      totalStreams: 0
+      totalStreams: 0,
+      performanceData: [],
+      countryData: [],
+      platformData: [],
+      yearlyRevenueData: [],
+      totalMusic: 0,
+      totalVideos: 0,
+      totalRoyalty: 0
     };
     
     setCsvSummary(defaultSummary);
@@ -349,6 +319,10 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (activeTab === 'uploadCSV' && isUserAuthenticated) {
       loadCsvUploads();
+    } else if (activeTab !== 'uploadCSV') {
+      // Stop polling when not on upload tab to save resources
+      stopPolling();
+      setProcessingCsvIds(new Set());
     }
   }, [activeTab, csvPage, isUserAuthenticated]);
 
@@ -423,12 +397,77 @@ export default function TransactionsPage() {
       const response = await getCsvUploads(csvPage, 10);
       setCsvUploads(response.uploads);
       setCsvTotalPages(response.pagination.pages);
+      
+      // Check for processing CSVs and start polling if needed
+      const processing = response.uploads.filter(upload => upload.status === 'processing');
+      if (processing.length > 0) {
+        const processingIds = new Set(processing.map(upload => upload.id));
+        setProcessingCsvIds(processingIds);
+        startPolling();
+      } else {
+        // Stop polling if no processing uploads
+        stopPolling();
+        setProcessingCsvIds(new Set());
+      }
+      
       setIsLoadingUploads(false);
     } catch (error) {
       console.error('Error loading CSV uploads:', error);
       setIsLoadingUploads(false);
     }
   };
+
+  // Start polling for CSV processing updates
+  const startPolling = () => {
+    if (pollingInterval) return; // Already polling
+    
+    const interval = setInterval(async () => {
+      try {
+        const response = await getCsvUploads(csvPage, 10);
+        const uploads = response.uploads;
+        
+        // Update the CSV uploads with fresh data
+        setCsvUploads(uploads);
+        
+        // Check which CSVs are still processing
+        const stillProcessing = uploads.filter(upload => upload.status === 'processing');
+        const stillProcessingIds = new Set(stillProcessing.map(upload => upload.id));
+        
+        if (stillProcessing.length === 0) {
+          // No more processing, stop polling
+          stopPolling();
+          setProcessingCsvIds(new Set());
+          
+          // Refresh other data since processing is complete
+          await loadCsvSummaryData();
+          if (activeTab === 'transactionManagement') {
+            await loadTransactions();
+          }
+        } else {
+          setProcessingCsvIds(stillProcessingIds);
+        }
+      } catch (error) {
+        console.error('Error polling CSV status:', error);
+      }
+    }, 2000); // Poll every 2 seconds
+    
+    setPollingInterval(interval);
+  };
+
+  // Stop polling
+  const stopPolling = () => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+    }
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, []);
 
   // Handle file selection and upload
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -466,91 +505,30 @@ export default function TransactionsPage() {
     console.log(`Starting to process CSV file: ${file.name}, size: ${fileSizeMB.toFixed(2)}MB`);
 
     try {
-      // First, analyze the CSV locally to extract data for the dashboard cards
-      const reader = new FileReader();
+      // Upload CSV file to server for processing
+      console.log("Uploading CSV to server for processing...");
+      setUploadSuccess(`Uploading CSV file: ${file.name}...`);
       
-      reader.onload = async (event) => {
-        try {
-          if (event.target && typeof event.target.result === 'string') {
-            const csvContent = event.target.result;
-            console.log(`CSV file read into memory, length: ${csvContent.length} characters`);
-            
-            // Update status
-            setUploadSuccess("Analyzing CSV data...");
-            
-            // Use a setTimeout to allow the UI to update before heavy processing
-            setTimeout(async () => {
-              try {
-                console.time('csvAnalysis');
-                // Extract data from the CSV content
-                const summary = extractCsvSummary(csvContent);
-                console.timeEnd('csvAnalysis');
-                console.log("CSV analysis complete:", summary);
-                
-                // IMPORTANT: Always set the state with new summary data for EACH new file
-                // This ensures the UI updates with the new file's data
-                setCsvSummary(summary);
-                
-                // Cache the LATEST summary data in localStorage
-                safeLocalStorageSet('csvSummaryData', JSON.stringify(summary));
-                console.log("Latest CSV summary data cached in localStorage");
-                
-                // Show success message for the analysis part
-                setUploadSuccess("CSV analysis complete! Transaction cards updated.");
-                
-                // Attempt to upload to server, but it's okay if this fails
-                try {
-                  console.log("Attempting to upload CSV to server...");
-                  setUploadSuccess("Analysis complete. Attempting to upload to server...");
-                  await uploadCsv(file);
-                  console.log("CSV uploaded successfully to server");
-                  setUploadSuccess(`File ${file.name} analyzed successfully and uploaded to server!`);
-                  
-                  // Try to reload CSV uploads list
-                  try {
-                    await loadCsvUploads();
-                    console.log("CSV uploads list refreshed successfully");
-                  } catch (listError) {
-                    console.error("Error reloading CSV list:", listError);
-                    // This is not critical, so we can ignore it
-                  }
-                } catch (uploadError) {
-                  console.error('Error uploading CSV to server:', uploadError);
-                  
-                  // The server API might not be ready yet, but that's okay
-                  // The data is still saved locally
-                  setUploadSuccess(`File ${file.name} analyzed successfully! (Server upload unavailable)`);
-                  console.log("CSV data is saved locally even though server upload failed");
-                } finally {
-                  setIsUploading(false);
-                }
-              } catch (analyzeError) {
-                console.error('Error during CSV analysis:', analyzeError);
-                setUploadError("Failed to analyze CSV file. It may be too large or have an invalid format.");
-                setIsUploading(false);
-              }
-            }, 100); // Small delay to let UI update
-          }
-        } catch (error) {
-          console.error('Error reading CSV file content:', error);
-          setUploadError("Failed to read CSV file. Please try again with a smaller or different file.");
-          resetCsvSummary();
-          setIsUploading(false);
-        }
-      };
+      const uploadResponse = await uploadCsv(file);
+      console.log("CSV uploaded successfully to server");
+      setUploadSuccess(`File ${file.name} uploaded successfully! Processing in progress...`);
       
-      reader.onerror = () => {
-        console.error("FileReader error when reading CSV");
-        setUploadError("Error reading file. The file might be corrupted or too large.");
-        setIsUploading(false);
-      };
+      // Immediately reload CSV uploads to get the new upload entry
+      await loadCsvUploads();
       
-      // Start reading the file as text
-      reader.readAsText(file);
+      // Start polling for updates (loadCsvUploads will handle this)
+      console.log("Real-time processing updates enabled");
       
-    } catch (error) {
-      console.error('Error handling CSV file:', error);
-      setUploadError("Failed to process CSV file. Please try again.");
+      setIsUploading(false);
+      
+      // Clear success message after a while, the real-time updates will show progress
+      setTimeout(() => {
+        setUploadSuccess(null);
+      }, 3000);
+      
+    } catch (uploadError) {
+      console.error('Error uploading CSV to server:', uploadError);
+      setUploadError(`Failed to upload ${file.name}. Please check your connection and try again.`);
       setIsUploading(false);
     }
   };
@@ -849,6 +827,30 @@ export default function TransactionsPage() {
     return gradientString;
   };
 
+  // Generate dynamic Y-axis labels based on data
+  const generateYAxisLabels = (maxValue: number): string[] => {
+    if (maxValue === 0) return ['0', '0', '0', '0', '0', '0'];
+    
+    const formatValue = (value: number): string => {
+      if (value >= 1000000) {
+        return `${(value / 1000000).toFixed(1)}M`;
+      } else if (value >= 1000) {
+        return `${(value / 1000).toFixed(0)}K`;
+      } else {
+        return value.toString();
+      }
+    };
+    
+    return [
+      formatValue(maxValue),
+      formatValue(Math.round(maxValue * 0.8)),
+      formatValue(Math.round(maxValue * 0.6)),
+      formatValue(Math.round(maxValue * 0.4)),
+      formatValue(Math.round(maxValue * 0.2)),
+      '0'
+    ];
+  };
+
   // Handle viewing CSV errors
   const handleViewErrors = async (id: string) => {
     try {
@@ -1082,6 +1084,24 @@ export default function TransactionsPage() {
     }
   }, [activeTab, isUserAuthenticated]);
 
+  // Manual refresh function for summary data
+  const refreshSummaryData = async () => {
+    console.log("Manual refresh of summary data triggered");
+    setIsLoadingCsvSummary(true);
+    try {
+      // Clear cached data first to force fresh fetch
+      safeLocalStorageRemove('csvSummaryData');
+      safeLocalStorageRemove('lastProcessedCsvId');
+      safeLocalStorageRemove('lastProcessedCsvTimestamp');
+      console.log("Cleared cached data, fetching fresh summary...");
+      
+      await loadCsvSummaryData();
+      console.log("Manual refresh completed successfully");
+    } catch (error) {
+      console.error("Manual refresh failed:", error);
+    }
+  };
+
   return (
     <DashboardLayout
       title="Transactions"
@@ -1113,18 +1133,15 @@ export default function TransactionsPage() {
             {/* Balance */}
             <div className="bg-[#161A1F] p-4 md:p-6 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-xs sm:text-sm">Balance</span>
-                <div className="flex items-center justify-between mt-2">
+                <span className="text-gray-400 text-base">Balance</span>
+                <div className="mt-2">
                   {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-6 sm:h-8 bg-gray-700 rounded w-24 sm:w-28"></div>
+                    <div className="animate-pulse h-10 bg-gray-700 rounded w-32"></div>
                   ) : (
-                    <span className="text-white text-lg sm:text-2xl font-bold">
+                    <span className="text-white text-4xl font-extrabold">
                       {formatCurrency(csvSummary?.totalBalance || 0)}
                     </span>
                   )}
-                  <div className="h-6 w-6 sm:h-8 sm:w-8 bg-gray-800 rounded-full flex items-center justify-center">
-                    <DollarIcon />
-                  </div>
                 </div>
               </div>
             </div>
@@ -1132,18 +1149,15 @@ export default function TransactionsPage() {
             {/* Last Transaction */}
             <div className="bg-[#161A1F] p-4 md:p-6 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-xs sm:text-sm">Last Transaction</span>
-                <div className="flex items-center justify-between mt-2">
+                <span className="text-gray-400 text-base">Last Transaction</span>
+                <div className="mt-2">
                   {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-6 sm:h-8 bg-gray-700 rounded w-24 sm:w-28"></div>
+                    <div className="animate-pulse h-10 bg-gray-700 rounded w-32"></div>
                   ) : (
-                    <span className="text-white text-lg sm:text-2xl font-bold">
+                    <span className="text-white text-4xl font-extrabold">
                       {formatCurrency(csvSummary?.lastTransaction?.amount || 0)}
                     </span>
                   )}
-                  <div className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center">
-                    <DollarIcon />
-                  </div>
                 </div>
                 {!isLoadingCsvSummary && csvSummary?.lastTransaction?.artist && (
                   <div className="mt-2 text-sm text-gray-400 truncate">
@@ -1156,18 +1170,15 @@ export default function TransactionsPage() {
             {/* Last Statement */}
             <div className="bg-[#161A1F] p-6 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm">Last Statement</span>
-                <div className="flex items-center justify-between mt-2">
+                <span className="text-gray-400 text-base">Last Statement</span>
+                <div className="mt-2">
                   {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                    <div className="animate-pulse h-10 bg-gray-700 rounded w-32"></div>
                   ) : (
-                    <span className="text-white text-2xl font-bold">
+                    <span className="text-white text-4xl font-extrabold">
                       {formatCurrency(csvSummary?.totalRevenue || 0)}
                     </span>
                   )}
-                  <div className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center">
-                    <DollarIcon />
-                  </div>
                 </div>
                 {!isLoadingCsvSummary && csvSummary?.lastStatementPeriod && (
                   <div className="mt-2 text-sm text-gray-400">
@@ -1180,9 +1191,11 @@ export default function TransactionsPage() {
 
           {/* Transactions Management title and search */}
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-white mb-4">
-              Transactions Management
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">
+                Transactions Management
+              </h2>
+            </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               <div className="relative flex-grow">
                 <input
@@ -1549,18 +1562,15 @@ export default function TransactionsPage() {
             {/* Balance */}
             <div className="bg-[#161A1F] p-6 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm">Balance</span>
-                <div className="flex items-center justify-between mt-2">
+                <span className="text-gray-400 text-base">Balance</span>
+                <div className="mt-2">
                   {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                    <div className="animate-pulse h-10 bg-gray-700 rounded w-32"></div>
                   ) : (
-                    <span className="text-white text-2xl font-bold">
+                    <span className="text-white text-4xl font-extrabold">
                       {formatCurrency(csvSummary?.totalBalance || 0)}
                     </span>
                   )}
-                  <div className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center">
-                    <DollarIcon />
-                  </div>
                 </div>
               </div>
             </div>
@@ -1568,21 +1578,15 @@ export default function TransactionsPage() {
             {/* Total Streams */}
             <div className="bg-[#161A1F] p-6 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm">Total Streams</span>
-                <div className="flex items-center justify-between mt-2">
+                <span className="text-gray-400 text-base">Total Streams</span>
+                <div className="mt-2">
                   {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                    <div className="animate-pulse h-10 bg-gray-700 rounded w-32"></div>
                   ) : (
-                    <span className="text-white text-2xl font-bold">
+                    <span className="text-white text-4xl font-extrabold">
                       {csvSummary?.totalStreams?.toLocaleString() || 0}
                     </span>
                   )}
-                  <div className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 1.5C4.41 1.5 1.5 4.41 1.5 8C1.5 11.59 4.41 14.5 8 14.5C11.59 14.5 14.5 11.59 14.5 8C14.5 4.41 11.59 1.5 8 1.5ZM8 13C5.24 13 3 10.76 3 8C3 5.24 5.24 3 8 3C10.76 3 13 5.24 13 8C13 10.76 10.76 13 8 13Z" fill="#A365FF"/>
-                      <path d="M8.75 5.25H7.25V8.13L9.62 10.5L10.68 9.44L8.75 7.52V5.25Z" fill="#A365FF"/>
-                    </svg>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1590,18 +1594,15 @@ export default function TransactionsPage() {
             {/* Total Revenue */}
             <div className="bg-[#161A1F] p-6 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm">Total Revenue</span>
-                <div className="flex items-center justify-between mt-2">
+                <span className="text-gray-400 text-base">Total Revenue</span>
+                <div className="mt-2">
                   {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
+                    <div className="animate-pulse h-10 bg-gray-700 rounded w-32"></div>
                   ) : (
-                    <span className="text-white text-2xl font-bold">
+                    <span className="text-white text-4xl font-extrabold">
                       {formatCurrency(csvSummary?.totalRevenue || 0)}
                     </span>
                   )}
-                  <div className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center">
-                    <DollarIcon />
-                  </div>
                 </div>
                 {!isLoadingCsvSummary && csvSummary?.lastStatementPeriod && (
                   <div className="mt-2 text-sm text-gray-400">
@@ -1657,12 +1658,24 @@ export default function TransactionsPage() {
                 <div className="relative h-full">
                   {/* Y-axis labels */}
                   <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-400 py-2">
-                    <span>50K</span>
-                    <span>10K</span>
-                    <span>1K</span>
-                    <span>500</span>
-                    <span>100</span>
-                    <span>00</span>
+                    {!isLoadingCsvSummary && csvSummary?.performanceData && csvSummary.performanceData.length > 0 ? (
+                      (() => {
+                        const maxValue = Math.max(...csvSummary.performanceData.map((item: any) => item.revenue || 0));
+                        const labels = generateYAxisLabels(maxValue);
+                        return labels.map((label, index) => (
+                          <span key={index}>{label}</span>
+                        ));
+                      })()
+                    ) : (
+                      <>
+                        <span>50K</span>
+                        <span>10K</span>
+                        <span>1K</span>
+                        <span>500</span>
+                        <span>100</span>
+                        <span>0</span>
+                      </>
+                    )}
                   </div>
                   
                   {/* Chart area with horizontal grid lines */}
@@ -1691,7 +1704,7 @@ export default function TransactionsPage() {
                       <line x1="0" y1="240" x2="1000" y2="240" stroke="#2A303A" strokeWidth="1" />
                       <line x1="0" y1="300" x2="1000" y2="300" stroke="#2A303A" strokeWidth="1" />
                       
-                      {/* Chart line - Replace with actual data */}
+                      {/* Chart line - Real data */}
                       {!isLoadingCsvSummary && csvSummary?.performanceData && csvSummary.performanceData.length > 0 ? (
                         <>
                           <path 
@@ -1717,26 +1730,14 @@ export default function TransactionsPage() {
                         </>
                       ) : (
                         <>
-                          <path 
-                            d="M0,260 C30,220 60,250 90,170 C120,120 150,250 180,250 C210,230 240,100 270,50 C300,20 330,60 360,120 C390,180 420,150 450,220 C480,260 510,220 540,120 C570,50 600,100 630,50 C660,80 690,150 720,130 C750,110 780,180 810,140 C840,100 870,250 900,200 C930,150 970,100 1000,70"
-                            fill="none"
-                            stroke="#A365FF"
-                            strokeWidth="2"
-                          />
-                          
-                          {/* Fill gradient */}
-                          <defs>
-                            <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" stopColor="#A365FF" stopOpacity="0.5" />
-                              <stop offset="100%" stopColor="#A365FF" stopOpacity="0" />
-                            </linearGradient>
-                          </defs>
-                          
-                          {/* Fill area */}
-                          <path 
-                            d="M0,260 C30,220 60,250 90,170 C120,120 150,250 180,250 C210,230 240,100 270,50 C300,20 330,60 360,120 C390,180 420,150 450,220 C480,260 510,220 540,120 C570,50 600,100 630,50 C660,80 690,150 720,130 C750,110 780,180 810,140 C840,100 870,250 900,200 C930,150 970,100 1000,70 L1000,300 L0,300 Z"
-                            fill="url(#gradient)"
-                          />
+                          {/* No data message */}
+                          <rect x="0" y="0" width="1000" height="300" fill="transparent" />
+                          <text x="500" y="150" textAnchor="middle" fill="#6B7280" fontSize="14" fontFamily="Arial, sans-serif">
+                            No performance data available
+                          </text>
+                          <text x="500" y="170" textAnchor="middle" fill="#6B7280" fontSize="12" fontFamily="Arial, sans-serif">
+                            Upload CSV files to see analytics
+                          </text>
                         </>
                       )}
                     </svg>
@@ -1750,18 +1751,9 @@ export default function TransactionsPage() {
                       <span key={index}>{data.month.split(' ')[0]}</span>
                     ))
                   ) : (
-                    <>
-                      <span>Jan</span>
-                      <span>Feb</span>
-                      <span>Mar</span>
-                      <span>Apr</span>
-                      <span>May</span>
-                      <span>Jun</span>
-                      <span>Jul</span>
-                      <span>Aug</span>
-                      <span>Sep</span>
-                      <span>Oct</span>
-                    </>
+                    <div className="w-full text-center">
+                      <span>Upload CSV to view monthly data</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1835,68 +1827,11 @@ export default function TransactionsPage() {
                     </div>
                   ))
                 ) : (
-                  // Fallback mock data
-                  <>
-                    <div>
-                      <div className="flex justify-between text-white mb-1.5">
-                        <span>USA</span>
-                        <span>46%</span>
-                      </div>
-                      <div className="w-full bg-[#232830] h-2 rounded-full">
-                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '46%' }}></div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-white mb-1.5">
-                        <span>Bangladesh</span>
-                        <span>23%</span>
-                      </div>
-                      <div className="w-full bg-[#232830] h-2 rounded-full">
-                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '23%' }}></div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-white mb-1.5">
-                        <span>UK</span>
-                        <span>19%</span>
-                      </div>
-                      <div className="w-full bg-[#232830] h-2 rounded-full">
-                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '19%' }}></div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-white mb-1.5">
-                        <span>Germany</span>
-                        <span>13%</span>
-                      </div>
-                      <div className="w-full bg-[#232830] h-2 rounded-full">
-                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '13%' }}></div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-white mb-1.5">
-                        <span>India</span>
-                        <span>11%</span>
-                      </div>
-                      <div className="w-full bg-[#232830] h-2 rounded-full">
-                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '11%' }}></div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-white mb-1.5">
-                        <span>Nepal</span>
-                        <span>8%</span>
-                      </div>
-                      <div className="w-full bg-[#232830] h-2 rounded-full">
-                        <div className="bg-[#A365FF] h-2 rounded-full" style={{ width: '8%' }}></div>
-                      </div>
-                    </div>
-                  </>
+                  // No data available message
+                  <div className="text-center py-8">
+                    <div className="text-gray-400 mb-2">No country data available</div>
+                    <div className="text-gray-500 text-sm">Upload CSV files to see top streaming countries</div>
+                  </div>
                 )}
               </div>
             </div>
@@ -1968,6 +1903,8 @@ export default function TransactionsPage() {
           {/* CSV List Section */}
           <div>
             <h2 className="text-xl font-bold text-white mb-4">CSV List</h2>
+
+
 
             {/* Search Box */}
             <div className="relative mb-4">
@@ -2047,82 +1984,88 @@ export default function TransactionsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-[#161A1F] divide-y divide-gray-700">
-                    {filteredCsvUploads.map((upload) => (
-                      <tr key={upload.id} className="hover:bg-[#1A1E24]">
-                        <td className="px-4 py-3 whitespace-nowrap text-white">
-                          {upload.fileName}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-white">
-                          {upload.processedRows || 0}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span
-                            className={`${
-                              upload.status === "completed"
-                                ? "text-green-500"
-                                : upload.status === "failed"
-                                ? "text-red-500"
-                                : upload.status === "processing"
-                                ? "text-yellow-500"
-                                : upload.status === "completed_with_errors"
-                                ? "text-orange-500"
-                                : "text-gray-300"
-                            }`}
-                          >
-                            {upload.status.charAt(0).toUpperCase() + upload.status.slice(1).replace(/_/g, ' ')}
-                            {(upload.status === "completed_with_errors" || upload.status === "failed") && (
-                              <button 
-                                className="ml-2 text-blue-400 hover:text-blue-300 focus:outline-none"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewErrors(upload.id);
-                                }}
-                                title="View errors"
-                              >
-                                <Info size={16} />
-                              </button>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-white">
-                          {formatDate(upload.createdAt)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-white">
-                          {formatTime(upload.createdAt)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center space-x-2">
-                            {(upload.status === "completed" || upload.status === "completed_with_errors") && (
-                              <button
-                                className="text-blue-400 hover:text-blue-300 transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTabChange("transactionManagement");
-                                }}
-                                title="View transactions"
-                              >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
+                    {filteredCsvUploads.map((upload) => {
+                      const isProcessing = processingCsvIds.has(upload.id);
+                      return (
+                        <tr key={upload.id} className={`hover:bg-[#1A1E24] ${isProcessing ? 'bg-[#1A1E24] border-l-2 border-green-500' : ''}`}>
+                          <td className="px-4 py-3 whitespace-nowrap text-white">
+                            <div className="flex items-center">
+                              {upload.fileName}
+                              {isProcessing && (
+                                <div className="ml-2 flex items-center">
+                                  <div className="animate-spin h-4 w-4 border-t-2 border-b-2 border-green-500 rounded-full"></div>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-white">
+                            <div className="flex items-center">
+                              <span className={isProcessing ? 'animate-pulse text-green-300' : ''}>
+                                {upload.processedRows || 0}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center">
+                              {isProcessing ? (
+                                <div className="flex items-center">
+                                  <div className="flex space-x-1">
+                                    <div className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                    <div className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                    <div className="w-1 h-1 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span
+                                  className={`${
+                                    upload.status === "completed"
+                                      ? "text-green-500"
+                                      : upload.status === "failed"
+                                      ? "text-red-500"
+                                      : upload.status === "completed_with_errors"
+                                      ? "text-orange-500"
+                                      : "text-gray-300"
+                                  }`}
                                 >
-                                  <path d="M15 12L9 8V16L15 12Z" fill="currentColor" />
-                                </svg>
+                                  {upload.status.charAt(0).toUpperCase() + upload.status.slice(1).replace(/_/g, ' ')}
+                                  {(upload.status === "completed_with_errors" || upload.status === "failed") && (
+                                    <button 
+                                      className="ml-2 text-blue-400 hover:text-blue-300 focus:outline-none"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewErrors(upload.id);
+                                      }}
+                                      title="View errors"
+                                    >
+                                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-white">
+                            {formatDate(upload.createdAt)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-white">
+                            {formatTime(upload.createdAt)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                className="text-red-500 hover:text-red-400 transition-colors"
+                                onClick={(e) => handleDeleteCsv(upload.id, e)}
+                                title="Delete CSV"
+                              >
+                                <Trash size={16} />
                               </button>
-                            )}
-                            <button
-                              className="text-red-500 hover:text-red-400 transition-colors"
-                              onClick={(e) => handleDeleteCsv(upload.id, e)}
-                              title="Delete CSV"
-                            >
-                              <Trash size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2202,82 +2145,46 @@ export default function TransactionsPage() {
       )}
 
       {activeTab === "revenue" && (
-        <div className=" p-8 rounded-lg">
-          <h2 className="text-xl font-bold text-white mb-6">
-            Revenue Overview
-          </h2>
-          
+        <div className="rounded-lg">          
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             {/* Total Revenue */}
             <div className="bg-[#1A1E24] p-5 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm mb-2">Total Revenue</span>
-                <div className="flex items-center justify-between">
-                  {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
-                  ) : (
-                    <span className="text-white text-2xl font-bold">{formatCurrency(csvSummary?.totalRevenue || 0)}</span>
-                  )}
-                  <div className="h-8 w-8 bg-[#232830] rounded-full flex items-center justify-center text-[#A365FF]">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                </div>
+                <span className="text-gray-400 text-base mb-2">Total Revenue</span>
+                {isLoadingCsvSummary ? (
+                  <div className="animate-pulse h-10 bg-gray-700 rounded w-32"></div>
+                ) : (
+                  <span className="text-white text-4xl font-extrabold">{formatCurrency(csvSummary?.totalRevenue || 0)}</span>
+                )}
               </div>
             </div>
 
             {/* Total Music */}
             <div className="bg-[#1A1E24] p-4 rounded-lg shadow">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm mb-2">Total Music</span>
-                <div className="flex items-end">
-                  <SpeakerSimpleHigh size={22} className="text-purple-500 mr-2" />
-                  <span className="text-white text-2xl font-bold">{csvSummary?.totalMusic?.toLocaleString() || 0}</span>
-                </div>
+                <span className="text-gray-400 text-base mb-2">Total Music</span>
+                <span className="text-white text-4xl font-extrabold">{csvSummary?.totalMusic?.toLocaleString() || 0}</span>
               </div>
             </div>
 
-            {/* Total Revenue */}
+            {/* Total Royalty */}
             <div className="bg-[#1A1E24] p-4 rounded-lg shadow">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm mb-2">Total Royalty</span>
-                <div className="flex items-end">
-                  <CurrencyDollar size={22} className="text-purple-500 mr-2" />
-                  <span className="text-white text-2xl font-bold">${csvSummary?.totalRoyalty?.toLocaleString() || 0}</span>
-                </div>
+                <span className="text-gray-400 text-base mb-2">Total Royalty</span>
+                <span className="text-white text-4xl font-extrabold">${csvSummary?.totalRoyalty?.toLocaleString() || 0}</span>
               </div>
             </div>
 
             {/* Total Videos */}
             <div className="bg-[#1A1E24] p-5 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-gray-400 text-sm mb-2">Total Videos</span>
-                <div className="flex items-center justify-between">
-                  {isLoadingCsvSummary ? (
-                    <div className="animate-pulse h-8 bg-gray-700 rounded w-28"></div>
-                  ) : (
-                    <span className="text-white text-2xl font-bold">{csvSummary?.totalVideos?.toLocaleString() || 0}</span>
-                  )}
-                  <div className="h-8 w-8 bg-[#232830] rounded-full flex items-center justify-center text-[#A365FF]">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M12 13V8m4 2h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </div>
+                <span className="text-gray-400 text-base mb-2">Total Videos</span>
+                {isLoadingCsvSummary ? (
+                  <div className="animate-pulse h-10 bg-gray-700 rounded w-32"></div>
+                ) : (
+                  <span className="text-white text-4xl font-extrabold">{csvSummary?.totalVideos?.toLocaleString() || 0}</span>
+                )}
               </div>
             </div>
           </div>
@@ -2298,83 +2205,60 @@ export default function TransactionsPage() {
               </div>
 
               {/* Pie Chart */}
-              <div className="flex items-center justify-center p-4 rounded-md overflow-hidden">
+              <div className="p-4 rounded-md">
                 {isLoadingCsvSummary ? (
-                  <div className="w-44 h-44 flex items-center justify-center">
-                    <div className="animate-pulse h-32 w-32 bg-gray-700 rounded-full"></div>
+                  <div className="flex items-center justify-center">
+                    <div className="w-32 h-32 flex items-center justify-center">
+                      <div className="animate-pulse h-24 w-24 bg-gray-700 rounded-full"></div>
+                    </div>
                   </div>
                 ) : csvSummary?.platformData && csvSummary.platformData.length > 0 ? (
-                  <div className="relative w-44 h-44">
-                    {/* Generate pie chart with actual platform data */}
-                    <div
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        background: generateConicGradient(csvSummary.platformData),
-                        clipPath: "circle(50% at center)",
-                      }}
-                    >
-                      {/* Center hollow */}
-                      <div className="absolute inset-[25%] rounded-full bg-[#1A1E25]"></div>
+                  <div className="flex flex-row items-center justify-between space-x-8">
+                    {/* Legend/texts left */}
+                    <div className="flex-1 w-1/2 space-y-3 max-w-xs">
+                      {csvSummary.platformData.map((platform: {platform: string; percentage: number}, index: number) => {
+                        const colors = ['#8A85FF', '#6AE398', '#FFB963', '#00C2FF'];
+                        return (
+                          <div key={index} className="flex items-center justify-between px-3 py-2 bg-[#1A1E25] rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div 
+                                className="w-4 h-4 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: colors[index] }}
+                              ></div>
+                              <div className="text-gray-300 text-sm font-medium">
+                                {platform.platform}
+                              </div>
+                            </div>
+                            <div className="text-white text-sm font-bold">
+                              {platform.percentage}%
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-
-                    {/* Dynamic percentages */}
-                    {csvSummary.platformData.map((platform: {platform: string; percentage: number}, index: number) => {
-                      // Calculate position around the circle
-                      const positions = [
-                        { top: '16px', right: '-30px' }, // right
-                        { bottom: '2px', left: '-36px' }, // bottom
-                        { top: '16px', left: '-42px' },   // left
-                        { top: '1px', right: '-32px' }    // top
-                      ];
-                      const colors = ['#8A85FF', '#6AE398', '#FFB963', '#00C2FF'];
-                      
-                      return (
-                        <div key={index} className="absolute text-md" style={positions[index]}>
-                          <div className="font-medium" style={{ color: colors[index] }}>
-                            {platform.platform} {platform.percentage}%
+                    {/* Pie right */}
+                    <div className="relative w-60 h-60 flex-shrink-0">
+                      <div
+                        className="w-full h-full rounded-full"
+                        style={{
+                          background: generateConicGradient(csvSummary.platformData),
+                        }}
+                      >
+                        {/* Center hollow */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-20 h-20 rounded-full bg-[#1A1E25] flex items-center justify-center">
+              
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    </div>
                   </div>
                 ) : (
-                  // Fallback to mock data if no real data
-                  <div className="relative w-44 h-44">
-                    <div
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        background:
-                          "conic-gradient(#8A85FF 0% 40%, #6AE398 40% 70%, #FFB963 70% 95%, #00C2FF 95% 100%)",
-                        clipPath: "circle(50% at center)",
-                      }}
-                    >
-                      {/* Center hollow */}
-                      <div className="absolute inset-[25%] rounded-full bg-[#1A1E25]"></div>
-                    </div>
-
-                    {/* Percentages */}
-                    <div className="absolute top-16 -right-30 text-md">
-                      <div className="text-[#8A85FF] font-medium">
-                        Spotify 40%
-                      </div>
-                    </div>
-
-                    <div className="absolute bottom-2 -left-36 text-md">
-                      <div className="text-[#6AE398] font-medium">
-                        YouTube 30%
-                      </div>
-                    </div>
-
-                    <div className="absolute top-16 -left-42 text-md">
-                      <div className="text-[#FFB963] font-medium">
-                        Apple Music 25%
-                      </div>
-                    </div>
-
-                    <div className="absolute top-1 -right-32 text-md">
-                      <div className="text-[#00C2FF] font-medium">
-                        Soundcloud 5%
-                      </div>
+                  // No data available message
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="text-center">
+                      <div className="text-gray-400 mb-2">No platform data available</div>
+                      <div className="text-gray-500 text-sm">Upload CSV files to see platform distribution</div>
                     </div>
                   </div>
                 )}
@@ -2423,53 +2307,10 @@ export default function TransactionsPage() {
                     })()}
                   </div>
                 ) : (
-                  <div className="flex h-full w-full justify-between items-end px-6">
-                    {/* 2020 Bar */}
-                    <div className="flex flex-col items-center justify-end h-full">
-                      <div className="text-white text-xs mb-2">1k</div>
-                      <div className="w-12 bg-[#A365FF] h-[10%] rounded-t-md relative">
-                      </div>
-                      <div className="text-gray-400 text-xs mt-2">2020</div>
-                    </div>
-                    
-                    {/* 2021 Bar */}
-                    <div className="flex flex-col items-center justify-end h-full">
-                      <div className="text-white text-xs mb-2">3k</div>
-                      <div className="w-12 bg-[#A365FF] h-[20%] rounded-t-md relative">
-                      </div>
-                      <div className="text-gray-400 text-xs mt-2">2021</div>
-                    </div>
-                    
-                    {/* 2022 Bar */}
-                    <div className="flex flex-col items-center justify-end h-full">
-                      <div className="text-white text-xs mb-2">3k</div>
-                      <div className="w-12 bg-[#A365FF] h-[30%] rounded-t-md relative">
-                      </div>
-                      <div className="text-gray-400 text-xs mt-2">2022</div>
-                    </div>
-                    
-                    {/* 2023 Bar */}
-                    <div className="flex flex-col items-center justify-end h-full">
-                      <div className="text-white text-xs mb-2">6k</div>
-                      <div className="w-12 bg-[#A365FF] h-[50%] rounded-t-md relative">
-                      </div>
-                      <div className="text-gray-400 text-xs mt-2">2023</div>
-                    </div>
-                    
-                    {/* 2024 Bar */}
-                    <div className="flex flex-col items-center justify-end h-full">
-                      <div className="text-white text-xs mb-2">8k</div>
-                      <div className="w-12 bg-[#A365FF] h-[65%] rounded-t-md relative">
-                      </div>
-                      <div className="text-gray-400 text-xs mt-2">2024</div>
-                    </div>
-                    
-                    {/* 2025 Bar */}
-                    <div className="flex flex-col items-center justify-end h-full">
-                      <div className="text-white text-xs mb-2">10k</div>
-                      <div className="w-12 bg-[#A365FF] h-[80%] rounded-t-md relative">
-                      </div>
-                      <div className="text-gray-400 text-xs mt-2">2025</div>
+                  <div className="flex h-full w-full justify-center items-center px-6">
+                    <div className="text-center">
+                      <div className="text-gray-400 mb-2">No yearly revenue data available</div>
+                      <div className="text-gray-500 text-sm">Upload CSV files to see revenue growth trends</div>
                     </div>
                   </div>
                 )}

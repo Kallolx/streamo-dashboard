@@ -350,7 +350,7 @@ export default function CataloguePage() {
         </div>
 
         {/* Content Area */}
-        <div className="bg-[#1A1E24] rounded-lg p-6">
+        <div className="bg-[#1A1E24] rounded-lg">
           {loading ? (
             <div className="flex justify-center items-center h-40">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
